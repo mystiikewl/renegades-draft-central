@@ -1,12 +1,19 @@
 import { useMemo, useState } from 'react';
-import { usePlayerPool, useActiveSeason } from '@/api/queries';
+import { usePlayerPool, useActiveSeason, useDraftPicks, useDraftSettings, useTeams } from '@/api/queries';
+import { useMakePick } from '@/api/mutations';
+import { useDraftRealtime } from '@/api/realtime';
+import { useCanPickNow } from '@/hooks/useCanPickNow';
+import { useAuth } from '@/auth/AuthContext';
+import { useOfflineQueue } from '@/api/offlineQueue';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isRookie, STAT_COLUMNS, statColumnValue, fmtStat, type StatColumnKey } from '@/lib/stats';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { PlayerStatsDialog } from '@/components/player/PlayerStatsDialog';
+import { RealtimeBadge } from '@/components/draft/RealtimeBadge';
 import type { PlayerWithStats } from '@/api/types';
 
 type SortKey = StatColumnKey;
@@ -20,14 +27,30 @@ const chip = (active: boolean) =>
   }`;
 
 export function PlayerPoolPage() {
+  const { profile } = useAuth();
   const { data: season } = useActiveSeason();
-  const { data: players, isLoading } = usePlayerPool(season?.id);
+  const seasonId = season?.id;
+  useDraftRealtime(seasonId);
+
+  const { data: players, isLoading } = usePlayerPool(seasonId);
+  const { data: picks } = useDraftPicks(seasonId);
+  const { data: settings } = useDraftSettings(seasonId);
+  const { data: teams } = useTeams();
+  const canPick = useCanPickNow(seasonId);
+  const makePick = useMakePick(seasonId ?? '');
+  const queued = useOfflineQueue((s) => s.queue);
+  const queuedIds = useMemo(() => new Set(queued.map((q) => q.playerId)), [queued]);
+
   const [search, setSearch] = useState('');
   const [position, setPosition] = useState<(typeof POSITIONS)[number]>('All');
   const [rookiesOnly, setRookiesOnly] = useState(false);
   const [basis, setBasis] = useState<Basis>('averages');
   const [sortKey, setSortKey] = useState<SortKey>('pts');
   const [selected, setSelected] = useState<PlayerWithStats | null>(null);
+
+  const nextPick = useMemo(() => picks?.find((p) => !p.is_used) ?? null, [picks]);
+  const teamName = (id: string) => teams?.find((t) => t.id === id)?.name ?? '—';
+  const isMyTurn = !!nextPick && !!profile?.team_id && nextPick.team_id === profile.team_id;
 
   const filtered = useMemo(() => {
     if (!players) return [];
@@ -56,13 +79,47 @@ export function PlayerPoolPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Player Pool</h1>
-        <p className="text-sm text-muted-foreground">
-          Full NBA player list with {season?.label ?? ''} {basis === 'averages' ? 'per-game averages' : 'season totals'}. Make picks from the
-          Draft page when you're on the clock.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Player Pool</h1>
+          <p className="text-sm text-muted-foreground">
+            Full NBA player list with {season?.label ?? ''} {basis === 'averages' ? 'per-game averages' : 'season totals'}. Tap a player for
+            full stats{canPick ? ' and to draft them' : ''}.
+          </p>
+        </div>
+        <RealtimeBadge />
       </div>
+
+      {/* On the clock */}
+      {nextPick && (settings?.status === 'running' || settings?.status === 'paused') && (
+        <Card className={isMyTurn ? 'border-primary ring-1 ring-primary' : undefined}>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="text-sm">
+                Pick {nextPick.pick_number}
+              </Badge>
+              <span className="text-lg font-semibold">{teamName(nextPick.team_id)}</span>
+              <span className="text-muted-foreground">
+                {isMyTurn ? 'YOUR PICK — draft below' : 'is on the clock'}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!canPick && queued.length === 0 && (
+        <p className="text-xs text-muted-foreground">
+          Picks unlock when you're on the clock (admins can always pick).
+        </p>
+      )}
+
+      {queued.length > 0 && (
+        <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+          Offline — {queued.length} pick{queued.length > 1 ? 's' : ''} queued (
+          {queued.map((q) => q.playerName).join(', ')}). They'll submit automatically when
+          you reconnect.
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <Input
@@ -178,6 +235,15 @@ export function PlayerPoolPage() {
         open={selected !== null}
         onOpenChange={(o) => !o && setSelected(null)}
         basis={basis}
+        canPick={canPick && !!selected && !queuedIds.has(selected.id)}
+        picking={makePick.isPending}
+        onPick={() =>
+          selected &&
+          makePick.mutate(
+            { playerId: selected.id, playerName: selected.name },
+            { onSettled: () => setSelected(null) },
+          )
+        }
       />
     </div>
   );

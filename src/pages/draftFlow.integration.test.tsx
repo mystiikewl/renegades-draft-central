@@ -13,6 +13,12 @@ import { supabase } from '@/lib/supabase';
 
 vi.mock('@/lib/supabase', () => ({ supabase: { rpc: vi.fn(), channel: vi.fn(), removeChannel: vi.fn(), from: vi.fn() } }));
 
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
+    <a href={to} className={className}>{children}</a>
+  ),
+}));
+
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
@@ -147,10 +153,12 @@ function makeClient() {
   });
 }
 
+/** Picks happen on the pool page now; the board is for spectating/undo. */
 function renderPage() {
   const qc = makeClient();
   render(
     <QueryClientProvider client={qc}>
+      <PlayerPoolPage />
       <DraftPage />
     </QueryClientProvider>,
   );
@@ -171,6 +179,7 @@ afterEach(() => {
 });
 
 import { DraftPage } from './DraftPage';
+import { PlayerPoolPage } from './PlayerPoolPage';
 
 describe('draft pick flow (integration)', () => {
   beforeEach(() => resetDb());
@@ -181,19 +190,17 @@ describe('draft pick flow (integration)', () => {
 
     // Pool renders both available players with stats.
     expect(await screen.findByText('Test Player')).toBeInTheDocument();
-    expect(screen.getAllByText('25.1').length).toBeGreaterThanOrEqual(1); // PPG column (mobile+desktop)
+    expect(screen.getAllByText('25.1').length).toBeGreaterThanOrEqual(1); // PTS column
 
-    // Open confirm dialog and verify player details.
-    await user.click(screen.getAllByRole('button', { name: 'Pick' })[0]);
+    // Row click opens the shared profile dialog; confirm from inside it.
+    await user.click(screen.getByText('Test Player'));
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Confirm pick')).toBeInTheDocument();
     expect(within(dialog).getByText('Test Player')).toBeInTheDocument();
-    expect(within(dialog).getByText('PG · BOS')).toBeInTheDocument();
-    expect(within(dialog).getByText(/25.1 PPG/)).toBeInTheDocument();
+    expect(within(dialog).getByText('BOS')).toBeInTheDocument();
 
     // Confirm → RPC with the right args.
     rpc.mockResolvedValue({ data: { ok: true }, error: null } as never);
-    await user.click(within(dialog).getByRole('button', { name: /Pick Test Player/ }));
+    await user.click(within(dialog).getByRole('button', { name: /pick/i }));
     await waitFor(() =>
       expect(rpc).toHaveBeenCalledWith('make_pick', { p_season_id: 's1', p_player_id: 'pl1' }),
     );
@@ -211,12 +218,13 @@ describe('draft pick flow (integration)', () => {
     fireChange('draft_picks');
     fireChange('rosters');
 
-    // …and the pool refetches excluding the now-rostered player.
-    await waitFor(() => expect(screen.queryByText('Test Player')).not.toBeInTheDocument());
-    expect(screen.getByText('Other Guy')).toBeInTheDocument();
-    // ponytail: the board/strip re-render from a post-mutation draft-picks
-    // refetch doesn't flush in jsdom (cache updates, observer doesn't) — the
-    // strip itself is covered by the undo test, which mounts with a used pick.
+    // …and the pool refetches excluding the now-rostered player (his row goes
+    // away). The board tile is covered by the undo test, which mounts with a
+    // used pick — post-mutation refetches don't flush in jsdom (see ponytail
+    // note at the bottom of the undo test).
+    const table = screen.getByRole('table');
+    await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(2)); // header + Other Guy
+    expect(within(table).getByText('Other Guy')).toBeInTheDocument();
   });
 
   it('make_pick rejection → error toast, dialog closes, player stays selectable', async () => {
@@ -224,21 +232,22 @@ describe('draft pick flow (integration)', () => {
     renderPage();
 
     await screen.findByText('Test Player');
-    await user.click(screen.getAllByRole('button', { name: 'Pick' })[0]);
+    await user.click(screen.getByText('Test Player'));
     const dialog = await screen.findByRole('dialog');
 
     rpc.mockResolvedValue({ data: null, error: { message: 'Not your turn' } } as never);
-    await user.click(within(dialog).getByRole('button', { name: /Pick Test Player/ }));
+    await user.click(within(dialog).getByRole('button', { name: /pick/i }));
 
     // sonner is mocked — assert on the spy, not the DOM.
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Not your turn'));
     // onSettled closed the dialog; no queue side effects for RPC rejections.
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(vi.mocked(toast.info)).not.toHaveBeenCalled();
-    // Player still in the pool with an enabled Pick button.
-    const pickButtons = screen.getAllByRole('button', { name: 'Pick' });
-    expect(pickButtons.length).toBeGreaterThan(0);
-    expect(pickButtons[0]).toBeEnabled();
+    // Player still in the pool; re-opening the dialog offers an enabled pick.
+    expect(screen.getByText('Test Player')).toBeInTheDocument();
+    await user.click(screen.getByText('Test Player'));
+    const retryDialog = await screen.findByRole('dialog');
+    expect(within(retryDialog).getByRole('button', { name: /pick/i })).toBeEnabled();
   });
 
   it('network failure queues the pick; successful flush replays make_pick and clears the badge', async () => {
@@ -250,12 +259,11 @@ describe('draft pick flow (integration)', () => {
 
     // Network dies mid-pick.
     rpc.mockRejectedValue(new TypeError('fetch failed') as never);
-    await user.click(screen.getAllByRole('button', { name: 'Pick' })[0]);
+    await user.click(screen.getByText('Test Player'));
     const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: /Pick Test Player/ }));
+    await user.click(within(dialog).getByRole('button', { name: /pick/i }));
 
-    // Queued: info toast, Queued badge, offline banner, disabled re-pick.
-    expect(await screen.findByText('Queued')).toBeInTheDocument();
+    // Queued: info toast, offline banner, re-pick blocked from the dialog.
     expect(
       screen.getAllByText(/Offline — 1 pick queued \(Test Player\)/).length,
     ).toBeGreaterThanOrEqual(1);
@@ -263,7 +271,9 @@ describe('draft pick flow (integration)', () => {
       'Offline — pick of Test Player queued and will submit when you reconnect',
     );
     expect(toast.error).not.toHaveBeenCalled();
-    expect(screen.getAllByRole('button', { name: 'Pick' })[0]).toBeDisabled();
+    await user.click(screen.getByText('Test Player'));
+    const queuedDialog = await screen.findByRole('dialog');
+    expect(within(queuedDialog).queryByRole('button', { name: /pick/i })).not.toBeInTheDocument();
 
     // Connectivity returns → flush timer replays the queued pick.
     rpc.mockResolvedValue({ data: { ok: true }, error: null } as never);
@@ -274,8 +284,7 @@ describe('draft pick flow (integration)', () => {
     );
     expect(toast.success).toHaveBeenCalledWith('Pick submitted: Test Player');
 
-    // Queue drained → badge and banner disappear.
-    await waitFor(() => expect(screen.queryByText('Queued')).not.toBeInTheDocument());
+    // Queue drained → banner disappears and the dialog offers picks again.
     expect(screen.queryByText(/Offline — 1 pick queued/)).not.toBeInTheDocument();
   });
 
@@ -307,17 +316,25 @@ describe('draft pick flow (integration)', () => {
     );
     expect(toast.success).toHaveBeenCalledWith('Pick undone');
 
-    // Server undid the pick; realtime pushes the change.
+    // Server undid the pick; realtime pushes the change (rosters too — the
+    // pool query refetches on roster changes).
     db.picks[0] = pickRow({ round: 1, pick_number: 1 });
     db.rosteredIds = [];
     fireChange('draft_picks');
+    fireChange('rosters');
 
     // Board restored: last-pick strip gone, empty slot back, player draftable again.
     await waitFor(() => expect(screen.queryByText('Last pick:')).not.toBeInTheDocument());
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+    // Pool re-includes him; the dialog offers an enabled pick again.
     await waitFor(() =>
-      expect(screen.getAllByText('Test Player').length).toBeGreaterThanOrEqual(1),
+      expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(3),
     );
-    expect(screen.getAllByRole('button', { name: 'Pick' })[0]).toBeEnabled();
+    // ponytail: the board tile may not flush its refetch in jsdom, so target
+    // the pool table's row explicitly rather than a global text query.
+    const poolRow = within(screen.getByRole('table')).getAllByText('Test Player')[0];
+    await user.click(poolRow);
+    const redraftDialog = await screen.findByRole('dialog');
+    expect(within(redraftDialog).getByRole('button', { name: /pick/i })).toBeEnabled();
   });
 });

@@ -1,9 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { DraftPick, PlayerWithStats } from '@/api/types';
+import type { DraftPick } from '@/api/types';
 
-// --- Module mocks: everything under src/api + auth, so only layout/flow logic runs ---
+// --- Module mocks: everything under src/api + auth + router, so only layout/flow logic runs ---
+
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
+    <a href={to} className={className}>{children}</a>
+  ),
+}));
 
 vi.mock('@/api/queries', () => ({
   useActiveSeason: vi.fn(() => ({ data: { id: 's1', label: '2026-27' } })),
@@ -24,13 +30,11 @@ vi.mock('@/api/queries', () => ({
       { id: 't2', name: 'Beta Team' },
     ],
   })),
-  usePlayerPool: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 
-const mutate = vi.fn();
+const undoMutate = vi.fn();
 vi.mock('@/api/mutations', () => ({
-  useMakePick: vi.fn(() => ({ mutate, isPending: false })),
-  useUndoLastPick: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useUndoLastPick: vi.fn(() => ({ mutate: undoMutate, isPending: false })),
   useTradePick: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useSwapPicks: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
@@ -45,7 +49,6 @@ vi.mock('@/auth/AuthContext', () => ({
   useAuth: vi.fn(() => ({ profile })),
 }));
 
-// Radix ScrollArea wants ResizeObserver; Tabs/Dialog are fine without.
 beforeEach(() => {
   global.ResizeObserver = class {
     observe() {}
@@ -54,12 +57,11 @@ beforeEach(() => {
   } as unknown as typeof ResizeObserver;
 });
 
-import { useDraftPicks, usePlayerPool } from '@/api/queries';
+import { useDraftPicks } from '@/api/queries';
 import { useOfflineQueue } from '@/api/offlineQueue';
 import { DraftPage } from './DraftPage';
 
 const mockedPicks = vi.mocked(useDraftPicks);
-const mockedPool = vi.mocked(usePlayerPool);
 
 function pick(partial: Partial<DraftPick>): DraftPick {
   return {
@@ -77,25 +79,12 @@ function pick(partial: Partial<DraftPick>): DraftPick {
   } as DraftPick;
 }
 
-function player(partial: Partial<PlayerWithStats> = {}): PlayerWithStats {
-  return {
-    id: 'pl1',
-    name: 'Test Player',
-    position: 'PG',
-    nba_team: 'BOS',
-    espn_id: 1,
-    player_seasons: [{ stats: { avgPoints: 25.1, avgRebounds: 4.2, avgAssists: 6.7, gamesPlayed: 70 } }],
-    ...partial,
-  } as PlayerWithStats;
-}
-
 describe('DraftPage', () => {
   beforeEach(() => {
-    mutate.mockReset();
+    undoMutate.mockReset();
     profile = { team_id: 't1', is_admin: false };
     useOfflineQueue.setState({ queue: [] });
     mockedPicks.mockReturnValue({ data: [], isLoading: false } as never);
-    mockedPool.mockReturnValue({ data: [] as PlayerWithStats[], isLoading: false } as never);
   });
 
   it('renders board rounds and slots from picks', () => {
@@ -118,16 +107,18 @@ describe('DraftPage', () => {
     render(<DraftPage />);
 
     expect(screen.getByText('2026-27 Draft')).toBeInTheDocument();
-    // Board renders twice (mobile tabs + desktop grid).
-    expect(screen.getAllByText('Round 1').length).toBe(2);
-    expect(screen.getAllByText('Round 2').length).toBe(2);
-    // Twice on the boards + once in the "Last pick" strip.
-    expect(screen.getAllByText('Drafted Star').length).toBe(3);
+    // Board renders once — the player pool lives on /pool now.
+    expect(screen.getByText('Round 1')).toBeInTheDocument();
+    expect(screen.getByText('Round 2')).toBeInTheDocument();
+    // Once on the board + once in the "Last pick" strip.
+    expect(screen.getAllByText('Drafted Star').length).toBe(2);
     // Unused slot shows an em dash, not a player.
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+    // No pick UI on the board page.
+    expect(screen.queryByRole('button', { name: 'Pick' })).not.toBeInTheDocument();
   });
 
-  it('shows the on-clock banner and your-turn marker when it is your pick', () => {
+  it('shows the on-clock banner and Player Pool CTA when it is your pick', () => {
     mockedPicks.mockReturnValue({
       data: [pick({ team_id: 't1', is_used: false })],
       isLoading: false,
@@ -137,76 +128,28 @@ describe('DraftPage', () => {
 
     // Banner + board slot both show the team name.
     expect(screen.getAllByText('Alpha Team').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText('YOUR PICK — choose a player below')).toBeInTheDocument();
+    expect(screen.getByText('YOUR PICK')).toBeInTheDocument();
+    const cta = screen.getByRole('link', { name: /Player Pool/ });
+    expect(cta).toHaveAttribute('href', '/pool');
   });
 
-  it("no your-turn marker when another team is on the clock, and Pick buttons disabled", async () => {
+  it('no your-turn CTA when another team is on the clock', () => {
     profile = { team_id: 't2', is_admin: false };
     mockedPicks.mockReturnValue({
       data: [pick({ team_id: 't1', is_used: false })],
       isLoading: false,
     } as never);
-    mockedPool.mockReturnValue({
-      data: [player()],
-      isLoading: false,
-    } as never);
 
     render(<DraftPage />);
 
-    expect(screen.queryByText('YOUR PICK — choose a player below')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Pick' })).toBeDisabled();
-    expect(
-      screen.getByText("Picks unlock when you're on the clock (admins can always pick)."),
-    ).toBeInTheDocument();
+    expect(screen.queryByText('YOUR PICK')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Player Pool/ })).not.toBeInTheDocument();
+    expect(screen.getByText('is on the clock')).toBeInTheDocument();
   });
 
-  it('Pick click opens confirm dialog; confirming calls makePick with player id/name', async () => {
-    const user = userEvent.setup();
-    const guy = player({ id: 'pl1', name: 'Confirm Me' });
-    mockedPicks.mockReturnValue({
-      data: [
-        pick({
-          team_id: 't1',
-          is_used: true,
-          player_id: 'pl-gone',
-          picked_at: '2026-08-25T12:01:00Z',
-        }),
-        pick({ id: 'next', round: 1, pick_number: 2, team_id: 't1', is_used: false }),
-      ],
-      isLoading: false,
-    } as never);
-    // Drafted player must be filtered out of the pool.
-    mockedPool.mockReturnValue({
-      data: [player({ id: 'pl-gone', name: 'Already Gone' }), guy],
-      isLoading: false,
-    } as never);
-
-    render(<DraftPage />);
-
-    expect(screen.queryByText('Already Gone')).not.toBeInTheDocument();
-
-    const buttons = screen.getAllByRole('button', { name: 'Pick' });
-    await user.click(buttons[0]);
-
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Confirm pick')).toBeInTheDocument();
-    expect(within(dialog).getByText('Confirm Me')).toBeInTheDocument();
-    expect(within(dialog).getByText('PG · BOS')).toBeInTheDocument();
-
-    await user.click(within(dialog).getByRole('button', { name: /Pick Confirm Me/ }));
-    expect(mutate).toHaveBeenCalledWith(
-      { playerId: 'pl1', playerName: 'Confirm Me' },
-      expect.objectContaining({ onSettled: expect.any(Function) }),
-    );
-  });
-
-  it('queued offline pick shows badge and banner', () => {
+  it('queued offline pick shows the banner', () => {
     mockedPicks.mockReturnValue({
       data: [pick({ team_id: 't1', is_used: false })],
-      isLoading: false,
-    } as never);
-    mockedPool.mockReturnValue({
-      data: [player({ id: 'q1', name: 'Queued Guy' })],
       isLoading: false,
     } as never);
     useOfflineQueue.setState({
@@ -215,9 +158,34 @@ describe('DraftPage', () => {
 
     render(<DraftPage />);
 
-    expect(screen.getByText('Queued')).toBeInTheDocument();
     expect(screen.getByText(/Offline — 1 pick queued \(Queued Guy\)/)).toBeInTheDocument();
-    // Queued player's Pick button is disabled to prevent double-submission.
-    expect(screen.getByRole('button', { name: 'Pick' })).toBeDisabled();
+  });
+
+  it('undo button (own last pick) opens confirm and calls undo', async () => {
+    const user = userEvent.setup();
+    mockedPicks.mockReturnValue({
+      data: [
+        pick({
+          team_id: 't1',
+          is_used: true,
+          player_id: 'pl1',
+          picked_at: '2026-08-25T12:01:00Z',
+          players: { name: 'Drafted Star' } as DraftPick['players'],
+        }),
+        pick({ id: 'next', round: 1, pick_number: 2, team_id: 't2', is_used: false }),
+      ],
+      isLoading: false,
+    } as never);
+
+    render(<DraftPage />);
+    await user.click(screen.getByRole('button', { name: 'Undo last pick' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Undo last pick?')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Undo pick' }));
+    expect(undoMutate).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({ onSettled: expect.any(Function) }),
+    );
   });
 });

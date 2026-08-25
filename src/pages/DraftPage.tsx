@@ -1,23 +1,18 @@
 import { useMemo, useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import { useActiveSeason, useDraftPicks, useDraftSettings, useTeams } from '@/api/queries';
-import { useMakePick, useSwapPicks, useTradePick, useUndoLastPick } from '@/api/mutations';
+import { useSwapPicks, useTradePick, useUndoLastPick } from '@/api/mutations';
 import { useDraftRealtime } from '@/api/realtime';
 import { useCanPickNow } from '@/hooks/useCanPickNow';
 import { useAuth } from '@/auth/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
-import { usePlayerPool } from '@/api/queries';
 import { useOfflineQueue } from '@/api/offlineQueue';
-import type { DraftPick, PlayerWithStats } from '@/api/types';
-import { parseStats } from '@/lib/stats';
+import type { DraftPick } from '@/api/types';
 import {
   Dialog,
   DialogContent,
@@ -26,9 +21,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { PickClock } from '@/components/draft/PickClock';
 import { RealtimeBadge } from '@/components/draft/RealtimeBadge';
 
+function DraftStatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    pre_draft: { label: 'Pre-draft', variant: 'secondary' },
+    running: { label: 'Live', variant: 'default' },
+    paused: { label: 'Paused', variant: 'destructive' },
+    complete: { label: 'Complete', variant: 'outline' },
+  };
+  const cfg = map[status] ?? map.pre_draft;
+  return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
+}
+
+/**
+ * The draft board page — spectating only. Picks are made from the Player
+ * Pool (/pool); when it's your turn this page points you there.
+ */
 export function DraftPage() {
   const { profile } = useAuth();
   const { data: season } = useActiveSeason();
@@ -38,6 +47,9 @@ export function DraftPage() {
   const { data: settings } = useDraftSettings(seasonId);
   const { data: picks, isLoading: picksLoading } = useDraftPicks(seasonId);
   const { data: teams } = useTeams();
+  const undoPick = useUndoLastPick(seasonId ?? '');
+  const [undoConfirm, setUndoConfirm] = useState(false);
+  const queued = useOfflineQueue((s) => s.queue);
 
   const nextPick = useMemo(
     () => picks?.find((p) => !p.is_used) ?? null,
@@ -81,11 +93,21 @@ export function DraftPage() {
         <div className="flex items-center gap-3">
           <DraftStatusBadge status={settings?.status ?? 'pre_draft'} />
           <RealtimeBadge />
+          {canUndo && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setUndoConfirm(true)}
+              disabled={undoPick.isPending || !picks?.some((p) => p.is_used)}
+            >
+              Undo last pick
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Mobile: sticky on-the-clock mini-bar (lg:hidden, sticks below non-sticky app header) */}
-      {nextPick && (settings?.status === 'running' || settings?.status === 'paused') ? (
+      {nextPick && draftLive ? (
         <div
           className={`sticky top-0 z-30 -mx-4 flex items-center gap-2 border-b bg-background/95 px-4 py-2 backdrop-blur md:-mx-6 lg:hidden ${
             isMyTurn ? 'border-primary' : 'border-border'
@@ -97,7 +119,9 @@ export function DraftPage() {
           <span className="truncate text-sm font-semibold">{teamName(nextPick.team_id)}</span>
           <span className="ml-auto shrink-0 text-xs">
             {isMyTurn ? (
-              <span className="font-bold uppercase text-primary">Your pick</span>
+              <Link to="/pool" className="font-bold uppercase text-primary">
+                Your pick →
+              </Link>
             ) : (
               <span className="text-muted-foreground">on the clock</span>
             )}
@@ -106,8 +130,8 @@ export function DraftPage() {
       ) : null}
 
       {/* On the clock */}
-      {nextPick && (settings?.status === 'running' || settings?.status === 'paused') ? (
-        <Card className={isMyTurn ? 'border-primary' : undefined}>
+      {nextPick && draftLive ? (
+        <Card className={isMyTurn ? 'border-primary ring-1 ring-primary' : undefined}>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-sm">
@@ -115,9 +139,14 @@ export function DraftPage() {
               </Badge>
               <span className="text-lg font-semibold">{teamName(nextPick.team_id)}</span>
               <span className="text-muted-foreground">
-                {isMyTurn ? 'YOUR PICK — choose a player below' : 'is on the clock'}
+                {isMyTurn ? 'YOUR PICK' : 'is on the clock'}
               </span>
             </div>
+            {isMyTurn && (
+              <Button asChild disabled={!canPickNow}>
+                <Link to="/pool">Draft a player in the Player Pool →</Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : null}
@@ -130,37 +159,40 @@ export function DraftPage() {
         </p>
       ) : null}
 
-      {/* Mobile: tabbed board/pool; desktop: side-by-side */}
-      <Tabs defaultValue="board" className="space-y-4 lg:hidden">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="board">Board</TabsTrigger>
-          <TabsTrigger value="players">
-            Player pool
-            {isMyTurn && <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">you're up</span>}
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="board">
-          <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} seasonId={seasonId} myTeamId={profile?.team_id ?? null} />
-        </TabsContent>
-        <TabsContent value="players">
-          <PlayerPoolPanel
-            seasonId={seasonId}
-            canPick={canPickNow}
-            canUndo={canUndo}
-            playerNameFor={(pick: DraftPick) => pick.players?.name ?? null}
-          />
-        </TabsContent>
-      </Tabs>
+      {queued.length > 0 && (
+        <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+          Offline — {queued.length} pick{queued.length > 1 ? 's' : ''} queued (
+          {queued.map((q) => q.playerName).join(', ')}). They'll submit automatically when
+          you reconnect.
+        </p>
+      )}
 
-      <div className="hidden gap-6 lg:grid lg:grid-cols-[1fr_380px]">
-        <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} seasonId={seasonId} myTeamId={profile?.team_id ?? null} />
-        <PlayerPoolPanel
-          seasonId={seasonId}
-          canPick={canPickNow}
-          canUndo={canUndo}
-          playerNameFor={(pick: DraftPick) => pick.players?.name ?? null}
-        />
-      </div>
+      <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} seasonId={seasonId} myTeamId={profile?.team_id ?? null} />
+
+      {/* Undo confirm */}
+      <Dialog open={undoConfirm} onOpenChange={setUndoConfirm}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Undo last pick?</DialogTitle>
+            <DialogDescription>
+              The most recent pick will be removed and that team goes back on the clock.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUndoConfirm(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={undoPick.isPending}
+              onClick={() =>
+                undoPick.mutate(undefined, { onSettled: () => setUndoConfirm(false) })
+              }
+            >
+              {undoPick.isPending ? 'Undoing…' : 'Undo pick'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -267,17 +299,6 @@ function GiveAwayRow({
   );
 }
 
-function DraftStatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-    pre_draft: { label: 'Pre-draft', variant: 'secondary' },
-    running: { label: 'Live', variant: 'default' },
-    paused: { label: 'Paused', variant: 'destructive' },
-    complete: { label: 'Complete', variant: 'outline' },
-  };
-  const cfg = map[status] ?? map.pre_draft;
-  return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
-}
-
 export function DraftBoard({
   picks,
   picksLoading,
@@ -319,7 +340,7 @@ export function DraftBoard({
               Round {round}
             </div>
             {/* Single markup: full-width pick row on mobile, dense tile from sm up */}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-6">
               {picks
                 .filter((p) => p.round === round)
                 .map((p) => (
@@ -330,8 +351,8 @@ export function DraftBoard({
                       onClockId === p.id
                         ? 'border-primary ring-1 ring-primary'
                         : p.is_used
-                          ? 'border-border'
-                          : 'border-dashed border-muted-foreground/40 opacity-70'
+                        ? 'border-border'
+                        : 'border-dashed border-muted-foreground/40 opacity-70'
                     }`}
                   >
                     <div className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
@@ -349,216 +370,6 @@ export function DraftBoard({
             </div>
           </div>
         ))}
-      </CardContent>
-    </Card>
-  );
-}
-
-function PlayerPoolPanel({
-  seasonId,
-  canPick,
-  canUndo,
-  playerNameFor,
-}: {
-  seasonId: string | undefined;
-  canPick: boolean;
-  canUndo: boolean;
-  playerNameFor: (pick: DraftPick) => string | null;
-}) {
-  const [search, setSearch] = useState('');
-  const [confirming, setConfirming] = useState<PlayerWithStats | null>(null);
-  const [undoConfirm, setUndoConfirm] = useState(false);
-  const { data: players, isLoading } = usePlayerPool(seasonId);
-  const { data: picks } = useDraftPicks(seasonId);
-  const makePick = useMakePick(seasonId ?? '');
-  const undoPick = useUndoLastPick(seasonId ?? '');
-  const queued = useOfflineQueue((s) => s.queue);
-  const queuedIds = useMemo(() => new Set(queued.map((q) => q.playerId)), [queued]);
-
-  const rosteredIds = useMemo(() => {
-    const ids = new Set<string>();
-    picks?.forEach((p) => p.player_id && ids.add(p.player_id));
-    return ids;
-  }, [picks]);
-
-  const filtered = useMemo(() => {
-    if (!players) return [];
-    const q = search.trim().toLowerCase();
-    const pool = players.filter((p) => !rosteredIds.has(p.id));
-    if (!q) return pool.slice(0, 60);
-    return pool
-      .filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          (p.nba_team ?? '').toLowerCase().includes(q) ||
-          (p.position ?? '').toLowerCase() === q
-      )
-      .slice(0, 60);
-  }, [players, search, rosteredIds]);
-
-  const stat = (p: PlayerWithStats | null, key: keyof ReturnType<typeof parseStats>): string => {
-    return parseStats(p?.player_seasons?.[0]?.stats)[key] ?? '—';
-  };
-
-  const nextPick = picks?.find((p) => !p.is_used);
-
-  return (
-    <Card className="h-fit">
-      <CardHeader className="flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-lg">Player Pool</CardTitle>
-        {canUndo && nextPick?.is_used === false && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setUndoConfirm(true)}
-            disabled={undoPick.isPending || !picks?.some((p) => p.is_used)}
-          >
-            Undo last pick
-          </Button>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="sticky top-14 z-20 -mx-1 bg-card px-1 pb-2 pt-1">
-          <Input
-            placeholder="Search players, teams, positions…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        {!canPick && (
-          <p className="text-xs text-muted-foreground">
-            Picks unlock when you're on the clock (admins can always pick).
-          </p>
-        )}
-        <ScrollArea className="h-[500px] pr-3">
-          {isLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No players found.</p>
-          ) : (
-            <div className="space-y-1">
-              <div className="grid grid-cols-[1fr_40px_40px_40px_40px_64px] gap-2 px-2 pb-1 text-[10px] font-semibold uppercase text-muted-foreground">
-                <span>Player</span>
-                <span className="text-right">PPG</span>
-                <span className="text-right">RPG</span>
-                <span className="text-right">APG</span>
-                <span className="text-right">GP</span>
-                <span />
-              </div>
-              {filtered.map((p) => (
-                <div
-                  key={p.id}
-                  className="grid grid-cols-[1fr_40px_40px_40px_40px_64px] items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted/50"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 truncate font-medium">
-                      <PlayerHeadshot espnId={p.espn_id} name={p.name} />
-                      <span className="truncate">{p.name}</span>
-                      {queuedIds.has(p.id) && (
-                        <Badge variant="secondary" className="shrink-0 text-[10px]">
-                          Queued
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {p.position ?? '—'} · {p.nba_team ?? '—'}
-                    </div>
-                  </div>
-                  <span className="text-right tabular-nums">{stat(p, 'pts')}</span>
-                  <span className="text-right tabular-nums">{stat(p, 'reb')}</span>
-                  <span className="text-right tabular-nums">{stat(p, 'ast')}</span>
-                  <span className="text-right tabular-nums">{stat(p, 'gp')}</span>
-                  <Button
-                    size="sm"
-                    disabled={!canPick || makePick.isPending || queuedIds.has(p.id)}
-                    title={canPick ? undefined : 'Not your pick'}
-                    onClick={() => setConfirming(p)}
-                  >
-                    Pick
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </ScrollArea>
-
-        {queued.length > 0 && (
-          <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-            Offline — {queued.length} pick{queued.length > 1 ? 's' : ''} queued (
-            {queued.map((q) => q.playerName).join(', ')}). They'll submit automatically when
-            you reconnect.
-          </p>
-        )}
-
-        <Dialog open={!!confirming} onOpenChange={(open) => !open && setConfirming(null)}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Confirm pick</DialogTitle>
-              <DialogDescription asChild>
-                <div className="space-y-1 pt-1">
-                  <p className="flex items-center gap-3 text-lg font-semibold text-foreground">
-                    {confirming && <PlayerHeadshot espnId={confirming.espn_id} name={confirming.name} size={40} />}
-                    {confirming?.name}
-                  </p>
-                  <p>
-                    {confirming?.position ?? '—'} · {confirming?.nba_team ?? '—'}
-                  </p>
-                  <p>
-                    {stat(confirming, 'pts')} PPG ·{' '}
-                    {stat(confirming, 'reb')} RPG ·{' '}
-                    {stat(confirming, 'ast')} APG
-                  </p>
-                </div>
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setConfirming(null)}>
-                Cancel
-              </Button>
-              <Button
-                disabled={makePick.isPending}
-                onClick={() =>
-                  confirming &&
-                  makePick.mutate(
-                    { playerId: confirming.id, playerName: confirming.name },
-                    { onSettled: () => setConfirming(null) }
-                  )
-                }
-              >
-                {makePick.isPending ? 'Picking…' : `Pick ${confirming?.name ?? ''}`}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Undo confirm */}
-        <Dialog open={undoConfirm} onOpenChange={setUndoConfirm}>
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Undo last pick?</DialogTitle>
-              <DialogDescription>
-                The most recent pick will be removed and that team goes back on the clock.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setUndoConfirm(false)}>
-                Cancel
-              </Button>
-              <Button
-                disabled={undoPick.isPending}
-                onClick={() =>
-                  undoPick.mutate(undefined, { onSettled: () => setUndoConfirm(false) })
-                }
-              >
-                {undoPick.isPending ? 'Undoing…' : 'Undo pick'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </CardContent>
     </Card>
   );
