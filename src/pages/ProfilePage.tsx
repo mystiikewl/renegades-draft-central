@@ -15,10 +15,7 @@ export function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-xl space-y-4 p-4 pb-[max(5rem,env(safe-area-inset-bottom))] md:p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Profile</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Account and league settings.</p>
-      </div>
+      <h1 className="text-2xl font-bold">Profile</h1>
 
       <Card>
         <CardHeader>
