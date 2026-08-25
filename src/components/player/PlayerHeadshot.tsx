@@ -6,13 +6,14 @@ interface PlayerHeadshotProps {
   size?: number; // px, rendered CSS size
   /** bare = no circular crop/ring/background (transparent ESPN PNG shows through) */
   variant?: 'circle' | 'bare';
+  className?: string;
 }
 
 const HEADSHOT_URL = (espnId: string, size: number) =>
   `https://a.espncdn.com/combiner/i?img=/i/headshots/nba/players/full/${espnId}.png&w=${size}&h=${size}`;
 
 /** ESPN headshot with initials-circle fallback on error/missing id. */
-export function PlayerHeadshot({ espnId, name, size = 32, variant = 'circle' }: PlayerHeadshotProps) {
+export function PlayerHeadshot({ espnId, name, size = 32, variant = 'circle', className }: PlayerHeadshotProps) {
   const [failed, setFailed] = useState(false);
   const initials = name
     .split(' ')
@@ -25,7 +26,7 @@ export function PlayerHeadshot({ espnId, name, size = 32, variant = 'circle' }: 
     return (
       <span
         aria-hidden
-        className="flex shrink-0 items-center justify-center rounded-full bg-muted font-semibold leading-none text-muted-foreground ring-1 ring-border/40"
+        className={`flex shrink-0 items-center justify-center rounded-full bg-muted font-semibold leading-none text-muted-foreground ring-1 ring-border/40 ${className ?? ''}`}
         style={{ width: size, height: size, fontSize: Math.max(9, Math.round(size / 3)) }}
       >
         {initials}
@@ -53,8 +54,8 @@ export function PlayerHeadshot({ espnId, name, size = 32, variant = 'circle' }: 
       decoding="async"
       className={
         bare
-          ? 'shrink-0 object-contain drop-shadow-md' // transparent PNG, no crop/ring/bg
-          : 'shrink-0 rounded-full bg-muted object-cover ring-1 ring-border/40'
+          ? `shrink-0 object-contain drop-shadow-md ${className ?? ''}` // transparent PNG, no crop/ring/bg
+          : `shrink-0 rounded-full bg-muted object-cover ring-1 ring-border/40 ${className ?? ''}`
       }
       style={{ width: size, height: size }}
       onError={() => setFailed(true)}
