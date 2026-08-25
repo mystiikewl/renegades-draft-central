@@ -48,7 +48,7 @@ function RootLayout() {
     { to: '/', label: 'Draft', short: 'Draft', icon: ClipboardList },
     { to: '/pool', label: 'Player Pool', short: 'Pool', icon: Users },
     { to: '/rankings', label: 'Rankings', short: 'Ranks', icon: BarChart3 },
-    { to: '/rosters', label: 'Rosters', short: 'Rosters', icon: ListChecks },
+    { to: '/rosters', label: 'Rosters', short: 'Roster', icon: ListChecks },
     ...(profile?.is_admin ? [{ to: '/admin', label: 'Admin', short: 'Admin', icon: Shield }] : []),
   ];
   const isActive = (to: string) => (to === '/' ? pathname === '/' : pathname.startsWith(to));
@@ -65,17 +65,21 @@ function RootLayout() {
             <span className="shrink-0 font-bold">Renegades Draft Central</span>
             {profile?.team_id && (
               <nav className="hidden min-w-0 gap-4 overflow-x-auto text-sm text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    className={`whitespace-nowrap transition-colors hover:text-foreground ${
-                      isActive(item.to) ? 'font-medium text-foreground' : ''
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
+                {navItems.map((item) => {
+                  const active = isActive(item.to);
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      aria-current={active ? 'page' : undefined}
+                      className={`whitespace-nowrap transition-colors hover:text-foreground ${
+                        active ? 'font-medium text-foreground' : ''
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
               </nav>
             )}
           </div>
@@ -86,7 +90,10 @@ function RootLayout() {
               <Link
                 to="/profile"
                 aria-label="Profile and settings"
-                className="rounded-md p-2 transition-colors hover:bg-muted hover:text-foreground"
+                aria-current={pathname === '/profile' ? 'page' : undefined}
+                className={`rounded-md p-2 transition-colors hover:bg-muted hover:text-foreground ${
+                  pathname === '/profile' ? 'bg-muted text-foreground' : ''
+                }`}
               >
                 <UserCircle className="size-5" />
               </Link>
@@ -97,7 +104,7 @@ function RootLayout() {
 
       {/* Mobile: bottom tab bar (sm and up uses the header nav) */}
       {profile?.team_id && (
-        <nav className="fixed inset-x-0 bottom-0 z-40 grid auto-cols-fr grid-flow-col border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-40 grid auto-cols-fr grid-flow-col border-t bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_-20px_hsl(var(--foreground))] backdrop-blur sm:hidden">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.to);
@@ -105,12 +112,19 @@ function RootLayout() {
               <Link
                 key={item.to}
                 to={item.to}
-                className={`flex flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-medium transition-colors ${
-                  active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                aria-current={active ? 'page' : undefined}
+                className={`relative flex min-w-0 flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-medium transition-all active:scale-[0.98] ${
+                  active ? 'bg-primary/8 text-primary' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Icon className="size-5" />
-                {item.short}
+                <span
+                  aria-hidden="true"
+                  className={`absolute inset-x-3 top-0 h-0.5 rounded-full bg-primary transition-opacity ${
+                    active ? 'opacity-100' : 'opacity-0'
+                  }`}
+                />
+                <Icon className={`size-5 transition-transform ${active ? '-translate-y-0.5' : ''}`} />
+                <span className="max-w-full truncate">{item.short}</span>
               </Link>
             );
           })}
