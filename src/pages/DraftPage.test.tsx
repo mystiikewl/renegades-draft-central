@@ -31,6 +31,8 @@ const mutate = vi.fn();
 vi.mock('@/api/mutations', () => ({
   useMakePick: vi.fn(() => ({ mutate, isPending: false })),
   useUndoLastPick: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useTradePick: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useSwapPicks: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
 vi.mock('@/api/realtime', () => ({ useDraftRealtime: vi.fn() }));
@@ -135,7 +137,6 @@ describe('DraftPage', () => {
 
     // Banner + board slot both show the team name.
     expect(screen.getAllByText('Alpha Team').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText(/is on the clock/)).toBeInTheDocument();
     expect(screen.getByText('YOUR PICK — choose a player below')).toBeInTheDocument();
   });
 

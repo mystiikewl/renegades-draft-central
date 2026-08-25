@@ -203,6 +203,43 @@ export function useFinalizeKeepers(seasonId: string) {
   });
 }
 
+export function useTradePick(seasonId: string) {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
+  return useMutation({
+    mutationFn: async ({ pickId, toTeamId }: { pickId: string; toTeamId: string }) => {
+      const { error } = await supabase.rpc('trade_pick', {
+        p_pick_id: pickId,
+        p_to_team_id: toTeamId,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      invalidate();
+      toast.success('Pick traded.');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useSwapPicks(seasonId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ mine, theirs }: { mine: string; theirs: string }) => {
+      const { error } = await supabase.rpc('swap_picks', {
+        p_mine: mine,
+        p_theirs: theirs,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
+      toast.success('Picks swapped.');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 export function useToggleFavourite(seasonId: string) {
   const qc = useQueryClient();
   return useMutation({

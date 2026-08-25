@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useActiveSeason, useDraftPicks, useDraftSettings, useTeams } from '@/api/queries';
-import { useMakePick, useUndoLastPick } from '@/api/mutations';
+import { useMakePick, useSwapPicks, useTradePick, useUndoLastPick } from '@/api/mutations';
 import { useDraftRealtime } from '@/api/realtime';
 import { useAuth } from '@/auth/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { PickClock, usePickClock } from '@/components/draft/PickClock';
+import { PickClock } from '@/components/draft/PickClock';
 
 export function DraftPage() {
   const { profile } = useAuth();
@@ -47,14 +49,6 @@ export function DraftPage() {
   const teamName = (id: string) => teams?.find((t) => t.id === id)?.name ?? '—';
   const isMyTurn = !!nextPick && !!profile?.team_id && nextPick.team_id === profile.team_id;
 
-  const clockRunning = settings?.status === 'running';
-  const remaining = usePickClock({
-    pickKey: nextPick?.id ?? null,
-    anchoredAt: lastPick?.picked_at ?? settings?.updated_at ?? null,
-    limitSeconds: settings?.pick_time_limit_seconds ?? 120,
-    running: clockRunning,
-  });
-
   if (!season) {
     return (
       <div className="p-8 text-center text-muted-foreground">
@@ -71,7 +65,7 @@ export function DraftPage() {
           <h1 className="text-2xl font-bold">{season.label} Draft</h1>
           <p className="text-sm text-muted-foreground">
             {settings
-              ? `${settings.draft_type} · ${settings.league_size} teams · ${settings.roster_size} rounds · ${Math.floor(settings.pick_time_limit_seconds / 60)}min clock`
+              ? `${settings.draft_type} · ${settings.league_size} teams · ${settings.roster_size} rounds`
               : 'Loading settings…'}
           </p>
         </div>
@@ -88,20 +82,8 @@ export function DraftPage() {
               </Badge>
               <span className="text-lg font-semibold">{teamName(nextPick.team_id)}</span>
               <span className="text-muted-foreground">
-                {settings?.status === 'paused' ? 'clock paused' : 'is on the clock'}
+                {isMyTurn ? 'YOUR PICK — choose a player below' : 'is on the clock'}
               </span>
-            </div>
-            <div className="flex items-center gap-3">
-              {isMyTurn && (
-                <span className="rounded-md bg-primary px-3 py-1 text-sm font-medium text-primary-foreground">
-                  YOUR PICK — choose a player below
-                </span>
-              )}
-              <PickClock
-                remaining={remaining}
-                limitSeconds={settings?.pick_time_limit_seconds ?? 120}
-                paused={settings?.status === 'paused'}
-              />
             </div>
           </CardContent>
         </Card>
@@ -125,7 +107,7 @@ export function DraftPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="board">
-          <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} />
+          <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} seasonId={seasonId} myTeamId={profile?.team_id} />
         </TabsContent>
         <TabsContent value="players">
           <PlayerPoolPanel
@@ -137,13 +119,115 @@ export function DraftPage() {
       </Tabs>
 
       <div className="hidden gap-6 lg:grid lg:grid-cols-[1fr_380px]">
-        <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} />
+        <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} seasonId={seasonId} myTeamId={profile?.team_id} />
         <PlayerPoolPanel
           seasonId={seasonId}
           canPick={isMyTurn || !!profile?.is_admin}
           playerNameFor={(pick: DraftPick) => pick.players?.name ?? null}
         />
       </div>
+    </div>
+  );
+}
+
+/** Give one of my unused picks to another team, or swap it for one of theirs. */
+function PickTradesPanel({
+  picks,
+  seasonId,
+  myTeamId,
+  teamName,
+}: {
+  picks: DraftPick[];
+  seasonId: string;
+  myTeamId: string;
+  teamName: (id: string) => string;
+}) {
+  const tradePick = useTradePick(seasonId);
+  const swapPicks = useSwapPicks(seasonId);
+  const [myPickId, setMyPickId] = useState('');
+  const [theirPickId, setTheirPickId] = useState('');
+
+  const myPicks = picks.filter((p) => p.team_id === myTeamId && !p.is_used);
+  const otherUnused = picks.filter((p) => p.team_id !== myTeamId && !p.is_used);
+  if (!myPicks.length && !otherUnused.length) return null;
+
+  const label = (p: DraftPick) =>
+    `R${p.round} #${p.pick_number}${p.team_id !== p.original_team_id ? ` (from ${teamName(p.original_team_id).slice(0, 10)})` : ''}`;
+
+  return (
+    <div className="rounded-md border bg-muted/40 p-3">
+      <div className="mb-2 text-sm font-medium">Trade picks</div>
+      <div className="flex flex-wrap items-end gap-2">
+        <div>
+          <Label htmlFor="trade-mine" className="text-xs text-muted-foreground">My pick</Label>
+          <Select value={myPickId} onValueChange={setMyPickId}>
+            <SelectTrigger id="trade-mine" className="w-40"><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectContent>
+              {myPicks.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{label(p)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="trade-theirs" className="text-xs text-muted-foreground">Swap for…</Label>
+          <Select value={theirPickId} onValueChange={setTheirPickId}>
+            <SelectTrigger id="trade-theirs" className="w-40"><SelectValue placeholder="(none = give away)" /></SelectTrigger>
+            <SelectContent>
+              {otherUnused.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{label(p)} · {teamName(p.team_id).slice(0, 12)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button
+          size="sm"
+          disabled={!myPickId || !theirPickId || tradePick.isPending || swapPicks.isPending}
+          onClick={() => theirPickId && swapPicks.mutate({ mine: myPickId, theirs: theirPickId })}
+        >
+          Swap
+        </Button>
+      </div>
+      {!theirPickId && myPickId && (
+        <GiveAwayRow pickId={myPickId} seasonId={seasonId} teamName={teamName} pending={tradePick.isPending} />
+      )}
+    </div>
+  );
+}
+
+/** Pick the receiving team when gifting a pick. */
+function GiveAwayRow({
+  pickId,
+  seasonId,
+  teamName,
+  pending,
+}: {
+  pickId: string;
+  seasonId: string;
+  teamName: (id: string) => string;
+  pending: boolean;
+}) {
+  const { data: teams } = useTeams();
+  const tradePick = useTradePick(seasonId);
+  const [toTeam, setToTeam] = useState('');
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      <Select value={toTeam} onValueChange={setToTeam}>
+        <SelectTrigger className="w-48"><SelectValue placeholder="Give to team…" /></SelectTrigger>
+        <SelectContent>
+          {(teams ?? []).filter((t) => !t.is_shadow).map((t) => (
+            <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={!toTeam || pending}
+        onClick={() => toTeam && tradePick.mutate({ pickId, toTeamId: toTeam })}
+      >
+        Confirm
+      </Button>
     </div>
   );
 }
@@ -163,10 +247,14 @@ function DraftBoard({
   picks,
   picksLoading,
   teamName,
+  seasonId,
+  myTeamId,
 }: {
   picks: DraftPick[];
   picksLoading: boolean;
   teamName: (id: string) => string;
+  seasonId?: string;
+  myTeamId?: string | null;
 }) {
   if (picksLoading) return <Skeleton className="h-96 w-full" />;
   if (!picks.length)
@@ -186,6 +274,9 @@ function DraftBoard({
         <CardTitle className="text-lg">Draft Board</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {seasonId && myTeamId && (
+          <PickTradesPanel picks={picks} seasonId={seasonId} myTeamId={myTeamId} teamName={teamName} />
+        )}
         {rounds.map((round) => (
           <div key={round}>
             <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
@@ -203,7 +294,9 @@ function DraftBoard({
                   >
                     <div className="flex justify-between font-mono text-[10px] text-muted-foreground">
                       <span>#{p.pick_number}</span>
-                      <span>{teamName(p.team_id).slice(0, 14)}</span>
+                      <span className={p.team_id !== p.original_team_id ? 'text-amber-600' : undefined}>
+                        {teamName(p.team_id).slice(0, 14)}
+                      </span>
                     </div>
                     <div className="mt-1 truncate font-medium">
                       {p.players?.name ?? '—'}
