@@ -15,7 +15,7 @@ create function public.is_admin()
 returns boolean
 language sql
 security definer
-set search_path = ''
+set search_path = 'public', 'auth'
 stable
 as $$
   select coalesce((select p.is_admin from public.profiles p where p.id = auth.uid()), false);

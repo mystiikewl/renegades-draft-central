@@ -13,7 +13,7 @@ create function public.create_season(p_label text)
 returns uuid
 language plpgsql
 security definer
-set search_path = ''
+set search_path = 'public', 'auth'
 as $$
 declare
   v_season_id uuid;
@@ -40,7 +40,7 @@ create function public.claim_team(p_team_id uuid)
 returns void
 language plpgsql
 security definer
-set search_path = ''
+set search_path = 'public', 'auth'
 as $$
 declare
   v_owner uuid;
@@ -68,7 +68,7 @@ create function public.set_draft_order(p_season_id uuid, p_order uuid[])
 returns void
 language plpgsql
 security definer
-set search_path = ''
+set search_path = 'public', 'auth'
 as $$
 declare
   v_settings record;
@@ -123,7 +123,7 @@ create function public.set_draft_status(p_season_id uuid, p_status draft_status)
 returns void
 language plpgsql
 security definer
-set search_path = ''
+set search_path = 'public', 'auth'
 as $$
 begin
   if not public.is_admin() then
@@ -149,7 +149,7 @@ create function public.make_pick(p_season_id uuid, p_player_id uuid)
 returns public.draft_picks
 language plpgsql
 security definer
-set search_path = ''
+set search_path = 'public', 'auth'
 as $$
 declare
   v_settings record;
@@ -234,7 +234,7 @@ create function public.undo_last_pick(p_season_id uuid)
 returns void
 language plpgsql
 security definer
-set search_path = ''
+set search_path = 'public', 'auth'
 as $$
 declare
   v_last public.draft_picks;
@@ -281,7 +281,7 @@ create function public.trade_pick(p_pick_id uuid, p_to_team_id uuid)
 returns void
 language plpgsql
 security definer
-set search_path = ''
+set search_path = 'public', 'auth'
 as $$
 declare
   v_pick public.draft_picks;
@@ -309,7 +309,7 @@ create function public.assign_keeper(p_season_id uuid, p_team_id uuid, p_player_
 returns void
 language plpgsql
 security definer
-set search_path = ''
+set search_path = 'public', 'auth'
 as $$
 declare
   v_settings record;
@@ -348,7 +348,7 @@ create function public.remove_keeper(p_season_id uuid, p_team_id uuid, p_player_
 returns void
 language plpgsql
 security definer
-set search_path = ''
+set search_path = 'public', 'auth'
 as $$
 declare
   v_my_team uuid;
@@ -374,7 +374,7 @@ create function public.reset_draft(p_season_id uuid)
 returns void
 language plpgsql
 security definer
-set search_path = ''
+set search_path = 'public', 'auth'
 as $$
 begin
   if not public.is_admin() then

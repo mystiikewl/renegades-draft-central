@@ -17,4 +17,6 @@ grant all on all sequences in schema public to postgres, anon, authenticated, se
 
 create extension if not exists pg_graphql with schema extensions;
 create extension if not exists pg_stat_statements with schema extensions;
-create extension if not exists pgsodium with schema extensions;
+
+-- Clear old migration history so the fresh baseline applies cleanly
+drop schema if exists supabase_migrations_schema cascade;
