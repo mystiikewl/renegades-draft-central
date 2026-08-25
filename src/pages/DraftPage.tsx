@@ -10,7 +10,16 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePlayerPool } from '@/api/queries';
+import { useOfflineQueue } from '@/api/offlineQueue';
 import type { DraftPick, PlayerWithStats } from '@/api/types';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { PickClock, usePickClock } from '@/components/draft/PickClock';
 
 export function DraftPage() {
@@ -196,10 +205,13 @@ function PlayerPoolPanel({
   playerNameFor: (pick: DraftPick) => string | null;
 }) {
   const [search, setSearch] = useState('');
+  const [confirming, setConfirming] = useState<PlayerWithStats | null>(null);
   const { data: players, isLoading } = usePlayerPool(seasonId);
   const { data: picks } = useDraftPicks(seasonId);
   const makePick = useMakePick(seasonId);
   const undoPick = useUndoLastPick(seasonId);
+  const queued = useOfflineQueue((s) => s.queue);
+  const queuedIds = useMemo(() => new Set(queued.map((q) => q.playerId)), [queued]);
 
   const rosteredIds = useMemo(() => {
     const ids = new Set<string>();
@@ -277,10 +289,17 @@ function PlayerPoolPanel({
               {filtered.map((p) => (
                 <div
                   key={p.id}
-                  className="grid grid-cols-[1fr_40px_40px_40px_40px_64px] items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/50"
+                  className="grid grid-cols-[1fr_40px_40px_40px_40px_64px] items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted/50"
                 >
                   <div className="min-w-0">
-                    <div className="truncate font-medium">{p.name}</div>
+                    <div className="flex items-center gap-1.5 truncate font-medium">
+                      <span className="truncate">{p.name}</span>
+                      {queuedIds.has(p.id) && (
+                        <Badge variant="secondary" className="shrink-0 text-[10px]">
+                          Queued
+                        </Badge>
+                      )}
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       {p.position ?? '—'} · {p.nba_team ?? '—'}
                     </div>
@@ -291,8 +310,8 @@ function PlayerPoolPanel({
                   <span className="text-right tabular-nums">{stat(p, 'gamesPlayed')}</span>
                   <Button
                     size="sm"
-                    disabled={!canPick || makePick.isPending}
-                    onClick={() => makePick.mutate(p.id)}
+                    disabled={!canPick || makePick.isPending || queuedIds.has(p.id)}
+                    onClick={() => setConfirming(p)}
                   >
                     Pick
                   </Button>
@@ -301,6 +320,54 @@ function PlayerPoolPanel({
             </div>
           )}
         </ScrollArea>
+
+        {queued.length > 0 && (
+          <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+            Offline — {queued.length} pick{queued.length > 1 ? 's' : ''} queued (
+            {queued.map((q) => q.playerName).join(', ')}). They'll submit automatically when
+            you reconnect.
+          </p>
+        )}
+
+        <Dialog open={!!confirming} onOpenChange={(open) => !open && setConfirming(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Confirm pick</DialogTitle>
+              <DialogDescription asChild>
+                <div className="space-y-1 pt-1">
+                  <p className="text-lg font-semibold text-foreground">
+                    {confirming?.name}
+                  </p>
+                  <p>
+                    {confirming?.position ?? '—'} · {confirming?.nba_team ?? '—'}
+                  </p>
+                  <p>
+                    {stat(confirming as PlayerWithStats, 'avgPoints')} PPG ·{' '}
+                    {stat(confirming as PlayerWithStats, 'avgRebounds')} RPG ·{' '}
+                    {stat(confirming as PlayerWithStats, 'avgAssists')} APG
+                  </p>
+                </div>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirming(null)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={makePick.isPending}
+                onClick={() =>
+                  confirming &&
+                  makePick.mutate(
+                    { playerId: confirming.id, playerName: confirming.name },
+                    { onSettled: () => setConfirming(null) }
+                  )
+                }
+              >
+                {makePick.isPending ? 'Picking…' : `Pick ${confirming?.name ?? ''}`}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
