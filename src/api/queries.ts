@@ -120,13 +120,21 @@ export function usePlayerPool(seasonId: string | undefined) {
     queryKey: qk.playerPool(seasonId ?? 'none'),
     enabled: !!seasonId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('players')
-        .select('*, player_seasons(stats)')
-        .eq('player_seasons.season_id', seasonId)
-        .order('name');
-      if (error) throw error;
-      return data as PlayerWithStats[];
+      // Rostered players (draft picks AND keepers/trades) are excluded from
+      // the pool — fetching the season's rostered ids in the same queryFn so
+      // keepers never show as draftable.
+      const [playersRes, rosteredRes] = await Promise.all([
+        supabase
+          .from('players')
+          .select('*, player_seasons(stats)')
+          .eq('player_seasons.season_id', seasonId)
+          .order('name'),
+        supabase.from('rosters').select('player_id').eq('season_id', seasonId),
+      ]);
+      if (playersRes.error) throw playersRes.error;
+      if (rosteredRes.error) throw rosteredRes.error;
+      const rostered = new Set(rosteredRes.data.map((r) => r.player_id));
+      return (playersRes.data as PlayerWithStats[]).filter((p) => !rostered.has(p.id));
     },
   });
 }
