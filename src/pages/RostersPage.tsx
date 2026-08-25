@@ -46,20 +46,25 @@ export function RostersPage() {
   }, [rosters]);
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Rosters</h1>
+    <div className="mx-auto max-w-7xl space-y-5 p-4 md:space-y-6 md:p-6">
+      <div className="space-y-3 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:space-y-0">
+        <div>
+          <h1 className="text-2xl font-bold">Rosters</h1>
+          <p className="mt-1 text-sm text-muted-foreground">League rosters, keepers and drafted players by team.</p>
+        </div>
         {seasons && seasons.length > 0 && (
-          <Tabs value={chosen ?? undefined} onValueChange={setSeasonId}>
-            <TabsList className="max-w-full flex-wrap">
-              {seasons.map((s) => (
-                <TabsTrigger key={s.id} value={s.id}>
-                  {s.label}
-                  {s.is_active ? ' (active)' : ''}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+          <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+            <Tabs value={chosen ?? undefined} onValueChange={setSeasonId}>
+              <TabsList className="w-max min-w-full justify-start sm:min-w-0">
+                {seasons.map((s) => (
+                  <TabsTrigger key={s.id} value={s.id} className="shrink-0">
+                    {s.label}
+                    {s.is_active ? ' (active)' : ''}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
         )}
       </div>
 
@@ -86,32 +91,35 @@ export function RostersPage() {
 
 function TeamRosterCard({ name, entries }: { name: string; entries: RosterEntry[] }) {
   return (
-    <Card className="h-fit">
-      <CardHeader className="flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-lg">{name}</CardTitle>
+    <Card className="h-fit overflow-hidden">
+      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 pb-4">
+        <CardTitle className="min-w-0 text-lg leading-tight">{name}</CardTitle>
         {/* ponytail: roster size is the card's one anchor stat — tinted, not just a gray pill */}
-        <Badge variant="secondary" className="bg-primary/10 text-primary ring-1 ring-primary/30">{entries.length}</Badge>
+        <Badge variant="secondary" className="shrink-0 bg-primary/10 text-primary ring-1 ring-primary/30">{entries.length}</Badge>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4">
         {entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No players yet.</p>
+          <p className="py-2 text-sm text-muted-foreground">No players yet.</p>
         ) : (
           GROUPS.map(({ key, label }) => {
             const group = entries.filter((e) => e.acquisition === key);
             if (!group.length) return null;
             return (
               <div key={key}>
-                <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {label}
                 </div>
-                <ul className="space-y-1">
+                <ul className="divide-y divide-border/50">
                   {group.map((e) => (
-                    <li key={e.id} className="flex items-center justify-between text-sm">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <PlayerHeadshot espnId={e.players?.espn_id ?? null} name={e.players?.name ?? '—'} size={24} />
-                        <span className="truncate font-medium">{e.players?.name ?? '—'}</span>
+                    <li key={e.id} className="flex min-h-12 items-center gap-3 py-2 text-sm">
+                      <PlayerHeadshot espnId={e.players?.espn_id ?? null} name={e.players?.name ?? '—'} size={30} />
+                      <span className="min-w-0 flex-1">
+                        <span className="line-clamp-2 font-medium leading-tight">{e.players?.name ?? '—'}</span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground sm:hidden">
+                          {e.players?.position ?? '—'} · {e.players?.nba_team ?? '—'}
+                        </span>
                       </span>
-                      <span className="ml-2 shrink-0 text-xs text-muted-foreground">
+                      <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
                         {e.players?.position ?? '—'} · {e.players?.nba_team ?? '—'}
                       </span>
                     </li>
