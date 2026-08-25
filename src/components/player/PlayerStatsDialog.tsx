@@ -35,6 +35,8 @@ const STAT_ROWS: { key: keyof StatLine; label: string }[] = [
   { key: 'rank', label: 'Rank' },
 ];
 
+const LOGO_ABBREV: Record<string, string> = { UTA: 'utah' };
+
 const ageFrom = (birthDate?: string | null): number | null => {
   if (!birthDate) return null;
   const b = new Date(birthDate);
@@ -85,34 +87,50 @@ export function PlayerStatsDialog({
     player.draft_display,
   ].filter(Boolean);
 
+  // ponytail: ESPN CDN logo URL derived from the abbrev — tiny alias map for
+  // the variants in our data ESPN doesn't use (UTA/PHX/etc); FA has no logo.
+  const teamLogo = player.nba_team
+    ? `https://a.espncdn.com/i/teamlogos/nba/500/${LOGO_ABBREV[player.nba_team] ?? player.nba_team.toLowerCase()}.png`
+    : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md gap-0 p-0 sm:max-w-2xl">
-        {/* Header band — headshot + identity */}
-        <div className="flex items-center gap-4 bg-gradient-to-br from-primary/10 via-transparent to-transparent p-5 sm:p-6">
-          <PlayerHeadshot espnId={player.espn_id} name={player.name} size={72} />
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-xl font-bold tracking-tight">{player.name}</h2>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm">
-              <Badge variant="secondary" className="text-[11px] font-semibold">
-                {player.position ?? '—'}
-              </Badge>
-              <span className="font-medium text-foreground/80">{player.nba_team ?? '—'}</span>
-              {isRookie(player) && (
-                <Badge variant="outline" className="px-1.5 py-0 text-[10px] text-primary border-primary/40">
-                  ROOK
+        {/* Header band — team logo watermark behind a large bare headshot */}
+        <div className="relative overflow-hidden p-5 sm:p-6">
+          {teamLogo && (
+            <img
+              src={teamLogo}
+              alt=""
+              aria-hidden
+              className="pointer-events-none absolute -right-4 top-1/2 w-44 -translate-y-1/2 opacity-10 sm:w-52 dark:opacity-[0.13]"
+            />
+          )}
+          <div className="relative flex items-center gap-4">
+            <PlayerHeadshot espnId={player.espn_id} name={player.name} size={104} variant="bare" />
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-xl font-bold tracking-tight">{player.name}</h2>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm">
+                <Badge variant="secondary" className="text-[11px] font-semibold">
+                  {player.position ?? '—'}
                 </Badge>
+                <span className="font-medium text-foreground/80">{player.nba_team ?? '—'}</span>
+                {isRookie(player) && (
+                  <Badge variant="outline" className="px-1.5 py-0 text-[10px] text-primary border-primary/40">
+                    ROOK
+                  </Badge>
+                )}
+              </div>
+              {bioBits.length > 0 && (
+                <p className="mt-1 truncate text-xs text-muted-foreground">{bioBits.join(' · ')}</p>
               )}
             </div>
-            {bioBits.length > 0 && (
-              <p className="mt-1 truncate text-xs text-muted-foreground">{bioBits.join(' · ')}</p>
+            {canPick && (
+              <Button size="lg" className="shrink-0" disabled={picking} onClick={onPick}>
+                {picking ? 'Picking…' : `Draft ${player.name.split(' ').pop()}`}
+              </Button>
             )}
           </div>
-          {canPick && (
-            <Button size="lg" className="shrink-0" disabled={picking} onClick={onPick}>
-              {picking ? 'Picking…' : `Draft ${player.name.split(' ').pop()}`}
-            </Button>
-          )}
         </div>
 
         {/* Body — season stats + game log */}
