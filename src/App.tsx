@@ -17,6 +17,7 @@ import { LoginPage } from '@/pages/LoginPage';
 import { OnboardingPage } from '@/pages/OnboardingPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { RostersPage } from '@/pages/RostersPage';
+import { PlayerPoolPage } from '@/pages/PlayerPoolPage';
 
 /** Declarative auth guard — no navigate-in-effect, no blank frames. */
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -47,6 +48,9 @@ function RootLayout() {
               <nav className="hidden gap-4 text-sm text-muted-foreground sm:flex">
                 <Link to="/" className="hover:text-foreground">
                   Draft
+                </Link>
+                <Link to="/pool" className="hover:text-foreground">
+                  Player Pool
                 </Link>
                 <Link to="/rosters" className="hover:text-foreground">
                   Rosters
@@ -132,7 +136,19 @@ const rostersRoute = createRoute({
   ),
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute, adminRoute, rostersRoute]);
+const poolRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/pool',
+  component: () => (
+    <RequireAuth>
+      <RequireTeam>
+        <PlayerPoolPage />
+      </RequireTeam>
+    </RequireAuth>
+  ),
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, adminRoute, rostersRoute, poolRoute]);
 const router = createRouter({ routeTree });
 
 declare module '@tanstack/react-router' {

@@ -30,15 +30,94 @@ const STATS_SEASON = flag('stats-season', '2025');
 const BIO_ONLY = args.includes('--bio-only') || STATS_SEASON === 'none';
 const LIMIT = parseInt(flag('limit', '0'), 10);
 
-const SUPABASE_URL = process.env.SUPABASE_URL ?? 'https://xruqdjonzxkzwsslzpdl.supabase.co';
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? 'https://xruqdjonzxkzwsslzpdl.supabase.co';
+// service_role key if available; else Management API via access token (this
+// project's .env has no service_role key — same path as db-query.mjs).
+let SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// sbp_ = Supabase personal access token (Management API), not a service_role
+// JWT. Route through the MGMT shim instead of postgrest.
+if (!SERVICE_KEY && process.env.SUPABASE_ACCESS_TOKEN) {
+  SERVICE_KEY = 'MGMT';
+}
+if (SERVICE_KEY?.startsWith('sbp_')) {
+  SERVICE_KEY = 'MGMT';
+}
 if (!SERVICE_KEY) {
-  console.error('Missing SUPABASE_SERVICE_ROLE_KEY env var.');
+  console.error('Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ACCESS_TOKEN env var.');
   process.exit(1);
 }
-const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-});
+const supabase = SERVICE_KEY === 'MGMT'
+  ? mgmtClient(process.env.SUPABASE_PROJECT_REF ?? 'xruqdjonzxkzwsslzpdl')
+  : createClient(SUPABASE_URL, SERVICE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    });
+
+// Minimal supabase-like shim over the Management API for the ops we use.
+const mgmtFrom = (table) => ({});
+function mgmtClient(projectRef) {
+  const token = process.env.SUPABASE_ACCESS_TOKEN;
+  const q = async (query) => {
+    const r = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    });
+    if (!r.ok) throw new Error(`mgmt query: ${r.status} ${(await r.text()).slice(0, 200)}`);
+    return r.json();
+  };
+  return {
+    from(table) {
+      const build = (clauses) => ({
+        upsert: async (rawRows, { onConflict } = {}) => {
+          const rows = Array.isArray(rawRows) ? rawRows : [rawRows];
+          const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))];
+          const values = rows
+            .map((row) => `(${cols.map((c) => sqlVal(row[c])).join(', ')})`)
+            .join(',\n  ');
+          await q(
+            `insert into public.${table} (${cols.map((c) => `"${c}"`).join(', ')}) values ${values} ` +
+              `on conflict (${onConflict}) do update set ${cols.filter((c) => c !== onConflict).map((c) => `"${c}" = excluded."${c}"`).join(', ')}`,
+          );
+          return { data: null, error: null };
+        },
+        select: () => build(clauses),
+      });
+      // simple chainable shim: .select('cols').eq(...).in(...)
+      const api = {
+        select: async (cols) => q(`select ${cols} from public.${table}`),
+      };
+      // filter helpers used by the script
+      api.eq = (col, val) => api; // no-op for shim; select returns all rows, caller filters
+      api.in = async (col, vals) => {
+        const list = vals.map((v) => sqlVal(v)).join(',');
+        return { data: await q(`select * from public.${table} where ${col} in (${list})`), error: null };
+      };
+      return new Proxy({}, {
+        get: (_, prop) => {
+          if (prop === 'upsert') {
+            // upsert(...).select(...).single() chain support
+            const up = (rows, opts) => ({
+              select: async () => {
+                await build().upsert(rows, opts);
+                const data = await api.select('*');
+                return { data, error: null };
+              },
+            });
+            return up;
+          }
+          if (prop === 'then') return undefined;
+          return (...args) => api;
+        },
+      });
+    },
+  };
+}
+function sqlVal(v) {
+  if (v === null || v === undefined) return 'null';
+  if (typeof v === 'number') return String(v);
+  if (typeof v === 'boolean') return String(v);
+  return `'${String(v).replace(/'/g, "''")}'`;
+}
 
 const SITE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba';
 const COMMON = 'https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba';
@@ -150,12 +229,15 @@ async function main() {
   console.log(`Unique athletes: ${bios.length}${LIMIT ? ` (limit ${LIMIT})` : ''}`);
 
   // Ensure the season row exists
-  const { data: season, error: seasonErr } = await supabase
+  const { data: seasonData, error: seasonErr } = await supabase
     .from('seasons')
     .upsert({ label: LEAGUE_SEASON, status: 'pre_draft' }, { onConflict: 'label' })
-    .select('id, label, status')
-    .single();
+    .select('id, label, status');
   if (seasonErr) throw new Error(`seasons: ${seasonErr.message}`);
+  const season = Array.isArray(seasonData)
+    ? seasonData.find((s) => s.label === LEAGUE_SEASON) ?? seasonData[0]
+    : seasonData;
+  if (!season) throw new Error('season row missing after upsert');
   console.log(`Season: ${season.label} -> ${season.id} (${season.status})`);
 
   // Upsert players by espn_id
@@ -171,7 +253,7 @@ async function main() {
     .select('id, espn_id')
     .in('espn_id', players.map((p) => p.espn_id));
   if (selErr) throw new Error(`players select: ${selErr.message}`);
-  const idByEspn = new Map(inserted.map((p) => [p.espn_id, p.id]));
+  const idByEspn = new Map((inserted ?? []).filter(Boolean).map((p) => [p.espn_id, p.id]));
 
   if (BIO_ONLY) {
     console.log('--bio-only: skipping stats.');
@@ -210,6 +292,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('Import failed:', err.message);
+  console.error('Import failed:', err.stack ?? err.message);
   process.exit(1);
 });

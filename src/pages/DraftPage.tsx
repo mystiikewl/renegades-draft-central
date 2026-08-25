@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePlayerPool } from '@/api/queries';
 import { useOfflineQueue } from '@/api/offlineQueue';
 import type { DraftPick, PlayerWithStats } from '@/api/types';
+import { parseStats } from '@/lib/stats';
 import {
   Dialog,
   DialogContent,
@@ -256,9 +257,8 @@ function PlayerPoolPanel({
       .slice(0, 60);
   }, [players, search, rosteredIds]);
 
-  const stat = (p: PlayerWithStats | null, key: string): string => {
-    const v = p?.player_seasons?.[0]?.stats?.[key];
-    return v == null ? '—' : String(v);
+  const stat = (p: PlayerWithStats | null, key: keyof ReturnType<typeof parseStats>): string => {
+    return parseStats(p?.player_seasons?.[0]?.stats)[key] ?? '—';
   };
 
   const nextPick = picks?.find((p) => !p.is_used);
@@ -326,10 +326,10 @@ function PlayerPoolPanel({
                       {p.position ?? '—'} · {p.nba_team ?? '—'}
                     </div>
                   </div>
-                  <span className="text-right tabular-nums">{stat(p, 'avgPoints')}</span>
-                  <span className="text-right tabular-nums">{stat(p, 'avgRebounds')}</span>
-                  <span className="text-right tabular-nums">{stat(p, 'avgAssists')}</span>
-                  <span className="text-right tabular-nums">{stat(p, 'gamesPlayed')}</span>
+                  <span className="text-right tabular-nums">{stat(p, 'pts')}</span>
+                  <span className="text-right tabular-nums">{stat(p, 'reb')}</span>
+                  <span className="text-right tabular-nums">{stat(p, 'ast')}</span>
+                  <span className="text-right tabular-nums">{stat(p, 'gp')}</span>
                   <Button
                     size="sm"
                     disabled={!canPick || makePick.isPending || queuedIds.has(p.id)}
@@ -364,9 +364,9 @@ function PlayerPoolPanel({
                     {confirming?.position ?? '—'} · {confirming?.nba_team ?? '—'}
                   </p>
                   <p>
-                    {stat(confirming, 'avgPoints')} PPG ·{' '}
-                    {stat(confirming, 'avgRebounds')} RPG ·{' '}
-                    {stat(confirming, 'avgAssists')} APG
+                    {stat(confirming, 'pts')} PPG ·{' '}
+                    {stat(confirming, 'reb')} RPG ·{' '}
+                    {stat(confirming, 'ast')} APG
                   </p>
                 </div>
               </DialogDescription>
