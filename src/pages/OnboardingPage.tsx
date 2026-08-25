@@ -5,11 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-/**
- * Team claim onboarding — shown to any logged-in profile without a team.
- * Unclaimed teams are those with owner_profile_id IS NULL; claiming goes
- * through the claim_team RPC (server checks availability atomically).
- */
 export function OnboardingPage() {
   const { profile } = useAuth();
   const { data: teams, isLoading } = useTeams();
@@ -21,10 +16,7 @@ export function OnboardingPage() {
     <div className="mx-auto max-w-3xl space-y-5 p-4 md:space-y-6 md:p-6">
       <div>
         <h1 className="text-2xl font-bold leading-tight">Welcome{profile?.display_name ? `, ${profile.display_name}` : ''}!</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-          Claim your team to join the league. Once claimed, you'll get access to the draft board,
-          player pool and your roster.
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">Claim your team to continue.</p>
       </div>
 
       <Card>
