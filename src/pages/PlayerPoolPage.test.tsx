@@ -127,7 +127,10 @@ describe('PlayerPoolPage', () => {
     expect(within(dialog).getByText('Confirm Me')).toBeInTheDocument();
     expect(within(dialog).getByText('BOS')).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole('button', { name: /pick|draft/i }));
+    // Both the header (desktop) and stacked (mobile) draft buttons match.
+    const draftButtons = within(dialog).getAllByRole('button', { name: /pick|draft/i });
+    expect(draftButtons.length).toBeGreaterThanOrEqual(1);
+    await user.click(draftButtons[0]);
     expect(mutate).toHaveBeenCalledWith(
       { playerId: 'pl1', playerName: 'Confirm Me' },
       expect.objectContaining({ onSettled: expect.any(Function) }),

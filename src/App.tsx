@@ -8,10 +8,11 @@ import {
   RouterProvider,
 } from '@tanstack/react-router';
 import { useState } from 'react';
+import { useLocation } from '@tanstack/react-router';
 import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider, useAuth } from '@/auth/AuthContext';
-import { Button } from '@/components/ui/button';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { BarChart3, ClipboardList, Shield, UserCircle, Users, ListChecks } from 'lucide-react';
 import { DraftPage } from '@/pages/DraftPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { OnboardingPage } from '@/pages/OnboardingPage';
@@ -20,6 +21,7 @@ import { RostersPage } from '@/pages/RostersPage';
 import { PlayerPoolPage } from '@/pages/PlayerPoolPage';
 import { RankingsPage } from '@/pages/RankingsPage';
 import { TeamBuilderPage } from '@/pages/TeamBuilderPage';
+import { ProfilePage } from '@/pages/ProfilePage';
 
 /** Declarative auth guard — no navigate-in-effect, no blank frames. */
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -39,26 +41,37 @@ function RequireTeam({ children }: { children: React.ReactNode }) {
 }
 
 function RootLayout() {
-  const { profile, signOut } = useAuth();
+  const { profile } = useAuth();
+  const { pathname } = useLocation();
+
+  const navItems = [
+    { to: '/', label: 'Draft', short: 'Draft', icon: ClipboardList },
+    { to: '/pool', label: 'Player Pool', short: 'Pool', icon: Users },
+    { to: '/rankings', label: 'Rankings', short: 'Ranks', icon: BarChart3 },
+    { to: '/rosters', label: 'Rosters', short: 'Rosters', icon: ListChecks },
+    ...(profile?.is_admin ? [{ to: '/admin', label: 'Admin', short: 'Admin', icon: Shield }] : []),
+  ];
+  const isActive = (to: string) => (to === '/' ? pathname === '/' : pathname.startsWith(to));
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div
+      className={`min-h-screen bg-background text-foreground ${
+        profile?.team_id ? 'pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-0' : ''
+      }`}
+    >
       <header className="border-b">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 p-4">
           <div className="flex min-w-0 items-center gap-4 sm:gap-6">
             <span className="shrink-0 font-bold">Renegades Draft Central</span>
             {profile?.team_id && (
-              <nav className="flex min-w-0 gap-4 overflow-x-auto text-sm text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {[
-                  { to: '/', label: 'Draft' },
-                  { to: '/pool', label: 'Player Pool' },
-                  { to: '/rankings', label: 'Rankings' },
-                  { to: '/rosters', label: 'Rosters' },
-                  ...(profile.is_admin ? [{ to: '/admin', label: 'Admin' }] : []),
-                ].map((item) => (
+              <nav className="hidden min-w-0 gap-4 overflow-x-auto text-sm text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex">
+                {navItems.map((item) => (
                   <Link
                     key={item.to}
                     to={item.to}
-                    className="whitespace-nowrap transition-colors hover:text-foreground"
+                    className={`whitespace-nowrap transition-colors hover:text-foreground ${
+                      isActive(item.to) ? 'font-medium text-foreground' : ''
+                    }`}
                   >
                     {item.label}
                   </Link>
@@ -68,15 +81,42 @@ function RootLayout() {
           </div>
           {profile && (
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <span>{profile.display_name ?? profile.email}</span>
-              {profile.is_admin && <span className="text-primary">admin</span>}
-              <Button variant="ghost" size="sm" onClick={() => signOut()}>
-                Sign out
-              </Button>
+              <span className="hidden md:inline">{profile.display_name ?? profile.email}</span>
+              {profile.is_admin && <span className="hidden text-primary md:inline">admin</span>}
+              <Link
+                to="/profile"
+                aria-label="Profile and settings"
+                className="rounded-md p-2 transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <UserCircle className="size-5" />
+              </Link>
             </div>
           )}
         </div>
       </header>
+
+      {/* Mobile: bottom tab bar (sm and up uses the header nav) */}
+      {profile?.team_id && (
+        <nav className="fixed inset-x-0 bottom-0 z-40 grid auto-cols-fr grid-flow-col border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.to);
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`flex flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-medium transition-colors ${
+                  active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Icon className="size-5" />
+                {item.short}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
+
       <Outlet />
       <Toaster />
     </div>
@@ -163,6 +203,16 @@ const rankingsRoute = createRoute({
   ),
 });
 
+const profileRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/profile',
+  component: () => (
+    <RequireAuth>
+      <ProfilePage />
+    </RequireAuth>
+  ),
+});
+
 const teamBuilderRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/team-builder',
@@ -175,7 +225,7 @@ const teamBuilderRoute = createRoute({
   ),
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute, adminRoute, rostersRoute, poolRoute, rankingsRoute, teamBuilderRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, adminRoute, rostersRoute, poolRoute, rankingsRoute, teamBuilderRoute, profileRoute]);
 const router = createRouter({ routeTree });
 
 declare module '@tanstack/react-router' {
