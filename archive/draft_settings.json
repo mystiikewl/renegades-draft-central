@@ -1,0 +1,25 @@
+[
+  {
+    "id": "54a14fbd-99e4-49d1-b666-0e5b826f2503",
+    "league_size": 10,
+    "roster_size": 8,
+    "created_at": "2025-08-16T08:19:58.654416+00:00",
+    "season": "2025-26",
+    "draft_type": "linear",
+    "pick_time_limit_seconds": 59999,
+    "draft_order": [
+      "98892852-2960-4940-8e0b-5951d054ca47",
+      "aef7838a-7709-4a2e-953b-830804d925b7",
+      "cba9a091-ce3b-4ea5-9380-9a8927f061a9",
+      "6c4dc99f-7768-4c4f-b4ba-acba87cb6565",
+      "9d010cd0-d6c2-46db-aff6-d01968e2a6b1",
+      "f2943c99-c52f-412a-9d87-1e4d945ab3ed",
+      "49b28fb6-4442-453b-b3b3-d2c3b7218063",
+      "03635ceb-1eb0-4e5f-9288-600d60f9b22c",
+      "867e3a6f-0e9b-464e-92a3-ba782e4b65c5",
+      "46fbbb6d-d322-4feb-aa83-87648b522166"
+    ],
+    "updated_at": "2025-08-29T04:20:43.889622+00:00",
+    "status": "not_started"
+  }
+]

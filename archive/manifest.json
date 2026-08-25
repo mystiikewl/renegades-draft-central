@@ -1,0 +1,57 @@
+{
+  "exported_at": "2026-08-25T08:48:28.361Z",
+  "project": "https://xruqdjonzxkzwsslzpdl.supabase.co",
+  "schema": "public (2025 season, pre-rebuild)",
+  "tables": [
+    {
+      "table": "teams",
+      "exists": true,
+      "rows": 50
+    },
+    {
+      "table": "profiles",
+      "exists": true,
+      "rows": 12
+    },
+    {
+      "table": "players",
+      "exists": true,
+      "rows": 683
+    },
+    {
+      "table": "player_seasons",
+      "exists": true,
+      "rows": 0
+    },
+    {
+      "table": "draft_settings",
+      "exists": true,
+      "rows": 1
+    },
+    {
+      "table": "draft_picks",
+      "exists": true,
+      "rows": 80
+    },
+    {
+      "table": "keepers",
+      "exists": true,
+      "rows": 90
+    },
+    {
+      "table": "user_favourites",
+      "exists": true,
+      "rows": 22
+    },
+    {
+      "table": "draft_rollback_audit",
+      "exists": true,
+      "rows": 0
+    },
+    {
+      "table": "draft_rollback_snapshots",
+      "exists": true,
+      "rows": 0
+    }
+  ]
+}
