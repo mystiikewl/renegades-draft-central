@@ -18,45 +18,45 @@ export function OnboardingPage() {
   const unclaimed = (teams ?? []).filter((t) => t.owner_profile_id === null);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-4 md:p-6">
+    <div className="mx-auto max-w-3xl space-y-5 p-4 md:space-y-6 md:p-6">
       <div>
-        <h1 className="text-2xl font-bold">Welcome{profile?.display_name ? `, ${profile.display_name}` : ''}!</h1>
-        <p className="mt-1 text-muted-foreground">
-          Claim your team to join the league. Once claimed, you'll get access to the
-          draft board and your roster.
+        <h1 className="text-2xl font-bold leading-tight">Welcome{profile?.display_name ? `, ${profile.display_name}` : ''}!</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+          Claim your team to join the league. Once claimed, you'll get access to the draft board,
+          player pool and your roster.
         </p>
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-4">
           <CardTitle className="text-lg">Available teams</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="space-y-2">
               {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
+                <Skeleton key={i} className="h-16 w-full sm:h-12" />
               ))}
             </div>
           ) : unclaimed.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
+            <p className="py-8 text-center text-sm leading-relaxed text-muted-foreground">
               No unclaimed teams left. Ask an admin if you should be assigned one.
             </p>
           ) : (
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               {unclaimed.map((team) => (
                 <div
                   key={team.id}
-                  className="flex items-center justify-between rounded-md border p-3"
+                  className="flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                 >
-                  <span className="font-medium">{team.name}</span>
+                  <span className="line-clamp-2 min-w-0 font-medium leading-tight">{team.name}</span>
                   <Button
                     size="sm"
-                    className="transition-transform active:scale-[0.98]"
+                    className="w-full shrink-0 transition-transform active:scale-[0.98] sm:w-auto"
                     disabled={claimTeam.isPending}
                     onClick={() => claimTeam.mutate(team.id)}
                   >
-                    Claim
+                    {claimTeam.isPending ? 'Claiming…' : 'Claim team'}
                   </Button>
                 </div>
               ))}
