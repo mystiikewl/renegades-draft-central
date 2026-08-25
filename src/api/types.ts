@@ -18,6 +18,7 @@ export interface Team {
   id: string;
   name: string;
   owner_profile_id: string | null;
+  is_shadow?: boolean; // shadow teams are E2E/guest-only, hidden from the app
   created_at: string;
 }
 

@@ -59,7 +59,7 @@ export function useTeams() {
   return useQuery({
     queryKey: qk.teams,
     queryFn: async () => {
-      const { data, error } = await supabase.from('teams').select('*').order('name');
+      const { data, error } = await supabase.from('teams').select('*').eq('is_shadow', false).order('name');
       if (error) throw error;
       return data as Team[];
     },
