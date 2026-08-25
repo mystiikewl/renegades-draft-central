@@ -62,6 +62,70 @@ export function useClaimTeam() {
   });
 }
 
+export function useCreateSeason() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (label: string) => {
+      const { data, error } = await supabase.rpc('create_season', { p_label: label });
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.seasons });
+      qc.invalidateQueries({ queryKey: qk.activeSeason });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useSetDraftOrder(seasonId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (order: string[]) => {
+      const { error } = await supabase.rpc('set_draft_order', {
+        p_season_id: seasonId,
+        p_order: order,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      toast.success('Draft order saved — board regenerated');
+      invalidateSeason(qc, seasonId);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useSetDraftStatus(seasonId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (status: 'pre_draft' | 'paused' | 'running' | 'complete') => {
+      const { error } = await supabase.rpc('set_draft_status', {
+        p_season_id: seasonId,
+        p_status: status,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => invalidateSeason(qc, seasonId),
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useResetDraft(seasonId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('reset_draft', { p_season_id: seasonId });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      toast.success('Draft reset — all picks and drafted roster spots cleared');
+      invalidateSeason(qc, seasonId);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 export function useToggleFavourite(seasonId: string) {
   const qc = useQueryClient();
   return useMutation({

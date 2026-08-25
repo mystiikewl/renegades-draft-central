@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { DraftPage } from '@/pages/DraftPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { OnboardingPage } from '@/pages/OnboardingPage';
+import { AdminPage } from '@/pages/AdminPage';
 
 /** Declarative auth guard — no navigate-in-effect, no blank frames. */
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -55,6 +56,14 @@ function RootLayout() {
   );
 }
 
+/** Admin-only pages. */
+function RequireAdmin({ children }: { children: React.ReactNode }) {
+  const { profile } = useAuth();
+  if (!profile?.is_admin)
+    return <div className="p-8 text-center text-muted-foreground">Admins only.</div>;
+  return <>{children}</>;
+}
+
 const rootRoute = createRootRoute({ component: RootLayout });
 
 const indexRoute = createRoute({
@@ -75,7 +84,21 @@ const loginRoute = createRoute({
   component: LoginPage,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute]);
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin',
+  component: () => (
+    <RequireAuth>
+      <RequireTeam>
+        <RequireAdmin>
+          <AdminPage />
+        </RequireAdmin>
+      </RequireTeam>
+    </RequireAuth>
+  ),
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, adminRoute]);
 const router = createRouter({ routeTree });
 
 declare module '@tanstack/react-router' {
