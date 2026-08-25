@@ -103,7 +103,7 @@ export function PlayerStatsDialog({
               src={teamLogo}
               alt=""
               aria-hidden
-              className="pointer-events-none absolute -right-4 top-1/2 w-44 -translate-y-1/2 opacity-10 sm:w-52 dark:opacity-[0.13]"
+              className="pointer-events-none absolute -left-6 top-1/2 w-56 -translate-y-1/2 opacity-10 sm:w-64 dark:opacity-[0.13]"
             />
           )}
           <div className="relative flex items-center gap-4">
