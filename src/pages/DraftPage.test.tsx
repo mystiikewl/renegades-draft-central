@@ -35,7 +35,7 @@ vi.mock('@/api/mutations', () => ({
   useSwapPicks: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
-vi.mock('@/api/realtime', () => ({ useDraftRealtime: vi.fn() }));
+vi.mock('@/api/realtime', () => ({ useDraftRealtime: vi.fn(), useRealtimeStatus: () => 'connected' }));
 
 let profile: { team_id: string | null; is_admin: boolean } | null = {
   team_id: 't1',

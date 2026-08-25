@@ -1,7 +1,38 @@
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { qk } from './queries';
+
+export type RealtimeStatus = 'connected' | 'connecting' | 'disconnected';
+
+// ponytail: module store instead of zustand — one value, one writer
+let realtimeStatus: RealtimeStatus = 'connecting';
+const listeners = new Set<() => void>();
+
+function setRealtimeStatus(s: RealtimeStatus) {
+  if (s === realtimeStatus) return;
+  realtimeStatus = s;
+  listeners.forEach((l) => l());
+}
+
+export function useRealtimeStatus(): RealtimeStatus {
+  return useSyncExternalStore(
+    (cb) => {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    },
+    () => realtimeStatus
+  );
+}
+
+function setChannelStatus(status: string) {
+  if (status === 'SUBSCRIBED') setRealtimeStatus('connected');
+  else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED')
+    setRealtimeStatus('disconnected');
+}
+
+// ponytail: test seam — same function passed to channel.subscribe()
+export const _setChannelStatusForTest = setChannelStatus;
 
 /**
  * THE realtime layer — one Postgres channel that invalidates the TanStack
@@ -44,7 +75,7 @@ export function useDraftRealtime(seasonId: string | undefined) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () =>
         qc.invalidateQueries({ queryKey: qk.teams })
       )
-      .subscribe();
+      .subscribe(setChannelStatus);
 
     return () => {
       supabase.removeChannel(channel);
