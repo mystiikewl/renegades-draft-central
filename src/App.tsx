@@ -18,6 +18,8 @@ import { OnboardingPage } from '@/pages/OnboardingPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { RostersPage } from '@/pages/RostersPage';
 import { PlayerPoolPage } from '@/pages/PlayerPoolPage';
+import { RankingsPage } from '@/pages/RankingsPage';
+import { TeamBuilderPage } from '@/pages/TeamBuilderPage';
 
 /** Declarative auth guard — no navigate-in-effect, no blank frames. */
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -51,6 +53,9 @@ function RootLayout() {
                 </Link>
                 <Link to="/pool" className="hover:text-foreground">
                   Player Pool
+                </Link>
+                <Link to="/rankings" className="hover:text-foreground">
+                  Rankings
                 </Link>
                 <Link to="/rosters" className="hover:text-foreground">
                   Rosters
@@ -148,7 +153,31 @@ const poolRoute = createRoute({
   ),
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute, adminRoute, rostersRoute, poolRoute]);
+const rankingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/rankings',
+  component: () => (
+    <RequireAuth>
+      <RequireTeam>
+        <RankingsPage />
+      </RequireTeam>
+    </RequireAuth>
+  ),
+});
+
+const teamBuilderRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/team-builder',
+  component: () => (
+    <RequireAuth>
+      <RequireTeam>
+        <TeamBuilderPage />
+      </RequireTeam>
+    </RequireAuth>
+  ),
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, adminRoute, rostersRoute, poolRoute, rankingsRoute, teamBuilderRoute]);
 const router = createRouter({ routeTree });
 
 declare module '@tanstack/react-router' {
