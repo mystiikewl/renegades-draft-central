@@ -6,7 +6,6 @@ import { useCanPickNow } from '@/hooks/useCanPickNow';
 import { useAuth } from '@/auth/AuthContext';
 import { useOfflineQueue } from '@/api/offlineQueue';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -59,7 +58,6 @@ export function PlayerPoolPage() {
     if (position !== 'All') {
       pool = pool.filter((p) =>
         p.position === position ||
-        // guards can match PG/SG, forwards PF/SF via ESPN's G/F designations
         ((position === 'PG' || position === 'SG') && p.position === 'G') ||
         ((position === 'SF' || position === 'PF') && p.position === 'F')
       );
@@ -79,18 +77,11 @@ export function PlayerPoolPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold">Player Pool</h1>
-          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-            Full NBA player list with {season?.label ?? ''} {basis === 'averages' ? 'per-game averages' : 'season totals'}. Tap a player for
-            full stats{canPick ? ' and to draft them' : ''}.
-          </p>
-        </div>
-        <div className="shrink-0"><RealtimeBadge /></div>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">Player Pool</h1>
+        <RealtimeBadge />
       </div>
 
-      {/* On the clock: strongest context on the decision screen. */}
       {nextPick && (settings?.status === 'running' || settings?.status === 'paused') && (
         <Card className={isMyTurn ? 'border-primary bg-primary/5 ring-1 ring-primary' : undefined}>
           <CardContent className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:py-4">
@@ -101,16 +92,10 @@ export function PlayerPoolPage() {
               <span className="line-clamp-2 min-w-0 font-semibold sm:text-lg">{teamName(nextPick.team_id)}</span>
             </div>
             <span className={`text-sm font-medium ${isMyTurn ? 'text-primary' : 'text-muted-foreground'}`}>
-              {isMyTurn ? 'YOUR PICK — choose a player below' : 'is on the clock'}
+              {isMyTurn ? 'Your pick' : 'On the clock'}
             </span>
           </CardContent>
         </Card>
-      )}
-
-      {!canPick && queued.length === 0 && (
-        <p className="text-xs text-muted-foreground">
-          Picks unlock when you're on the clock (admins can always pick).
-        </p>
       )}
 
       {queued.length > 0 && (
@@ -170,7 +155,7 @@ export function PlayerPoolPage() {
 
       <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
         <span>{filtered.length} player{filtered.length === 1 ? '' : 's'}</span>
-        <span>Sorted by {STAT_COLUMNS.find((c) => c.key === sortKey)?.label ?? sortKey}</span>
+        <span>{STAT_COLUMNS.find((c) => c.key === sortKey)?.label ?? sortKey}</span>
       </div>
 
       <Card className="overflow-hidden">
