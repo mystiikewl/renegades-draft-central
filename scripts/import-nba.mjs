@@ -167,6 +167,9 @@ async function fetchRosters() {
           nba_team: team.abbreviation,
           image_url: a.headshot?.href ?? null,
           experience: a.experience?.years ?? null,
+          birth_date: a.dateOfBirth ? String(a.dateOfBirth).slice(0, 10) : null,
+          height: a.displayHeight ?? null,
+          weight: a.weight ?? null,
         });
       }
     } catch (err) {
@@ -209,6 +212,15 @@ async function fetchStats(espnId) {
   const res = await getJson(
     `${COMMON}/athletes/${espnId}/stats?season=${STATS_SEASON}&seasontype=2`
   );
+  // ponytail: draft string rides the same per-player pass; a bio-only import
+  // skips it until the next stats run.
+  let draftDisplay = null;
+  if (!BIO_ONLY) {
+    try {
+      const athlete = await getJson(`${COMMON}/athletes/${espnId}`);
+      draftDisplay = athlete.athlete?.displayDraft ?? null;
+    } catch { /* non-fatal */ }
+  }
   const averages = res.categories?.find((c) => c.name === 'averages');
   if (!averages?.names || !averages.statistics) return null;
 
@@ -254,6 +266,7 @@ async function fetchStats(espnId) {
   }
 
   stats.espn_season_label = row.season?.displayName ?? null;
+  if (draftDisplay) stats.draft_display = draftDisplay;
   return stats;
 }
 
@@ -321,6 +334,15 @@ async function main() {
     if (done % 50 === 0) console.log(`  stats: ${done}/${players.length}`);
     return { espn_id: p.espn_id, stats };
   });
+
+  // Draft strings: patch players rows for players that returned one.
+  const draftRows = statsResults
+    .filter((r) => r?.stats?.draft_display)
+    .map((r) => ({ espn_id: r.espn_id, draft_display: r.stats.draft_display }));
+  for (let i = 0; i < draftRows.length; i += BATCH) {
+    await supabase.from('players').upsert(draftRows.slice(i, i + BATCH), { onConflict: 'espn_id' });
+  }
+  if (draftRows.length) console.log(`draft_display: ${draftRows.length} patched`);
 
   let withStats = 0;
   for (const r of statsResults) {

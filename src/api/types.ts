@@ -40,6 +40,11 @@ export interface Player {
   image_url: string | null;
   /** ESPN years-of-league-experience; 0 = rookie */
   experience?: number | null;
+  birth_date?: string | null;
+  height?: string | null;
+  weight?: number | null;
+  /** ESPN display string, e.g. "2014: Rd 1, Pk 3 (PHI)" */
+  draft_display?: string | null;
   created_at: string;
 }
 

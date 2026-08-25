@@ -32,12 +32,13 @@ export function PlayerHeadshot({ espnId, name, size = 32 }: PlayerHeadshotProps)
   }
 
   // srcSet at 1x/2x/4x so retina/zoomed displays pick a sharp source instead
-  // of an upscaled (compressed-looking) render.
-  const src = HEADSHOT_URL(espnId, size * 2);
+  // of an upscaled (compressed-looking) render. Base multiplier bumped so
+  // desktop/dialog sizes get genuinely high-res sources from ESPN's combiner.
+  const src = HEADSHOT_URL(espnId, size * 4);
   const srcSet = [
-    `${HEADSHOT_URL(espnId, size)} 1x`,
+    `${HEADSHOT_URL(espnId, size * 2)} 1x`,
     `${src} 2x`,
-    `${HEADSHOT_URL(espnId, size * 4)} 4x`,
+    `${HEADSHOT_URL(espnId, size * 6)} 4x`,
   ].join(', ');
 
   return (
