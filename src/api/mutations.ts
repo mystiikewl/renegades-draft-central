@@ -203,6 +203,37 @@ export function useFinalizeKeepers(seasonId: string) {
   });
 }
 
+export interface UpdateDraftSettingsInput {
+  league_size: number;
+  roster_size: number;
+  keeper_limit: number;
+  draft_type: 'snake' | 'linear';
+  pick_time_limit_seconds: number;
+}
+
+/** Upserts the editable draft config. Locked server-side once status != pre_draft. */
+export function useUpdateDraftSettings(seasonId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: UpdateDraftSettingsInput) => {
+      const { error } = await supabase.rpc('update_draft_settings', {
+        p_season_id: seasonId,
+        p_league_size: input.league_size,
+        p_roster_size: input.roster_size,
+        p_keeper_limit: input.keeper_limit,
+        p_draft_type: input.draft_type,
+        p_pick_time_limit_seconds: input.pick_time_limit_seconds,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      toast.success('Draft settings saved');
+      qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 export function useTradePick(seasonId: string) {
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
