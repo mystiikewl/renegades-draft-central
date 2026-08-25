@@ -89,7 +89,8 @@ function TeamRosterCard({ name, entries }: { name: string; entries: RosterEntry[
     <Card className="h-fit">
       <CardHeader className="flex-row items-center justify-between space-y-0">
         <CardTitle className="text-lg">{name}</CardTitle>
-        <Badge variant="secondary">{entries.length}</Badge>
+        {/* ponytail: roster size is the card's one anchor stat — tinted, not just a gray pill */}
+        <Badge variant="secondary" className="bg-primary/10 text-primary ring-1 ring-primary/30">{entries.length}</Badge>
       </CardHeader>
       <CardContent className="space-y-3">
         {entries.length === 0 ? (

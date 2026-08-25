@@ -186,7 +186,7 @@ function CandidateRow({
         <Button
           size="sm"
           variant="secondary"
-          className="min-w-[5.5rem]"
+          className="min-w-[5.5rem] transition-all active:scale-[0.98]"
           disabled={disabled}
           onClick={() => onRemove(entry.player_id)}
           data-testid={`remove-${entry.player_id}`}
@@ -197,7 +197,7 @@ function CandidateRow({
         <Button
           size="sm"
           variant="outline"
-          className="min-w-[5.5rem]"
+          className="min-w-[5.5rem] transition-all active:scale-[0.98]"
           disabled={disabled || blocked}
           title={blocked ? 'Already kept or on another team’s roster' : undefined}
           onClick={() => onAssign(entry.player_id)}

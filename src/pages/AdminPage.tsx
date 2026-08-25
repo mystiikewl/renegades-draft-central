@@ -179,6 +179,7 @@ function DraftOrderCard({ seasonId, locked }: { seasonId: string; locked: boolea
         <CardTitle className="text-lg">Draft order</CardTitle>
         <Button
           size="sm"
+          className="transition-transform active:scale-[0.98]"
           disabled={locked || setDraftOrder.isPending || !order.length}
           onClick={() => setDraftOrder.mutate(order)}
         >
@@ -193,7 +194,7 @@ function DraftOrderCard({ seasonId, locked }: { seasonId: string; locked: boolea
         ) : (
           <p className="text-sm text-muted-foreground">
             Drag to reorder, then save. Saving regenerates the pick slots
-            (snake rounds per settings). {dirty && <span className="text-primary">Unsaved changes.</span>}
+            (snake rounds per settings). {dirty && <span className="font-medium text-primary">Unsaved changes.</span>}
           </p>
         )}
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>

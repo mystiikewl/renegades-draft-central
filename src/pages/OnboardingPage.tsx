@@ -52,6 +52,7 @@ export function OnboardingPage() {
                   <span className="font-medium">{team.name}</span>
                   <Button
                     size="sm"
+                    className="transition-transform active:scale-[0.98]"
                     disabled={claimTeam.isPending}
                     onClick={() => claimTeam.mutate(team.id)}
                   >

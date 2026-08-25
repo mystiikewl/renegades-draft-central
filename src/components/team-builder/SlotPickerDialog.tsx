@@ -57,7 +57,7 @@ export function SlotPickerDialog({ open, onOpenChange, pool, current, impactFor,
                     onOpenChange(false);
                   }}
                   disabled={current?.id === p.id}
-                  className="flex w-full items-center justify-between gap-3 border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted disabled:opacity-50"
+                  className="flex w-full items-center justify-between gap-3 border-b px-3 py-2 text-left text-sm transition-colors last:border-b-0 hover:bg-muted focus-visible:bg-muted focus-visible:outline-none disabled:opacity-50"
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <PlayerHeadshot espnId={p.espn_id} name={p.name} />
