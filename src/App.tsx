@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
+  Link,
   createRootRoute,
   createRoute,
   createRouter,
@@ -14,6 +15,7 @@ import { DraftPage } from '@/pages/DraftPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { OnboardingPage } from '@/pages/OnboardingPage';
 import { AdminPage } from '@/pages/AdminPage';
+import { RostersPage } from '@/pages/RostersPage';
 
 /** Declarative auth guard — no navigate-in-effect, no blank frames. */
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -37,8 +39,25 @@ function RootLayout() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b">
-        <div className="mx-auto flex max-w-7xl items-center justify-between p-4">
-          <span className="font-bold">Renegades Draft Central</span>
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 p-4">
+          <div className="flex items-center gap-6">
+            <span className="font-bold">Renegades Draft Central</span>
+            {profile?.team_id && (
+              <nav className="hidden gap-4 text-sm text-muted-foreground sm:flex">
+                <Link to="/" className="hover:text-foreground">
+                  Draft
+                </Link>
+                <Link to="/rosters" className="hover:text-foreground">
+                  Rosters
+                </Link>
+                {profile.is_admin && (
+                  <Link to="/admin" className="hover:text-foreground">
+                    Admin
+                  </Link>
+                )}
+              </nav>
+            )}
+          </div>
           {profile && (
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <span>{profile.display_name ?? profile.email}</span>
@@ -98,7 +117,19 @@ const adminRoute = createRoute({
   ),
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute, adminRoute]);
+const rostersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/rosters',
+  component: () => (
+    <RequireAuth>
+      <RequireTeam>
+        <RostersPage />
+      </RequireTeam>
+    </RequireAuth>
+  ),
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, adminRoute, rostersRoute]);
 const router = createRouter({ routeTree });
 
 declare module '@tanstack/react-router' {
