@@ -1,0 +1,96 @@
+{
+  "season": 2026,
+  "fetched_at": "2026-08-25T11:50:52.696Z",
+  "teams": [
+    {
+      "espn_team_id": 1,
+      "name": "Building Bridges",
+      "abbreviation": "BRG",
+      "logo_url": "https://g.espncdn.com/lm-static/logo-packs/core/DIS_Avengers_EndGame/DIS_Avengers_EndGame_Thor.svg",
+      "espn_owner_id": "{3FCD9EF1-7B2A-4914-8D9E-F17B2AD914C3}",
+      "owner_name": "Dan Brooks",
+      "owner_username": "DanBrooks333"
+    },
+    {
+      "espn_team_id": 2,
+      "name": "Fresh Prince  of Dentown",
+      "abbreviation": "FPOD",
+      "logo_url": "https://g.espncdn.com/lm-static/logo-packs/core/TeamMascots-RobbHarskamp/Team_Mascots-07.svg",
+      "espn_owner_id": "{349FC9DE-EDF5-4A2E-8DA6-A6F36B32731D}",
+      "owner_name": "Dan Kelly",
+      "owner_username": "DanKelly1999"
+    },
+    {
+      "espn_team_id": 3,
+      "name": "F Dem Kids",
+      "abbreviation": "MJ",
+      "logo_url": "https://i.imgur.com/Ea0nwpZ.png",
+      "espn_owner_id": "{2D129EAC-4634-42A5-929E-AC4634F2A55B}",
+      "owner_name": "Arana Taha",
+      "owner_username": "ESPNFAN6589227355"
+    },
+    {
+      "espn_team_id": 4,
+      "name": "Fart Rainbows TheDoncicStory",
+      "abbreviation": "FART",
+      "logo_url": "https://g.espncdn.com/lm-static/logo-packs/core/RalphBreaksTheInternet/ralph-04.svg",
+      "espn_owner_id": "{6DBD3F29-4F04-48B3-88BA-FC1E7048EFAC}",
+      "owner_name": "Shaun Hoff",
+      "owner_username": "shaunh1764196"
+    },
+    {
+      "espn_team_id": 5,
+      "name": "Affco Meat Workers",
+      "abbreviation": "AMW",
+      "logo_url": "https://g.espncdn.com/lm-static/logo-packs/core/Mascots/mascots-1.svg",
+      "espn_owner_id": "{0AC22952-90C0-49B8-8229-5290C0F9B8CD}",
+      "owner_name": "Adam McLean",
+      "owner_username": "ESPNfan24792278"
+    },
+    {
+      "espn_team_id": 6,
+      "name": "Mamba  Mentality",
+      "abbreviation": "ERIC",
+      "logo_url": "https://mystique-api.fantasy.espn.com/apis/v1/domains/lm/images/044187b0-7a93-11f0-8306-0b32d1884cc7",
+      "espn_owner_id": "{15A92592-265A-4A5A-A925-92265A7A5A5A}",
+      "owner_name": "Michael Erickson",
+      "owner_username": "Michael378589"
+    },
+    {
+      "espn_team_id": 7,
+      "name": "Stroking Threes Smoking Trees",
+      "abbreviation": "COGD",
+      "logo_url": "https://g.espncdn.com/s/fbalm/logos/8-bitHeros-JoeyEllis/8bit_basketball-03.svg",
+      "espn_owner_id": "{85977F5C-DD2C-44B7-B214-E02913D2FD98}",
+      "owner_name": "Joshua Cogdale",
+      "owner_username": "coggie13"
+    },
+    {
+      "espn_team_id": 8,
+      "name": "Kawhi of the  Tiger",
+      "abbreviation": "\\/\\/",
+      "logo_url": "https://g.espncdn.com/lm-static/logo-packs/fba/AtTheArena-RobbHarskamp/Basketball_At_The_Arena-01.svg",
+      "espn_owner_id": "{9B990606-D876-48FE-9906-06D876C8FE88}",
+      "owner_name": "Reece Brown",
+      "owner_username": "BigReeceyB"
+    },
+    {
+      "espn_team_id": 9,
+      "name": "Flash in the Pan ",
+      "abbreviation": "CARS",
+      "logo_url": "https://mystique-api.fantasy.espn.com/apis/v1/domains/lm/images/747fa710-5c74-11f0-984f-c1943876853a",
+      "espn_owner_id": "{4503519E-358B-4270-8351-9E358B8270BA}",
+      "owner_name": "Dominic Carswell",
+      "owner_username": "Are your Cars-well"
+    },
+    {
+      "espn_team_id": 10,
+      "name": "Innocent till proven Giddey",
+      "abbreviation": "ITPG",
+      "logo_url": "https://g.espncdn.com/lm-static/fba/images/default_logos/1.svg",
+      "espn_owner_id": "{8ED89F0B-A983-447E-989F-0BA983F47E3B}",
+      "owner_name": "Lachie Angus",
+      "owner_username": "LachieA-"
+    }
+  ]
+}

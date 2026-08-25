@@ -124,17 +124,22 @@ export function usePlayerPool(seasonId: string | undefined) {
       // the pool — fetching the season's rostered ids in the same queryFn so
       // keepers never show as draftable.
       const [playersRes, rosteredRes] = await Promise.all([
-        supabase
-          .from('players')
-          .select('*, player_seasons(stats)')
-          .eq('player_seasons.season_id', seasonId)
-          .order('name'),
+        // no season filter on stats: prefer the active season's row at merge
+        // time below. espn_id filter hides 2025-archive-only players (retirees).
+        supabase.from('players').select('*, player_seasons(season_id, stats)').not('espn_id', 'is', null).order('name'),
         supabase.from('rosters').select('player_id').eq('season_id', seasonId),
       ]);
       if (playersRes.error) throw playersRes.error;
       if (rosteredRes.error) throw rosteredRes.error;
       const rostered = new Set(rosteredRes.data.map((r) => r.player_id));
-      return (playersRes.data as PlayerWithStats[]).filter((p) => !rostered.has(p.id));
+      const withPreferredStats = (playersRes.data as PlayerWithStats[]).map((p) => {
+        const seasons = [...(p.player_seasons ?? [])];
+        seasons.sort((a, b) =>
+          a.season_id === seasonId ? -1 : b.season_id === seasonId ? 1 : 0,
+        );
+        return { ...p, player_seasons: seasons.slice(0, 1) };
+      });
+      return withPreferredStats.filter((p) => !rostered.has(p.id));
     },
   });
 }
