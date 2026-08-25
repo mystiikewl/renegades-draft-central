@@ -256,8 +256,8 @@ function PlayerPoolPanel({
       .slice(0, 60);
   }, [players, search, rosteredIds]);
 
-  const stat = (p: PlayerWithStats, key: string): string => {
-    const v = p.player_seasons?.[0]?.stats?.[key];
+  const stat = (p: PlayerWithStats | null, key: string): string => {
+    const v = p?.player_seasons?.[0]?.stats?.[key];
     return v == null ? '—' : String(v);
   };
 
@@ -364,9 +364,9 @@ function PlayerPoolPanel({
                     {confirming?.position ?? '—'} · {confirming?.nba_team ?? '—'}
                   </p>
                   <p>
-                    {stat(confirming as PlayerWithStats, 'avgPoints')} PPG ·{' '}
-                    {stat(confirming as PlayerWithStats, 'avgRebounds')} RPG ·{' '}
-                    {stat(confirming as PlayerWithStats, 'avgAssists')} APG
+                    {stat(confirming, 'avgPoints')} PPG ·{' '}
+                    {stat(confirming, 'avgRebounds')} RPG ·{' '}
+                    {stat(confirming, 'avgAssists')} APG
                   </p>
                 </div>
               </DialogDescription>
