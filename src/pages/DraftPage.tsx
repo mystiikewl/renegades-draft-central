@@ -80,18 +80,18 @@ export function DraftPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:p-6">
+    <div className="mx-auto max-w-7xl space-y-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:space-y-6 md:p-6">
       {/* Status header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+      <div className="space-y-3 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:space-y-0">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold">{season.label} Draft</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             {settings
               ? `${settings.draft_type} · ${settings.league_size} teams · ${settings.roster_size} rounds`
               : 'Loading settings…'}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end sm:gap-3">
           <DraftStatusBadge status={settings?.status ?? 'pre_draft'} />
           <RealtimeBadge />
           {canUndo && (
@@ -111,18 +111,21 @@ export function DraftPage() {
       {/* Mobile: sticky on-the-clock mini-bar (lg:hidden, sticks below non-sticky app header) */}
       {nextPick && draftLive ? (
         <div
-          className={`sticky top-0 z-30 -mx-4 flex items-center gap-2 border-b bg-background/95 px-4 py-2 backdrop-blur md:-mx-6 lg:hidden ${
+          className={`sticky top-0 z-30 -mx-4 flex items-center gap-2 border-y bg-background/95 px-4 py-2.5 shadow-sm backdrop-blur md:-mx-6 lg:hidden ${
             isMyTurn ? 'border-primary' : 'border-border'
           }`}
         >
           <Badge variant="outline" className="shrink-0 text-xs">
             #{nextPick.pick_number}
           </Badge>
-          <span className="truncate text-sm font-semibold">{teamName(nextPick.team_id)}</span>
+          <span className="line-clamp-2 min-w-0 text-sm font-semibold leading-tight">{teamName(nextPick.team_id)}</span>
           <span className="ml-auto shrink-0 text-xs">
             {isMyTurn ? (
-              <Link to="/pool" className="font-bold uppercase text-primary">
-                Your pick →
+              <Link
+                to="/pool"
+                className="inline-flex min-h-9 items-center rounded-md bg-primary px-3 font-bold uppercase text-primary-foreground transition-transform active:scale-[0.98]"
+              >
+                Pick →
               </Link>
             ) : (
               <span className="text-muted-foreground">on the clock</span>
@@ -134,19 +137,21 @@ export function DraftPage() {
       {/* On the clock */}
       {nextPick && draftLive ? (
         <Card className={isMyTurn ? 'border-primary bg-primary/5 ring-1 ring-primary' : undefined}>
-          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
-            <div className="flex items-center gap-3">
-              <Badge variant="outline" className="text-sm">
+          <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3 sm:items-center">
+              <Badge variant="outline" className="shrink-0 text-sm">
                 Pick {nextPick.pick_number}
               </Badge>
-              <span className="text-lg font-semibold">{teamName(nextPick.team_id)}</span>
-              <span className="text-muted-foreground">
-                {isMyTurn ? 'YOUR PICK' : 'is on the clock'}
-              </span>
+              <div className="min-w-0">
+                <div className="line-clamp-2 font-semibold leading-tight sm:text-lg">{teamName(nextPick.team_id)}</div>
+                <div className={`mt-0.5 text-sm ${isMyTurn ? 'font-medium text-primary' : 'text-muted-foreground'}`}>
+                  {isMyTurn ? 'YOUR PICK' : 'is on the clock'}
+                </div>
+              </div>
             </div>
             {isMyTurn && (
-              <Button asChild disabled={!canPickNow} className="transition-transform active:scale-[0.98]">
-                <Link to="/pool">Draft a player in the Player Pool →</Link>
+              <Button asChild disabled={!canPickNow} className="w-full transition-transform active:scale-[0.98] sm:w-auto">
+                <Link to="/pool" className="justify-center">Draft a player in the Player Pool →</Link>
               </Button>
             )}
           </CardContent>
@@ -155,20 +160,22 @@ export function DraftPage() {
 
       {/* Recent picks strip */}
       {lastPick ? (
-        <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-2.5 text-sm">
+        <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1 rounded-lg border bg-card px-4 py-3 text-sm sm:flex sm:gap-3">
           {lastPick.players?.espn_id || lastPick.players?.name ? (
-            <PlayerHeadshot espnId={lastPick.players?.espn_id ?? null} name={lastPick.players?.name ?? ''} size={28} />
+            <PlayerHeadshot espnId={lastPick.players?.espn_id ?? null} name={lastPick.players?.name ?? ''} size={32} />
           ) : null}
-          <span className="text-muted-foreground">Last pick</span>
-          <strong className="font-semibold">{lastPick.players?.name ?? '—'}</strong>
-          <span className="text-muted-foreground">
-            to {lastPick.team?.name ?? teamName(lastPick.team_id)} · #{lastPick.pick_number}
-          </span>
+          <div className="min-w-0 sm:contents">
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground sm:text-sm sm:normal-case sm:tracking-normal">Last pick</span>
+            <strong className="line-clamp-2 font-semibold leading-tight">{lastPick.players?.name ?? '—'}</strong>
+            <span className="col-start-2 text-xs text-muted-foreground sm:text-sm">
+              to {lastPick.team?.name ?? teamName(lastPick.team_id)} · #{lastPick.pick_number}
+            </span>
+          </div>
         </div>
       ) : null}
 
       {queued.length > 0 && (
-        <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+        <p className="rounded-md bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
           Offline — {queued.length} pick{queued.length > 1 ? 's' : ''} queued (
           {queued.map((q) => q.playerName).join(', ')}). They'll submit automatically when
           you reconnect.
@@ -191,6 +198,7 @@ export function DraftPage() {
               Cancel
             </Button>
             <Button
+              className="transition-transform active:scale-[0.98]"
               disabled={undoPick.isPending}
               onClick={() =>
                 undoPick.mutate(undefined, { onSettled: () => setUndoConfirm(false) })
@@ -231,12 +239,12 @@ function PickTradesPanel({
 
   return (
     <div className="rounded-md border bg-muted/40 p-3">
-      <div className="mb-2 text-sm font-medium">Trade picks</div>
-      <div className="flex flex-wrap items-end gap-2">
-        <div>
+      <div className="mb-3 text-sm font-medium">Trade picks</div>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+        <div className="min-w-0">
           <Label htmlFor="trade-mine" className="text-xs text-muted-foreground">My pick</Label>
           <Select value={myPickId} onValueChange={setMyPickId}>
-            <SelectTrigger id="trade-mine" className="w-40"><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectTrigger id="trade-mine" className="mt-1 w-full"><SelectValue placeholder="—" /></SelectTrigger>
             <SelectContent>
               {myPicks.map((p) => (
                 <SelectItem key={p.id} value={p.id}>{label(p)}</SelectItem>
@@ -244,10 +252,10 @@ function PickTradesPanel({
             </SelectContent>
           </Select>
         </div>
-        <div>
+        <div className="min-w-0">
           <Label htmlFor="trade-theirs" className="text-xs text-muted-foreground">Swap for…</Label>
           <Select value={theirPickId} onValueChange={setTheirPickId}>
-            <SelectTrigger id="trade-theirs" className="w-40"><SelectValue placeholder="(none = give away)" /></SelectTrigger>
+            <SelectTrigger id="trade-theirs" className="mt-1 w-full"><SelectValue placeholder="(none = give away)" /></SelectTrigger>
             <SelectContent>
               {otherUnused.map((p) => (
                 <SelectItem key={p.id} value={p.id}>{label(p)} · {teamName(p.team_id).slice(0, 12)}</SelectItem>
@@ -257,6 +265,7 @@ function PickTradesPanel({
         </div>
         <Button
           size="sm"
+          className="w-full transition-transform active:scale-[0.98] sm:w-auto"
           disabled={!myPickId || !theirPickId || tradePick.isPending || swapPicks.isPending}
           onClick={() => theirPickId && swapPicks.mutate({ mine: myPickId, theirs: theirPickId })}
         >
@@ -286,9 +295,9 @@ function GiveAwayRow({
   const tradePick = useTradePick(seasonId);
   const [toTeam, setToTeam] = useState('');
   return (
-    <div className="mt-2 flex items-center gap-2">
+    <div className="mt-3 flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-center">
       <Select value={toTeam} onValueChange={setToTeam}>
-        <SelectTrigger className="w-48"><SelectValue placeholder="Give to team…" /></SelectTrigger>
+        <SelectTrigger className="w-full sm:w-56"><SelectValue placeholder="Give to team…" /></SelectTrigger>
         <SelectContent>
           {(teams ?? []).filter((t) => !t.is_shadow).map((t) => (
             <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
@@ -298,10 +307,11 @@ function GiveAwayRow({
       <Button
         size="sm"
         variant="outline"
+        className="w-full transition-transform active:scale-[0.98] sm:w-auto"
         disabled={!toTeam || pending}
         onClick={() => toTeam && tradePick.mutate({ pickId, toTeamId: toTeam })}
       >
-        Confirm
+        Confirm giveaway
       </Button>
     </div>
   );
@@ -334,17 +344,17 @@ export function DraftBoard({
   const onClockId = picks.find((p) => !p.is_used)?.id;
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3">
         <CardTitle className="text-lg">Draft Board</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4 px-3 sm:px-6">
         {seasonId && myTeamId && (
           <PickTradesPanel picks={picks} seasonId={seasonId} myTeamId={myTeamId} teamName={teamName} />
         )}
         {rounds.map((round) => (
           <div key={round}>
-            <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Round {round}
             </div>
             {/* Single markup: full-width pick row on mobile, dense tile from sm up */}
@@ -355,37 +365,38 @@ export function DraftBoard({
                   <div
                     key={p.id}
                     data-on-clock={onClockId === p.id || undefined}
-                    className={`flex min-h-11 items-center justify-between rounded-md border px-3 py-2 text-xs sm:block sm:p-2 ${
+                    className={`flex min-h-14 items-center justify-between gap-3 rounded-md border px-3 py-2 text-xs sm:block sm:min-h-0 sm:p-2 ${
                       onClockId === p.id
-                        ? 'border-primary ring-1 ring-primary'
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
                         : p.is_used
                         ? 'border-border'
                         : 'border-dashed border-muted-foreground/40 opacity-70'
                     }`}
                   >
-                    <div className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
-                      <span>#{p.pick_number}</span>
-                      <span className={p.team_id !== p.original_team_id ? 'text-amber-600' : undefined}>
-                        {teamName(p.team_id)}
-                      </span>
-                    </div>
-                    {/* ponytail: truncate keeps long names from wrapping the mobile row */}
-                    <div className="flex items-center gap-2 truncate sm:mt-1.5">
-                      {p.is_used && (
-                        <PlayerHeadshot
-                          espnId={p.players?.espn_id ?? null}
-                          name={p.players?.name ?? ''}
-                          size={22}
-                          variant="bare"
-                        />
-                      )}
-                      <span
-                        className={`truncate font-medium ${
-                          onClockId === p.id ? 'font-semibold' : undefined
-                        }`}
-                      >
-                        {p.players?.name ?? '—'}
-                      </span>
+                    <div className="min-w-0 flex-1 sm:min-w-0">
+                      <div className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
+                        <span className="shrink-0">#{p.pick_number}</span>
+                        <span className={`line-clamp-1 ${p.team_id !== p.original_team_id ? 'text-amber-600' : undefined}`}>
+                          {teamName(p.team_id)}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex min-w-0 items-center gap-2 sm:mt-1.5">
+                        {p.is_used && (
+                          <PlayerHeadshot
+                            espnId={p.players?.espn_id ?? null}
+                            name={p.players?.name ?? ''}
+                            size={22}
+                            variant="bare"
+                          />
+                        )}
+                        <span
+                          className={`line-clamp-2 min-w-0 font-medium leading-tight ${
+                            onClockId === p.id ? 'font-semibold' : undefined
+                          }`}
+                        >
+                          {p.players?.name ?? '—'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}
