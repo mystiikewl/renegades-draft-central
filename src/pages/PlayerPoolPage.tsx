@@ -5,6 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { parseStats } from '@/lib/stats';
+import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
+import { PlayerStatsDialog } from '@/components/player/PlayerStatsDialog';
+import type { PlayerWithStats } from '@/api/types';
 
 type SortKey = 'rank' | 'pts' | 'reb' | 'ast' | 'tp' | 'stl' | 'blk' | 'gp';
 
@@ -27,6 +30,7 @@ export function PlayerPoolPage() {
   const [search, setSearch] = useState('');
   const [position, setPosition] = useState<(typeof POSITIONS)[number]>('All');
   const [sortKey, setSortKey] = useState<SortKey>('pts');
+  const [selected, setSelected] = useState<PlayerWithStats | null>(null);
 
   const filtered = useMemo(() => {
     if (!players) return [];
@@ -136,9 +140,15 @@ export function PlayerPoolPage() {
                     return (
                       <tr
                         key={p.id}
-                        className="border-b border-border/50 last:border-0 hover:bg-muted/40"
+                        onClick={() => setSelected(p)}
+                        className="cursor-pointer border-b border-border/50 last:border-0 hover:bg-muted/40"
                       >
-                        <td className="px-4 py-2 font-medium">{p.name}</td>
+                        <td className="px-4 py-2 font-medium">
+                          <span className="flex items-center gap-2">
+                            <PlayerHeadshot espnId={p.espn_id} name={p.name} />
+                            {p.name}
+                          </span>
+                        </td>
                         <td className="px-2 py-2">
                           <Badge variant="secondary" className="text-[10px]">
                             {p.position ?? '—'}
@@ -160,6 +170,12 @@ export function PlayerPoolPage() {
           )}
         </CardContent>
       </Card>
+
+      <PlayerStatsDialog
+        player={selected}
+        open={selected !== null}
+        onOpenChange={(o) => !o && setSelected(null)}
+      />
     </div>
   );
 }
