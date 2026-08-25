@@ -140,6 +140,48 @@ export function useResetDraft(seasonId: string) {
   });
 }
 
+/**
+ * Keepers are roster rows with acquisition='keeper'. Assigning/removing only
+ * changes rosters — the pool query derives from rosters, so those two keys are
+ * what needs invalidating (picks/settings are untouched).
+ */
+function invalidateKeepers(qc: ReturnType<typeof useQueryClient>, seasonId: string) {
+  qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
+  qc.invalidateQueries({ queryKey: qk.playerPool(seasonId) });
+}
+
+export function useAssignKeeper(seasonId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ teamId, playerId }: { teamId: string; playerId: string }) => {
+      const { error } = await supabase.rpc('assign_keeper', {
+        p_season_id: seasonId,
+        p_team_id: teamId,
+        p_player_id: playerId,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => invalidateKeepers(qc, seasonId),
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useRemoveKeeper(seasonId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ teamId, playerId }: { teamId: string; playerId: string }) => {
+      const { error } = await supabase.rpc('remove_keeper', {
+        p_season_id: seasonId,
+        p_team_id: teamId,
+        p_player_id: playerId,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => invalidateKeepers(qc, seasonId),
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 export function useToggleFavourite(seasonId: string) {
   const qc = useQueryClient();
   return useMutation({

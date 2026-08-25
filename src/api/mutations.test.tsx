@@ -10,6 +10,8 @@ import {
   useSetDraftOrder,
   useSetDraftStatus,
   useResetDraft,
+  useAssignKeeper,
+  useRemoveKeeper,
 } from './mutations';
 
 vi.mock('@/lib/supabase', () => ({
@@ -136,6 +138,75 @@ describe('useUndoLastPick', () => {
 
     await expect(result.current.mutateAsync()).rejects.toThrow('No picks to undo');
     expect(toast.error).toHaveBeenCalledWith('No picks to undo');
+  });
+});
+
+describe('keepers', () => {
+  it('useAssignKeeper passes p_ params and invalidates rosters + pool', async () => {
+    rpc.mockResolvedValue({ data: null, error: null } as never);
+    const { invalidate, wrapper } = makeClient();
+    const { result } = renderHook(() => useAssignKeeper(SEASON), { wrapper });
+
+    await result.current.mutateAsync({ teamId: 'team-1', playerId: 'player-1' });
+
+    expect(rpc).toHaveBeenCalledWith('assign_keeper', {
+      p_season_id: SEASON,
+      p_team_id: 'team-1',
+      p_player_id: 'player-1',
+    });
+    expect(toast.error).not.toHaveBeenCalled();
+    const invalidated = invalidate.mock.calls.map((c) => c[0].queryKey);
+    expect(invalidated).toEqual(
+      expect.arrayContaining([['rosters', SEASON], ['player-pool', SEASON]]),
+    );
+  });
+
+  it('useAssignKeeper RPC rejection → error toast, no invalidation', async () => {
+    rpc.mockResolvedValue({
+      data: null,
+      error: { message: 'Keeper limit (9) reached' },
+    } as never);
+    const { invalidate, wrapper } = makeClient();
+    const { result } = renderHook(() => useAssignKeeper(SEASON), { wrapper });
+
+    await expect(
+      result.current.mutateAsync({ teamId: 'team-1', playerId: 'player-1' }),
+    ).rejects.toThrow('Keeper limit (9) reached');
+    expect(toast.error).toHaveBeenCalledWith('Keeper limit (9) reached');
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
+  it('useRemoveKeeper passes p_ params and invalidates rosters + pool', async () => {
+    rpc.mockResolvedValue({ data: null, error: null } as never);
+    const { invalidate, wrapper } = makeClient();
+    const { result } = renderHook(() => useRemoveKeeper(SEASON), { wrapper });
+
+    await result.current.mutateAsync({ teamId: 'team-1', playerId: 'player-1' });
+
+    expect(rpc).toHaveBeenCalledWith('remove_keeper', {
+      p_season_id: SEASON,
+      p_team_id: 'team-1',
+      p_player_id: 'player-1',
+    });
+    expect(toast.error).not.toHaveBeenCalled();
+    const invalidated = invalidate.mock.calls.map((c) => c[0].queryKey);
+    expect(invalidated).toEqual(
+      expect.arrayContaining([['rosters', SEASON], ['player-pool', SEASON]]),
+    );
+  });
+
+  it('useRemoveKeeper RPC rejection → error toast', async () => {
+    rpc.mockResolvedValue({
+      data: null,
+      error: { message: 'You can only manage keepers for your own team' },
+    } as never);
+    const { wrapper } = makeClient();
+    const { result } = renderHook(() => useRemoveKeeper(SEASON), { wrapper });
+
+    await expect(
+      result.current.mutateAsync({ teamId: 'other-team', playerId: 'player-1' }),
+    ).rejects.toThrow('You can only manage keepers for your own team');
+    expect(toast.error).toHaveBeenCalledWith('You can only manage keepers for your own team');
   });
 });
 
