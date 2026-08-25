@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Pause } from 'lucide-react';
 
 /**
  * Visual pick clock. The backend does NOT enforce expiry — this is display
@@ -86,7 +87,7 @@ export function PickClock({
       }`}
       aria-label={`Time remaining ${formatClock(remaining)}`}
     >
-      {paused ? '⏸ ' : ''}
+      {paused && <Pause className="mr-1 inline size-4 -translate-y-0.5" aria-label="Paused" />}
       {formatClock(remaining)}
     </span>
   );

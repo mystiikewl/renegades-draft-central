@@ -97,6 +97,7 @@ export function DraftPage() {
             <Button
               size="sm"
               variant="outline"
+              className="transition-all active:scale-[0.98]"
               onClick={() => setUndoConfirm(true)}
               disabled={undoPick.isPending || !picks?.some((p) => p.is_used)}
             >
@@ -131,7 +132,7 @@ export function DraftPage() {
 
       {/* On the clock */}
       {nextPick && draftLive ? (
-        <Card className={isMyTurn ? 'border-primary ring-1 ring-primary' : undefined}>
+        <Card className={isMyTurn ? 'border-primary bg-primary/5 ring-1 ring-primary' : undefined}>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-sm">
@@ -143,7 +144,7 @@ export function DraftPage() {
               </span>
             </div>
             {isMyTurn && (
-              <Button asChild disabled={!canPickNow}>
+              <Button asChild disabled={!canPickNow} className="transition-transform active:scale-[0.98]">
                 <Link to="/pool">Draft a player in the Player Pool →</Link>
               </Button>
             )}
