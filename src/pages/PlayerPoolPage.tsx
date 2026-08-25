@@ -22,7 +22,7 @@ type Basis = 'averages' | 'totals';
 const POSITIONS = ['All', 'PG', 'SG', 'SF', 'PF', 'C'] as const;
 
 const chip = (active: boolean) =>
-  `rounded-md px-3 py-1.5 text-sm font-medium transition-all active:scale-[0.98] ${
+  `shrink-0 rounded-md px-3 py-2 text-sm font-medium transition-all active:scale-[0.98] ${
     active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
   }`;
 
@@ -79,30 +79,30 @@ export function PlayerPoolPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold">Player Pool</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted-foreground">
             Full NBA player list with {season?.label ?? ''} {basis === 'averages' ? 'per-game averages' : 'season totals'}. Tap a player for
             full stats{canPick ? ' and to draft them' : ''}.
           </p>
         </div>
-        <RealtimeBadge />
+        <div className="shrink-0"><RealtimeBadge /></div>
       </div>
 
-      {/* On the clock */}
+      {/* On the clock: strongest context on the decision screen. */}
       {nextPick && (settings?.status === 'running' || settings?.status === 'paused') && (
         <Card className={isMyTurn ? 'border-primary bg-primary/5 ring-1 ring-primary' : undefined}>
-          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
-            <div className="flex items-center gap-3">
-              <Badge variant="outline" className="text-sm">
+          <CardContent className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:py-4">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              <Badge variant="outline" className="shrink-0 text-sm">
                 Pick {nextPick.pick_number}
               </Badge>
-              <span className="text-lg font-semibold">{teamName(nextPick.team_id)}</span>
-              <span className="text-muted-foreground">
-                {isMyTurn ? 'YOUR PICK — draft below' : 'is on the clock'}
-              </span>
+              <span className="line-clamp-2 min-w-0 font-semibold sm:text-lg">{teamName(nextPick.team_id)}</span>
             </div>
+            <span className={`text-sm font-medium ${isMyTurn ? 'text-primary' : 'text-muted-foreground'}`}>
+              {isMyTurn ? 'YOUR PICK — choose a player below' : 'is on the clock'}
+            </span>
           </CardContent>
         </Card>
       )}
@@ -114,53 +114,66 @@ export function PlayerPoolPage() {
       )}
 
       {queued.length > 0 && (
-        <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+        <p className="rounded-md bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
           Offline — {queued.length} pick{queued.length > 1 ? 's' : ''} queued (
           {queued.map((q) => q.playerName).join(', ')}). They'll submit automatically when
           you reconnect.
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          placeholder="Search name or team…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
-        />
-        <div className="flex gap-1">
-          {POSITIONS.map((pos) => (
-            <button key={pos} onClick={() => setPosition(pos)} className={chip(position === pos)}>
-              {pos}
-            </button>
-          ))}
+      <div className="space-y-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            placeholder="Search player or NBA team…"
+            aria-label="Search player pool"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full sm:max-w-xs"
+          />
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <span className="text-xs font-medium text-muted-foreground">Stats</span>
+            <div className="flex overflow-hidden rounded-md border">
+              {(['averages', 'totals'] as const).map((b) => (
+                <button
+                  key={b}
+                  onClick={() => setBasis(b)}
+                  aria-pressed={basis === b}
+                  className={`px-3 py-2 text-sm font-medium transition-all active:scale-[0.98] ${
+                    basis === b ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-muted/60'
+                  }`}
+                >
+                  {b === 'averages' ? 'Avg' : 'Totals'}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="flex gap-1">
-          <button
-            onClick={() => setRookiesOnly((v) => !v)}
-            aria-pressed={rookiesOnly}
-            className={chip(rookiesOnly)}
-          >
-            Rookies
-          </button>
-        </div>
-        <div className="ml-auto flex overflow-hidden rounded-md border">
-          {(['averages', 'totals'] as const).map((b) => (
+
+        <div className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
+          <div className="flex w-max items-center gap-1.5">
+            {POSITIONS.map((pos) => (
+              <button key={pos} onClick={() => setPosition(pos)} className={chip(position === pos)}>
+                {pos}
+              </button>
+            ))}
+            <span aria-hidden="true" className="mx-0.5 h-6 w-px bg-border" />
             <button
-              key={b}
-              onClick={() => setBasis(b)}
-              aria-pressed={basis === b}
-              className={`px-3 py-1.5 text-sm font-medium transition-all active:scale-[0.98] ${
-                basis === b ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-muted/60'
-              }`}
+              onClick={() => setRookiesOnly((v) => !v)}
+              aria-pressed={rookiesOnly}
+              className={chip(rookiesOnly)}
             >
-              {b === 'averages' ? 'Avg' : 'Totals'}
+              Rookies
             </button>
-          ))}
+          </div>
         </div>
       </div>
 
-      <Card>
+      <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+        <span>{filtered.length} player{filtered.length === 1 ? '' : 's'}</span>
+        <span>Sorted by {STAT_COLUMNS.find((c) => c.key === sortKey)?.label ?? sortKey}</span>
+      </div>
+
+      <Card className="overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
             <div className="space-y-2 p-4">
@@ -182,7 +195,7 @@ export function PlayerPoolPage() {
                       <th key={c.key} className="px-2 py-2.5 text-right font-semibold">
                         <button
                           onClick={() => setSortKey(c.key)}
-                          className={`transition-colors hover:text-foreground focus-visible:outline-none focus-visible:text-foreground ${sortKey === c.key ? 'text-primary' : ''}`}
+                          className={`min-h-8 min-w-8 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:text-foreground ${sortKey === c.key ? 'text-primary' : ''}`}
                         >
                           {c.label}
                         </button>
@@ -195,29 +208,29 @@ export function PlayerPoolPage() {
                     <tr
                       key={p.id}
                       onClick={() => setSelected(p)}
-                      className="cursor-pointer border-b border-border/50 last:border-0 hover:bg-muted/40"
+                      className="cursor-pointer border-b border-border/50 last:border-0 hover:bg-muted/40 active:bg-muted/60"
                     >
-                      <td className="sticky left-0 z-10 bg-card px-4 py-2 font-medium shadow-[inset_-8px_0_8px_-8px_var(--border)] hover:bg-muted/40">
+                      <td className="sticky left-0 z-10 max-w-44 bg-card px-4 py-2.5 font-medium shadow-[inset_-8px_0_8px_-8px_var(--border)] hover:bg-muted/40 sm:max-w-none">
                         <span className="flex items-center gap-2">
                           <span className="hidden sm:inline-flex">
                             <PlayerHeadshot espnId={p.espn_id} name={p.name} />
                           </span>
-                          {p.name}
+                          <span className="line-clamp-2 min-w-0 leading-tight">{p.name}</span>
                           {isRookie(p) && (
-                            <Badge variant="outline" className="text-[9px] px-1 py-0 text-primary border-primary/40">
+                            <Badge variant="outline" className="shrink-0 border-primary/40 px-1 py-0 text-[9px] text-primary">
                               ROOK
                             </Badge>
                           )}
                         </span>
                       </td>
-                      <td className="px-2 py-2">
+                      <td className="px-2 py-2.5">
                         <Badge variant="secondary" className="text-[10px]">
                           {p.position ?? '—'}
                         </Badge>
                       </td>
-                      <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">{p.nba_team ?? '—'}</td>
+                      <td className="whitespace-nowrap px-2 py-2.5 text-muted-foreground">{p.nba_team ?? '—'}</td>
                       {STAT_COLUMNS.map((c) => (
-                        <td key={c.key} className="whitespace-nowrap px-2 py-2 text-right tnum">
+                        <td key={c.key} className="whitespace-nowrap px-2 py-2.5 text-right tnum">
                           {fmtStat(c.key, basis, statColumnValue(p, c.key, basis))}
                         </td>
                       ))}
