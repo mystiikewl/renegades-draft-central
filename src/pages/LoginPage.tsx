@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
@@ -40,9 +40,6 @@ export function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl">Renegades Draft Central</CardTitle>
-          <CardDescription>
-            {mode === 'signin' ? 'Sign in to join the draft.' : 'Create your league account.'}
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -51,6 +48,7 @@ export function LoginPage() {
               <Input
                 id="email"
                 type="email"
+                autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -61,6 +59,7 @@ export function LoginPage() {
               <Input
                 id="password"
                 type="password"
+                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
                 required
                 minLength={6}
                 value={password}
