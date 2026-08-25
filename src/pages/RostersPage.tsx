@@ -15,10 +15,6 @@ const GROUPS: { key: Acquisition; label: string }[] = [
   { key: 'trade', label: 'Acquired via trade' },
 ];
 
-/**
- * Per-team rosters for a chosen season (active by default, archived seasons
- * switchable). Entries grouped by acquisition: keepers vs drafted vs trade.
- */
 export function RostersPage() {
   const { profile } = useAuth();
   const { data: seasons } = useSeasons();
@@ -28,9 +24,6 @@ export function RostersPage() {
   const chosen = seasonId ?? activeSeason?.id ?? null;
   const { data: rosters, isLoading } = useRosters(chosen ?? undefined);
   const { data: teams } = useTeams();
-
-  // Owner self-service keeper marking — only on the active season, only for
-  // the viewer's own team (the RPC enforces the same rule server-side).
   const showKeeperManager = !!chosen && chosen === activeSeason?.id && !!profile?.team_id;
 
   const byTeam = useMemo(() => {
@@ -40,7 +33,6 @@ export function RostersPage() {
       list.push(r);
       map.set(r.team_id, list);
     });
-    // newest acquisition first within a team
     map.forEach((list) => list.sort((a, b) => b.acquired_at.localeCompare(a.acquired_at)));
     return map;
   }, [rosters]);
@@ -48,10 +40,7 @@ export function RostersPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-5 p-4 md:space-y-6 md:p-6">
       <div className="space-y-3 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:space-y-0">
-        <div>
-          <h1 className="text-2xl font-bold">Rosters</h1>
-          <p className="mt-1 text-sm text-muted-foreground">League rosters, keepers and drafted players by team.</p>
-        </div>
+        <h1 className="text-2xl font-bold">Rosters</h1>
         {seasons && seasons.length > 0 && (
           <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
             <Tabs value={chosen ?? undefined} onValueChange={setSeasonId}>
@@ -94,7 +83,6 @@ function TeamRosterCard({ name, entries }: { name: string; entries: RosterEntry[
     <Card className="h-fit overflow-hidden">
       <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 pb-4">
         <CardTitle className="min-w-0 text-lg leading-tight">{name}</CardTitle>
-        {/* ponytail: roster size is the card's one anchor stat — tinted, not just a gray pill */}
         <Badge variant="secondary" className="shrink-0 bg-primary/10 text-primary ring-1 ring-primary/30">{entries.length}</Badge>
       </CardHeader>
       <CardContent className="space-y-4">
