@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { RealtimeBadge } from '@/components/draft/RealtimeBadge';
+import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 
 function DraftStatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -154,10 +155,16 @@ export function DraftPage() {
 
       {/* Recent picks strip */}
       {lastPick ? (
-        <p className="text-sm text-muted-foreground">
-          Last pick: <strong>{lastPick.players?.name ?? '—'}</strong> →{' '}
-          {lastPick.team?.name ?? teamName(lastPick.team_id)} (#{lastPick.pick_number})
-        </p>
+        <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-2.5 text-sm">
+          {lastPick.players?.espn_id || lastPick.players?.name ? (
+            <PlayerHeadshot espnId={lastPick.players?.espn_id ?? null} name={lastPick.players?.name ?? ''} size={28} />
+          ) : null}
+          <span className="text-muted-foreground">Last pick</span>
+          <strong className="font-semibold">{lastPick.players?.name ?? '—'}</strong>
+          <span className="text-muted-foreground">
+            to {lastPick.team?.name ?? teamName(lastPick.team_id)} · #{lastPick.pick_number}
+          </span>
+        </div>
       ) : null}
 
       {queued.length > 0 && (
@@ -363,8 +370,22 @@ export function DraftBoard({
                       </span>
                     </div>
                     {/* ponytail: truncate keeps long names from wrapping the mobile row */}
-                    <div className="truncate font-medium sm:mt-1 sm:text-left">
-                      {p.players?.name ?? '—'}
+                    <div className="flex items-center gap-2 truncate sm:mt-1.5">
+                      {p.is_used && (
+                        <PlayerHeadshot
+                          espnId={p.players?.espn_id ?? null}
+                          name={p.players?.name ?? ''}
+                          size={22}
+                          variant="bare"
+                        />
+                      )}
+                      <span
+                        className={`truncate font-medium ${
+                          onClockId === p.id ? 'font-semibold' : undefined
+                        }`}
+                      >
+                        {p.players?.name ?? '—'}
+                      </span>
                     </div>
                   </div>
                 ))}
