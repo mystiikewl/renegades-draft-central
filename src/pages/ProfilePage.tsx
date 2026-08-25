@@ -17,28 +17,28 @@ export function ProfilePage() {
     <div className="mx-auto max-w-xl space-y-4 p-4 pb-[max(5rem,env(safe-area-inset-bottom))] md:p-6">
       <div>
         <h1 className="text-2xl font-bold">Profile</h1>
-        <p className="text-sm text-muted-foreground">Account and league settings.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Account and league settings.</p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Account</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div className="flex items-center justify-between gap-4">
+        <CardContent className="divide-y text-sm">
+          <div className="grid grid-cols-[5rem_1fr] gap-4 py-3 first:pt-0">
             <span className="text-muted-foreground">Name</span>
-            <span className="truncate font-medium">{profile.display_name ?? '—'}</span>
+            <span className="min-w-0 break-words text-right font-medium">{profile.display_name ?? '—'}</span>
           </div>
-          <div className="flex items-center justify-between gap-4">
+          <div className="grid grid-cols-[5rem_1fr] gap-4 py-3">
             <span className="text-muted-foreground">Email</span>
-            <span className="truncate">{profile.email}</span>
+            <span className="min-w-0 break-all text-right">{profile.email}</span>
           </div>
-          <div className="flex items-center justify-between gap-4">
+          <div className="grid grid-cols-[5rem_1fr] gap-4 py-3 last:pb-0">
             <span className="text-muted-foreground">Team</span>
-            <span className="flex items-center gap-2 font-medium">
-              {team?.name ?? '—'}
+            <span className="flex min-w-0 flex-wrap items-center justify-end gap-2 text-right font-medium">
+              <span className="line-clamp-2">{team?.name ?? '—'}</span>
               {profile.is_admin && (
-                <Badge className="text-[10px]" variant="outline">
+                <Badge className="shrink-0 text-[10px]" variant="outline">
                   admin
                 </Badge>
               )}
