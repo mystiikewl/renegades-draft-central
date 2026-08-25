@@ -48,20 +48,20 @@ function RootLayout() {
             <span className="font-bold">Renegades Draft Central</span>
             {profile?.team_id && (
               <nav className="hidden gap-4 text-sm text-muted-foreground sm:flex">
-                <Link to="/" className="hover:text-foreground">
+                <Link to="/" className="transition-colors hover:text-foreground">
                   Draft
                 </Link>
-                <Link to="/pool" className="hover:text-foreground">
+                <Link to="/pool" className="transition-colors hover:text-foreground">
                   Player Pool
                 </Link>
-                <Link to="/rankings" className="hover:text-foreground">
+                <Link to="/rankings" className="transition-colors hover:text-foreground">
                   Rankings
                 </Link>
-                <Link to="/rosters" className="hover:text-foreground">
+                <Link to="/rosters" className="transition-colors hover:text-foreground">
                   Rosters
                 </Link>
                 {profile.is_admin && (
-                  <Link to="/admin" className="hover:text-foreground">
+                  <Link to="/admin" className="transition-colors hover:text-foreground">
                     Admin
                   </Link>
                 )}
