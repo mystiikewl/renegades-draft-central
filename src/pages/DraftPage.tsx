@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePlayerPool } from '@/api/queries';
 import type { DraftPick, PlayerWithStats } from '@/api/types';
+import { PickClock, usePickClock } from '@/components/draft/PickClock';
 
 export function DraftPage() {
   const { profile } = useAuth();
@@ -34,6 +35,14 @@ export function DraftPage() {
 
   const teamName = (id: string) => teams?.find((t) => t.id === id)?.name ?? '—';
   const isMyTurn = !!nextPick && !!profile?.team_id && nextPick.team_id === profile.team_id;
+
+  const clockRunning = settings?.status === 'running';
+  const remaining = usePickClock({
+    pickKey: nextPick?.id ?? null,
+    anchoredAt: lastPick?.picked_at ?? settings?.updated_at ?? null,
+    limitSeconds: settings?.pick_time_limit_seconds ?? 120,
+    running: clockRunning,
+  });
 
   if (!season) {
     return (
@@ -59,7 +68,7 @@ export function DraftPage() {
       </div>
 
       {/* On the clock */}
-      {nextPick && settings?.status === 'running' ? (
+      {nextPick && (settings?.status === 'running' || settings?.status === 'paused') ? (
         <Card className={isMyTurn ? 'border-primary' : undefined}>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
             <div className="flex items-center gap-3">
@@ -67,13 +76,22 @@ export function DraftPage() {
                 Pick {nextPick.pick_number}
               </Badge>
               <span className="text-lg font-semibold">{teamName(nextPick.team_id)}</span>
-              <span className="text-muted-foreground">is on the clock</span>
-            </div>
-            {isMyTurn && (
-              <span className="rounded-md bg-primary px-3 py-1 text-sm font-medium text-primary-foreground">
-                YOUR PICK — choose a player below
+              <span className="text-muted-foreground">
+                {settings?.status === 'paused' ? 'clock paused' : 'is on the clock'}
               </span>
-            )}
+            </div>
+            <div className="flex items-center gap-3">
+              {isMyTurn && (
+                <span className="rounded-md bg-primary px-3 py-1 text-sm font-medium text-primary-foreground">
+                  YOUR PICK — choose a player below
+                </span>
+              )}
+              <PickClock
+                remaining={remaining}
+                limitSeconds={settings?.pick_time_limit_seconds ?? 120}
+                paused={settings?.status === 'paused'}
+              />
+            </div>
           </CardContent>
         </Card>
       ) : null}
