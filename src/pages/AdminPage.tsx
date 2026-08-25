@@ -25,6 +25,8 @@ import {
   useSetDraftOrder,
   useSetDraftStatus,
 } from '@/api/mutations';
+import { SyncEspnKeepersCard } from '@/components/admin/SyncEspnKeepersCard';
+import { DraftSettingsCard } from '@/components/admin/DraftSettingsCard';
 import { KeeperManager } from '@/components/keepers/KeeperManager';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -80,7 +82,9 @@ export function AdminPage() {
       {seasonId && settings && (
         <>
           <DraftOrderCard seasonId={seasonId} locked={picksUsed} />
+          <DraftSettingsCard seasonId={seasonId} settings={settings} />
           <DraftStatusCard seasonId={seasonId} status={settings.status} />
+          <SyncEspnKeepersCard />
           <AdminKeepersCard seasonId={seasonId} keeperLimit={settings.keeper_limit} />
           <DangerZoneCard seasonId={seasonId} />
         </>
