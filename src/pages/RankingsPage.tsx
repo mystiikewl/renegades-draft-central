@@ -40,7 +40,7 @@ function loadBasis(seasonId?: string): Basis {
 }
 
 const chip = (active: boolean) =>
-  `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+  `rounded-md px-3 py-1.5 text-sm font-medium transition-all active:scale-[0.98] ${
     active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
   }`;
 
@@ -218,7 +218,7 @@ export function RankingsPage() {
                       <td className="sticky left-0 z-10 bg-card px-4 py-2 tabular-nums text-muted-foreground">
                         {i + 1}
                       </td>
-                      <td className="sticky left-12 z-10 bg-card px-2 py-2 font-medium shadow-[inset_-8px_0_8px_-8px_rgba(0,0,0,0.15)] hover:bg-muted/40">
+                      <td className="sticky left-12 z-10 bg-card px-2 py-2 font-medium shadow-[inset_-8px_0_8px_-8px_var(--border)] hover:bg-muted/40">
                         <span className="flex items-center gap-2">
                           <span className="hidden sm:inline-flex">
                             <PlayerHeadshot espnId={r.player.espn_id} name={r.player.name} />

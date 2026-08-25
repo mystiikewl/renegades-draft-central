@@ -18,6 +18,7 @@ import {
 } from '@/lib/projections';
 import { parseStats } from '@/lib/stats';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
+import { X } from 'lucide-react';
 import type { PlayerWithStats } from '@/api/types';
 
 const ALL_CATEGORIES: Category[] = LEAGUE_CATEGORIES;
@@ -231,7 +232,7 @@ export function TeamBuilderPage() {
                 <button
                   key={i}
                   onClick={() => setPickerSlot(i)}
-                  className={`rounded-md border p-2 text-left transition-colors hover:border-primary ${
+                  className={`rounded-md border p-2 text-left transition-all active:scale-[0.98] hover:border-primary ${
                     p ? '' : 'border-dashed text-muted-foreground'
                   }`}
                 >
@@ -272,7 +273,12 @@ export function TeamBuilderPage() {
                 {cats.map((c) => (
                   <th key={c} className="px-3 py-2 font-medium">
                     {c}
-                    {INVERTED_CATEGORIES.has(c) && <span title="lower is better"> ↓</span>}
+                    {INVERTED_CATEGORIES.has(c) && (
+                      <span title="lower is better" aria-label="(lower is better)">
+                        {' '}
+                        ↓
+                      </span>
+                    )}
                   </th>
                 ))}
               </tr>
@@ -327,7 +333,7 @@ export function TeamBuilderPage() {
               className="max-w-xs"
               onKeyDown={(e) => e.key === 'Enter' && saveBuild()}
             />
-            <Button size="sm" onClick={saveBuild}>
+            <Button size="sm" className="transition-transform active:scale-[0.98]" onClick={saveBuild}>
               Save current
             </Button>
           </div>
@@ -346,8 +352,8 @@ export function TeamBuilderPage() {
                     <Button size="sm" variant="outline" onClick={() => loadBuild(b)}>
                       Load
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => deleteBuild(b.name)}>
-                      ✕
+                    <Button size="sm" variant="ghost" aria-label={`Delete build ${b.name}`} className="px-2 transition-colors hover:bg-destructive/10 hover:text-destructive" onClick={() => deleteBuild(b.name)}>
+                      <X className="size-4" />
                     </Button>
                   </span>
                 </li>
