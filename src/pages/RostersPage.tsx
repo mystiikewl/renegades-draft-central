@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useActiveSeason, useRosters, useSeasons, useTeams } from '@/api/queries';
+import { useAuth } from '@/auth/AuthContext';
 import type { Acquisition, RosterEntry } from '@/api/types';
+import { KeeperManager } from '@/components/keepers/KeeperManager';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,6 +19,7 @@ const GROUPS: { key: Acquisition; label: string }[] = [
  * switchable). Entries grouped by acquisition: keepers vs drafted vs trade.
  */
 export function RostersPage() {
+  const { profile } = useAuth();
   const { data: seasons } = useSeasons();
   const { data: activeSeason } = useActiveSeason();
   const [seasonId, setSeasonId] = useState<string | null>(null);
@@ -24,6 +27,10 @@ export function RostersPage() {
   const chosen = seasonId ?? activeSeason?.id ?? null;
   const { data: rosters, isLoading } = useRosters(chosen ?? undefined);
   const { data: teams } = useTeams();
+
+  // Owner self-service keeper marking — only on the active season, only for
+  // the viewer's own team (the RPC enforces the same rule server-side).
+  const showKeeperManager = !!chosen && chosen === activeSeason?.id && !!profile?.team_id;
 
   const byTeam = useMemo(() => {
     const map = new Map<string, RosterEntry[]>();
@@ -54,6 +61,10 @@ export function RostersPage() {
           </Tabs>
         )}
       </div>
+
+      {showKeeperManager && (
+        <KeeperManager seasonId={chosen} teamId={profile.team_id} />
+      )}
 
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
