@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import { Button } from '@/components/ui/button';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { DraftPage } from '@/pages/DraftPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { OnboardingPage } from '@/pages/OnboardingPage';
@@ -91,7 +92,9 @@ const indexRoute = createRoute({
   component: () => (
     <RequireAuth>
       <RequireTeam>
-        <DraftPage />
+        <ErrorBoundary label="draft">
+          <DraftPage />
+        </ErrorBoundary>
       </RequireTeam>
     </RequireAuth>
   ),
