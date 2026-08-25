@@ -17,17 +17,26 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
-import { useActiveSeason, useDraftPicks, useDraftSettings, useTeams } from '@/api/queries';
+import { useActiveSeason, useDraftPicks, useDraftSettings, useRosters, useTeams } from '@/api/queries';
 import {
   useCreateSeason,
   useResetDraft,
   useSetDraftOrder,
   useSetDraftStatus,
 } from '@/api/mutations';
+import { KeeperManager } from '@/components/keepers/KeeperManager';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -71,6 +80,7 @@ export function AdminPage() {
         <>
           <DraftOrderCard seasonId={seasonId} locked={picksUsed} />
           <DraftStatusCard seasonId={seasonId} status={settings.status} />
+          <AdminKeepersCard seasonId={seasonId} keeperLimit={settings.keeper_limit} />
           <DangerZoneCard seasonId={seasonId} />
         </>
       )}
@@ -267,6 +277,63 @@ function DraftStatusCard({ seasonId, status }: { seasonId: string; status: strin
         >
           Back to pre-draft
         </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AdminKeepersCard({
+  seasonId,
+  keeperLimit,
+}: {
+  seasonId: string;
+  keeperLimit: number;
+}) {
+  const { data: teams } = useTeams();
+  const { data: rosters } = useRosters(seasonId);
+  const [teamId, setTeamId] = useState<string>('');
+
+  // Default to the first team once loaded.
+  useEffect(() => {
+    if (!teamId && teams?.length) setTeamId(teams[0].id);
+  }, [teams, teamId]);
+
+  const keeperCount = (id: string) =>
+    (rosters ?? []).filter((r) => r.team_id === id && r.acquisition === 'keeper').length;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Keepers</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Manage keepers for any team ({keeperLimit} max each). Owners can also mark their own via
+          the Rosters page. Kept players leave the draft pool automatically.
+        </p>
+        <div className="space-y-2">
+          <Label htmlFor="keeper-team">Team</Label>
+          <Select value={teamId} onValueChange={setTeamId}>
+            <SelectTrigger id="keeper-team" className="w-full sm:w-72">
+              <SelectValue placeholder="Pick a team" />
+            </SelectTrigger>
+            <SelectContent>
+              {(teams ?? []).map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name} ({keeperCount(t.id)} / {keeperLimit})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {teamId && (
+          <KeeperManager
+            key={teamId}
+            seasonId={seasonId}
+            teamId={teamId}
+            teamName={teams?.find((t) => t.id === teamId)?.name}
+          />
+        )}
       </CardContent>
     </Card>
   );
