@@ -49,7 +49,7 @@ export interface PlayerSeason {
 }
 
 export type PlayerWithStats = Player & {
-  player_seasons: Pick<PlayerSeason, 'stats'>[];
+  player_seasons: Pick<PlayerSeason, 'season_id' | 'stats'>[];
 };
 
 export interface DraftSettings {

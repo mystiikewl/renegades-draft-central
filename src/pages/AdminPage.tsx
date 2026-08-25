@@ -20,6 +20,7 @@ import { GripVertical } from 'lucide-react';
 import { useActiveSeason, useDraftPicks, useDraftSettings, useRosters, useTeams } from '@/api/queries';
 import {
   useCreateSeason,
+  useFinalizeKeepers,
   useResetDraft,
   useSetDraftOrder,
   useSetDraftStatus,
@@ -334,8 +335,44 @@ function AdminKeepersCard({
             teamName={teams?.find((t) => t.id === teamId)?.name}
           />
         )}
+        <FinalizeKeepersButton seasonId={seasonId} />
       </CardContent>
     </Card>
+  );
+}
+
+/** Drops all non-keepers and generates empty snake-draft pick slots. Admin-only. */
+function FinalizeKeepersButton({ seasonId }: { seasonId: string }) {
+  const finalize = useFinalizeKeepers(seasonId);
+  const { data: settings } = useDraftSettings(seasonId);
+  const { data: rosters } = useRosters(seasonId);
+  const keeperCount = (rosters ?? []).filter((r) => r.acquisition === 'keeper').length;
+  const orderSet = !!settings?.draft_order?.length;
+  const finalized = (settings?.status ?? 'pre_draft') !== 'pre_draft';
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button disabled={finalized || !orderSet || finalize.isPending}>
+          {finalized ? 'Keepers finalized' : `Finalize keepers (${keeperCount})`}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Finalize keepers?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Drops every non-kept player from all rosters, then generates the empty draft pick
+            slots ({settings?.roster_size} − {settings?.keeper_limit} ={' '}
+            {(settings?.roster_size ?? 0) - (settings?.keeper_limit ?? 0)} rounds ×{' '}
+            {settings?.league_size}). Non-keepers return to the pool. This cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={() => finalize.mutate()}>Yes, finalize</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

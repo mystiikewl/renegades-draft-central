@@ -182,6 +182,27 @@ export function useRemoveKeeper(seasonId: string) {
   });
 }
 
+export function useFinalizeKeepers(seasonId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc('finalize_keepers', {
+        p_season_id: seasonId,
+      });
+      if (error) throw new Error(error.message);
+      return data as number;
+    },
+    onSuccess: (dropped) => {
+      qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
+      qc.invalidateQueries({ queryKey: qk.playerPool(seasonId) });
+      qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
+      qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) });
+      toast.success(`Keepers locked — ${dropped} non-keepers dropped, draft picks generated.`);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 export function useToggleFavourite(seasonId: string) {
   const qc = useQueryClient();
   return useMutation({
