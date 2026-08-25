@@ -12,7 +12,8 @@
  *     [--league-season 2026-27] [--stats-season 2025] [--bio-only] [--limit N]
  *
  *   --league-season  label for the seasons row (default 2026-27)
- *   --stats-season   ESPN season year to pull stats for (default 2025 = 2025-26);
+ *   --stats-season   ESPN season year to pull stats for (default 2026 = 2025-26,
+ *                    the most recent completed campaign);
  *                    pass 'none' to skip stats entirely (same as --bio-only)
  *   --bio-only       import rosters/bios only, no stats requests
  *   --limit N        debug: only import N players
@@ -26,7 +27,7 @@ const flag = (name, fallback) => {
   return i >= 0 ? args[i + 1] : fallback;
 };
 const LEAGUE_SEASON = flag('league-season', '2026-27');
-const STATS_SEASON = flag('stats-season', '2025');
+const STATS_SEASON = flag('stats-season', '2026');
 const BIO_ONLY = args.includes('--bio-only') || STATS_SEASON === 'none';
 const LIMIT = parseInt(flag('limit', '0'), 10);
 
@@ -95,13 +96,16 @@ function mgmtClient(projectRef) {
       return new Proxy({}, {
         get: (_, prop) => {
           if (prop === 'upsert') {
-            // upsert(...).select(...).single() chain support
+            // awaitable directly (upsert(...) with no chain) AND supports the
+            // .select(...).single() chain — plain-await upserts previously
+            // returned a non-thenable and silently never ran.
             const up = (rows, opts) => ({
               select: async () => {
                 await build().upsert(rows, opts);
                 const data = await api.select('*');
                 return { data, error: null };
               },
+              then: (res, rej) => build().upsert(rows, opts).then(() => res({ data: null, error: null }), rej),
             });
             return up;
           }
@@ -116,6 +120,7 @@ function sqlVal(v) {
   if (v === null || v === undefined) return 'null';
   if (typeof v === 'number') return String(v);
   if (typeof v === 'boolean') return String(v);
+  if (typeof v === 'object') return `'${JSON.stringify(v).replace(/'/g, "''")}'`;
   return `'${String(v).replace(/'/g, "''")}'`;
 }
 
@@ -161,6 +166,7 @@ async function fetchRosters() {
           position: a.position?.abbreviation ?? null,
           nba_team: team.abbreviation,
           image_url: a.headshot?.href ?? null,
+          experience: a.experience?.years ?? null,
         });
       }
     } catch (err) {
@@ -171,8 +177,34 @@ async function fetchRosters() {
 }
 
 // ---------------------------------------------------------------------
-// 2. Per-player season stats (averages category), matched by season label
+// 2. Per-player season stats (averages category), matched by season year
 // ---------------------------------------------------------------------
+// ESPN's averages feed uses camelCase display names; the app's stats JSONB
+// uses the snake_case keys from CATEGORY_STAT_KEYS / parseStats.
+const STAT_KEY_MAP = {
+  gamesPlayed: 'games_played',
+  gamesStarted: 'games_started',
+  avgMinutes: 'minutes_per_game',
+  avgFieldGoalsMade: 'field_goals_made',
+  avgFieldGoalsAttempted: 'field_goals_attempted',
+  fieldGoalPct: 'field_goal_percentage',
+  avgThreePointFieldGoalsMade: 'three_pointers_made',
+  avgThreePointFieldGoalsAttempted: 'three_pointers_attempted',
+  threePointFieldGoalPct: 'three_point_percentage',
+  avgFreeThrowsMade: 'free_throws_made',
+  avgFreeThrowsAttempted: 'free_throws_attempted',
+  freeThrowPct: 'free_throw_percentage',
+  avgOffensiveRebounds: 'offensive_rebounds',
+  avgDefensiveRebounds: 'defensive_rebounds',
+  avgRebounds: 'total_rebounds',
+  avgAssists: 'assists',
+  avgBlocks: 'blocks',
+  avgSteals: 'steals',
+  avgFouls: 'fouls',
+  avgTurnovers: 'turnovers',
+  avgPoints: 'points',
+};
+
 async function fetchStats(espnId) {
   const res = await getJson(
     `${COMMON}/athletes/${espnId}/stats?season=${STATS_SEASON}&seasontype=2`
@@ -180,13 +212,13 @@ async function fetchStats(espnId) {
   const averages = res.categories?.find((c) => c.name === 'averages');
   if (!averages?.names || !averages.statistics) return null;
 
-  // statistics rows are per season/team; find the one for the requested year
+  // ESPN season semantics: season=N & row year=N => the '(N-1)-N' campaign
+  // (e.g. season=2026 -> yr 2026 -> '2025-26'). No fallback row: a mismatch
+  // means the requested season simply has no data yet.
   const wantedYear = String(parseInt(STATS_SEASON, 10));
-  const row =
-    averages.statistics.find((s) => String(s.season?.year) === wantedYear) ??
-    averages.statistics[averages.statistics.length - 1];
-
+  const row = averages.statistics.find((s) => String(s.season?.year) === wantedYear);
   if (!row?.stats) return null;
+
   const stats = {};
   averages.names.forEach((name, i) => {
     const raw = row.stats[i];
@@ -194,14 +226,33 @@ async function fetchStats(espnId) {
     // made-attempted cells like "7.9-18.9" -> both fields as numbers
     if (name.includes('-')) {
       const [a, b] = name.split('-');
+      const set = (n, v) => {
+        const key = STAT_KEY_MAP[n] ?? n;
+        stats[key] = Number.isFinite(v) ? v : null;
+      };
       const [va, vb] = raw.split('-').map(Number);
-      stats[a] = Number.isFinite(va) ? va : null;
-      stats[b] = Number.isFinite(vb) ? vb : null;
+      set(a, va);
+      set(b, vb);
     } else {
       const v = Number(raw);
-      stats[name] = Number.isFinite(v) ? v : null;
+      stats[STAT_KEY_MAP[name] ?? name] = Number.isFinite(v) ? v : null;
     }
   });
+
+  // ROTO DD/TD live in the "miscellaneous" category (season totals); grab the
+  // matching-year row from the same response.
+  const misc = res.categories?.find((c) => c.name === 'miscellaneous');
+  if (misc?.names && misc.statistics) {
+    const miscRow = misc.statistics.find((s) => String(s.season?.year) === wantedYear);
+    if (miscRow?.stats) {
+      misc.names.forEach((name, i) => {
+        if (name !== 'doubleDouble' && name !== 'tripleDouble') return;
+        const v = Number(miscRow.stats[i]);
+        if (Number.isFinite(v)) stats[name === 'doubleDouble' ? 'double_doubles' : 'triple_doubles'] = v;
+      });
+    }
+  }
+
   stats.espn_season_label = row.season?.displayName ?? null;
   return stats;
 }

@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { parseStats } from '@/lib/stats';
+import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import type { PlayerWithStats } from '@/api/types';
 import type { CategoryImpact } from '@/lib/projections';
 
@@ -59,6 +60,7 @@ export function SlotPickerDialog({ open, onOpenChange, pool, current, impactFor,
                   className="flex w-full items-center justify-between gap-3 border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted disabled:opacity-50"
                 >
                   <span className="flex min-w-0 items-center gap-2">
+                    <PlayerHeadshot espnId={p.espn_id} name={p.name} />
                     <span className="truncate font-medium">{p.name}</span>
                     <Badge variant="outline">{p.position ?? '?'}</Badge>
                     <span className="shrink-0 text-xs text-muted-foreground tabular-nums">

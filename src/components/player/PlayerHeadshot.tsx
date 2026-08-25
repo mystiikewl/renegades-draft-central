@@ -3,7 +3,7 @@ import { useState } from 'react';
 interface PlayerHeadshotProps {
   espnId: string | null;
   name: string;
-  size?: number; // px
+  size?: number; // px, rendered CSS size
 }
 
 const HEADSHOT_URL = (espnId: string, size: number) =>
@@ -22,21 +22,33 @@ export function PlayerHeadshot({ espnId, name, size = 32 }: PlayerHeadshotProps)
   if (!espnId || failed) {
     return (
       <span
-        className="flex shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground"
-        style={{ width: size, height: size }}
+        aria-hidden
+        className="flex shrink-0 items-center justify-center rounded-full bg-muted font-semibold leading-none text-muted-foreground ring-1 ring-border/40"
+        style={{ width: size, height: size, fontSize: Math.max(9, Math.round(size / 3)) }}
       >
         {initials}
       </span>
     );
   }
+
+  // srcSet at 1x/2x/4x so retina/zoomed displays pick a sharp source instead
+  // of an upscaled (compressed-looking) render.
+  const src = HEADSHOT_URL(espnId, size * 2);
+  const srcSet = [
+    `${HEADSHOT_URL(espnId, size)} 1x`,
+    `${src} 2x`,
+    `${HEADSHOT_URL(espnId, size * 4)} 4x`,
+  ].join(', ');
+
   return (
     <img
-      src={HEADSHOT_URL(espnId, size * 2)}
+      src={src}
+      srcSet={srcSet}
       alt={name}
-      width={size}
-      height={size}
       loading="lazy"
-      className="shrink-0 rounded-full bg-muted object-cover"
+      decoding="async"
+      className="shrink-0 rounded-full bg-muted object-cover ring-1 ring-border/40"
+      style={{ width: size, height: size }}
       onError={() => setFailed(true)}
     />
   );

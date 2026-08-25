@@ -115,6 +115,30 @@ describe('KeeperManager', () => {
     expect(screen.getByText(/unavailable/)).toBeInTheDocument();
   });
 
+  it('own-team mirror rows are keepable (flip path), not unavailable', async () => {
+    setup({
+      activeRosters: [roster('a1', TEAM, 'p2', 'draft', 'My Rostered Guy')],
+      priorRosters: [roster('b2', TEAM, 'p2', 'draft', 'My Rostered Guy')],
+    });
+
+    const btn = screen.getByTestId('assign-p2');
+    expect(btn).toBeEnabled();
+    expect(screen.queryByText(/unavailable/)).not.toBeInTheDocument();
+
+    await userEvent.click(btn);
+    expect(mockAssign).toHaveBeenCalledWith({ teamId: TEAM, playerId: 'p2' });
+  });
+
+  it('blocks players kept by another team', async () => {
+    setup({
+      activeRosters: [roster('a1', 'team-2', 'p5', 'keeper', 'Their Keeper')],
+      priorRosters: [roster('b5', TEAM, 'p5', 'draft', 'Their Keeper')],
+    });
+
+    expect(screen.getByTestId('assign-p5')).toBeDisabled();
+    expect(screen.getByText(/unavailable/)).toBeInTheDocument();
+  });
+
   it('enforces the limit client-side: friendly toast instead of an RPC call at the cap', async () => {
     setup({
       keeperLimit: 1,

@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 
 /**
  * Keeper selection for one team in one season. Candidates come from the
@@ -57,15 +58,18 @@ export function KeeperManager({
   );
   const keeperIds = useMemo(() => new Set(keeperRows.map((r) => r.player_id)), [keeperRows]);
 
-  // Anyone already on ANY roster this season can't be kept again — covers
-  // other teams' picks/keepers plus trade-acquired rows on this very team.
+  // Blocked = already kept (any team) or sitting on ANOTHER team's active
+  // roster (ESPN moved them since last season). Own-team mirror rows are NOT
+  // blocked — assign_keeper flips them to 'keeper' (the mirror is just
+  // "rostered" status; keeper choice stays open until finalize).
   const blockedIds = useMemo(() => {
     const ids = new Set<string>();
     (activeRosters ?? []).forEach((r) => {
-      if (!keeperIds.has(r.player_id)) ids.add(r.player_id);
+      // kept by anyone, or sitting on another team's roster
+      if (r.acquisition === 'keeper' || r.team_id !== teamId) ids.add(r.player_id);
     });
     return ids;
-  }, [activeRosters, keeperIds]);
+  }, [activeRosters, teamId]);
 
   const candidates = useMemo(() => {
     return (priorRosters ?? [])
@@ -166,11 +170,14 @@ function CandidateRow({
   onRemove: (playerId: string) => void;
 }) {
   const name = entry.players?.name ?? 'Unknown player';
+  // Fixed 3-column grid (headshot | label block | action) keeps every row's
+  // text starting at the same x-origin regardless of name/meta length.
   return (
-    <li className="flex items-center justify-between gap-3 p-2 pl-3">
+    <li className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 px-3 py-2 transition-colors hover:bg-muted/40">
+      <PlayerHeadshot espnId={entry.players?.espn_id ?? null} name={name} />
       <div className="min-w-0">
-        <span className="block truncate text-sm font-medium">{name}</span>
-        <span className="block truncate text-xs text-muted-foreground">
+        <span className="block truncate text-sm font-medium leading-tight">{name}</span>
+        <span className="mt-0.5 block truncate text-xs leading-tight text-muted-foreground">
           {entry.players?.position ?? '—'} · {entry.players?.nba_team ?? '—'}
           {blocked && !kept ? ' · unavailable' : ''}
         </span>
@@ -179,6 +186,7 @@ function CandidateRow({
         <Button
           size="sm"
           variant="secondary"
+          className="min-w-[5.5rem]"
           disabled={disabled}
           onClick={() => onRemove(entry.player_id)}
           data-testid={`remove-${entry.player_id}`}
@@ -189,8 +197,9 @@ function CandidateRow({
         <Button
           size="sm"
           variant="outline"
+          className="min-w-[5.5rem]"
           disabled={disabled || blocked}
-          title={blocked ? 'Already rostered this season' : undefined}
+          title={blocked ? 'Already kept or on another team’s roster' : undefined}
           onClick={() => onAssign(entry.player_id)}
           data-testid={`assign-${entry.player_id}`}
         >

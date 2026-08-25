@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { usePlayerPool } from '@/api/queries';
 import { useOfflineQueue } from '@/api/offlineQueue';
 import type { DraftPick, PlayerWithStats } from '@/api/types';
@@ -455,6 +456,7 @@ function PlayerPoolPanel({
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 truncate font-medium">
+                      <PlayerHeadshot espnId={p.espn_id} name={p.name} />
                       <span className="truncate">{p.name}</span>
                       {queuedIds.has(p.id) && (
                         <Badge variant="secondary" className="shrink-0 text-[10px]">
@@ -498,7 +500,8 @@ function PlayerPoolPanel({
               <DialogTitle>Confirm pick</DialogTitle>
               <DialogDescription asChild>
                 <div className="space-y-1 pt-1">
-                  <p className="text-lg font-semibold text-foreground">
+                  <p className="flex items-center gap-3 text-lg font-semibold text-foreground">
+                    {confirming && <PlayerHeadshot espnId={confirming.espn_id} name={confirming.name} size={40} />}
                     {confirming?.name}
                   </p>
                   <p>

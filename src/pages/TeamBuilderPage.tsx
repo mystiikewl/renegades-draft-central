@@ -13,13 +13,16 @@ import {
   categoryTotals,
   impact,
   INVERTED_CATEGORIES,
+  LEAGUE_CATEGORIES,
   type Category,
 } from '@/lib/projections';
 import { parseStats } from '@/lib/stats';
+import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import type { PlayerWithStats } from '@/api/types';
 
-const ALL_CATEGORIES: Category[] = ['pts', 'reb', 'ast', 'stl', 'blk', 'tp', 'to', 'fgPct', 'ftPct'];
-const DEFAULT_CATEGORIES: Category[] = ['pts', 'reb', 'ast', 'stl', 'blk', 'tp'];
+const ALL_CATEGORIES: Category[] = LEAGUE_CATEGORIES;
+/** league default: all 13 ROTO cats on */
+const DEFAULT_CATEGORIES: Category[] = LEAGUE_CATEGORIES;
 
 interface SavedBuild {
   name: string;
@@ -75,12 +78,12 @@ export function TeamBuilderPage() {
         .filter((r) => r.team_id === profile.team_id)
         .flatMap((r) =>
           r.players && r.player_id
-            ? [{ id: r.player_id, name: r.players.name, position: r.players.position }]
+            ? [{ id: r.player_id, name: r.players.name, position: r.players.position, espn_id: r.players.espn_id ?? null }]
             : [],
         )
         .map((p) => ({
           ...p,
-          espn_id: null,
+          espn_id: p.espn_id ?? null,
           nba_team: null,
           image_url: null,
           created_at: '',
@@ -237,7 +240,10 @@ export function TeamBuilderPage() {
                   </span>
                   {p ? (
                     <>
-                      <span className="block truncate text-sm font-medium">{p.name}</span>
+                      <span className="flex items-center gap-2">
+                        <PlayerHeadshot espnId={p.espn_id} name={p.name} size={24} />
+                        <span className="block truncate text-sm font-medium">{p.name}</span>
+                      </span>
                       <span className="text-xs tabular-nums text-muted-foreground">
                         {s?.pts}p {s?.reb}r {s?.ast}a
                       </span>

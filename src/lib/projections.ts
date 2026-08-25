@@ -6,27 +6,56 @@
 import type { PlayerWithStats } from '@/api/types';
 
 export const CATEGORY_STAT_KEYS = {
-  pts: 'points',
+  fgm: 'field_goals_made',
+  fgPct: 'field_goal_percentage',
+  ftPct: 'free_throw_percentage',
+  tp: 'three_pointers_made',
+  tpPct: 'three_point_percentage',
   reb: 'total_rebounds',
   ast: 'assists',
   stl: 'steals',
   blk: 'blocks',
-  tp: 'three_pointers_made',
   to: 'turnovers',
-  fgPct: 'field_goal_percentage',
-  ftPct: 'free_throw_percentage',
+  dd: 'double_doubles',
+  td: 'triple_doubles',
+  pts: 'points',
 } as const;
 
 export type Category = keyof typeof CATEGORY_STAT_KEYS;
+/** The league's 13 ROTO categories, in standings order. */
+export const LEAGUE_CATEGORIES = Object.keys(CATEGORY_STAT_KEYS) as Category[];
 /** Categories where LOWER is better (counted negatively in rankings). */
 export const INVERTED_CATEGORIES: ReadonlySet<Category> = new Set(['to']);
-const PCT_CATEGORIES: ReadonlySet<Category> = new Set(['fgPct', 'ftPct']);
+const PCT_CATEGORIES: ReadonlySet<Category> = new Set(['fgPct', 'ftPct', 'tpPct']);
+/** Counting cats stored as per-game averages — valued at season totals (avg × GP). */
+const AVERAGE_CATEGORIES: ReadonlySet<Category> = new Set([
+  'fgm', 'tp', 'reb', 'ast', 'stl', 'blk', 'to', 'pts',
+]);
 
-export function playerValue(p: PlayerWithStats, cat: Category): number {
+/** Value basis: 'totals' (ROTO season totals) or 'averages' (per-game). */
+export type Basis = 'totals' | 'averages';
+
+export function playerValue(p: PlayerWithStats, cat: Category, basis: Basis = 'totals'): number {
   const s = p.player_seasons[0]?.stats;
-  const v = s?.[CATEGORY_STAT_KEYS[cat]];
-  const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
-  return Number.isFinite(n) ? n : 0;
+  const raw = s?.[CATEGORY_STAT_KEYS[cat]];
+  const v = typeof raw === 'number' ? raw : parseFloat(String(raw ?? ''));
+  if (!Number.isFinite(v) || v === 0) return 0;
+  if (AVERAGE_CATEGORIES.has(cat)) {
+    if (basis === 'averages') return v;
+    // ROTO ranks season totals: per-game average × games played
+    const gpRaw = s?.games_played;
+    const gp = typeof gpRaw === 'number' ? gpRaw : parseFloat(String(gpRaw ?? ''));
+    return Number.isFinite(gp) ? v * gp : 0;
+  }
+  if (cat === 'dd' || cat === 'td') {
+    // stored as season totals; per-game in averages mode
+    if (basis === 'averages') {
+      const gpRaw = s?.games_played;
+      const gp = typeof gpRaw === 'number' ? gpRaw : parseFloat(String(gpRaw ?? ''));
+      return Number.isFinite(gp) && gp > 0 ? v / gp : 0;
+    }
+  }
+  return v;
 }
 
 function num(v: unknown): number {
@@ -68,8 +97,8 @@ export function baseline(pool: PlayerWithStats[], teams: number, cats: readonly 
 }
 
 /** Per-category z-scores across the pool: playerId -> z. */
-export function zScores(pool: PlayerWithStats[], cat: Category): Map<string, number> {
-  const values = pool.map((p) => playerValue(p, cat));
+export function zScores(pool: PlayerWithStats[], cat: Category, basis: Basis = 'totals'): Map<string, number> {
+  const values = pool.map((p) => playerValue(p, cat, basis));
   const n = values.length;
   const zs = new Map<string, number>();
   if (n === 0) return zs;

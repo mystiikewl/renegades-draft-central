@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { pickStatsSeason } from '@/lib/stats';
 import type {
   DraftPick,
   DraftSettings,
@@ -105,7 +106,7 @@ export function useDraftPicks(seasonId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('draft_picks')
-        .select('*, players(name, position, nba_team), team:teams!draft_picks_team_id_fkey(name)')
+        .select('*, players(name, position, nba_team, espn_id), team:teams!draft_picks_team_id_fkey(name)')
         .eq('season_id', seasonId)
         .order('pick_number');
       if (error) throw error;
@@ -126,18 +127,22 @@ export function usePlayerPool(seasonId: string | undefined) {
       const [playersRes, rosteredRes] = await Promise.all([
         // no season filter on stats: prefer the active season's row at merge
         // time below. espn_id filter hides 2025-archive-only players (retirees).
-        supabase.from('players').select('*, player_seasons(season_id, stats)').not('espn_id', 'is', null).order('name'),
+        supabase
+          .from('players')
+          .select('*, player_seasons(season_id, stats, seasons(label))')
+          .not('espn_id', 'is', null)
+          .order('name'),
         supabase.from('rosters').select('player_id').eq('season_id', seasonId),
       ]);
       if (playersRes.error) throw playersRes.error;
       if (rosteredRes.error) throw rosteredRes.error;
       const rostered = new Set(rosteredRes.data.map((r) => r.player_id));
       const withPreferredStats = (playersRes.data as PlayerWithStats[]).map((p) => {
-        const seasons = [...(p.player_seasons ?? [])];
-        seasons.sort((a, b) =>
-          a.season_id === seasonId ? -1 : b.season_id === seasonId ? 1 : 0,
-        );
-        return { ...p, player_seasons: seasons.slice(0, 1) };
+        // Prefer the active season's row only when it carries stats; otherwise
+        // fall back to the most recent labeled season that has numbers.
+        const best = pickStatsSeason(p.player_seasons ?? [], seasonId!);
+        // pickStatsSeason widens stats to nullable; input rows are PlayerWithStats
+        return { ...p, player_seasons: best ? [best as PlayerWithStats['player_seasons'][number]] : [] };
       });
       return withPreferredStats.filter((p) => !rostered.has(p.id));
     },
@@ -151,7 +156,7 @@ export function useRosters(seasonId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rosters')
-        .select('*, players(name, position, nba_team)')
+        .select('*, players(name, position, nba_team, espn_id)')
         .eq('season_id', seasonId);
       if (error) throw error;
       return data as RosterEntry[];

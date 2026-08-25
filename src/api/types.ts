@@ -38,6 +38,8 @@ export interface Player {
   position: string | null;
   nba_team: string | null;
   image_url: string | null;
+  /** ESPN years-of-league-experience; 0 = rookie */
+  experience?: number | null;
   created_at: string;
 }
 
@@ -49,7 +51,10 @@ export interface PlayerSeason {
 }
 
 export type PlayerWithStats = Player & {
-  player_seasons: Pick<PlayerSeason, 'season_id' | 'stats'>[];
+  player_seasons: (Pick<PlayerSeason, 'season_id' | 'stats'> & {
+    /** embedded seasons(label) used to order fallback stats rows */
+    seasons?: { label: string } | null;
+  })[];
 };
 
 export interface DraftSettings {
@@ -75,7 +80,7 @@ export interface DraftPick {
   player_id: string | null;
   is_used: boolean;
   picked_at: string | null;
-  players?: Pick<Player, 'name' | 'position' | 'nba_team'> | null;
+  players?: Pick<Player, 'name' | 'position' | 'nba_team' | 'espn_id'> | null;
   /** aliased embed: teams!draft_picks_team_id_fkey — disambiguates the two team FKs */
   team?: Pick<Team, 'name'> | null;
 }
@@ -88,7 +93,7 @@ export interface RosterEntry {
   acquisition: Acquisition;
   draft_pick_id: string | null;
   acquired_at: string;
-  players?: Pick<Player, 'name' | 'position' | 'nba_team'> | null;
+  players?: Pick<Player, 'name' | 'position' | 'nba_team' | 'espn_id'> | null;
 }
 
 export interface Favourite {

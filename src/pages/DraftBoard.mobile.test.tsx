@@ -19,10 +19,10 @@ const pick = (over: Partial<DraftPick>): DraftPick => ({
 });
 
 const picks = [
-  pick({ pick_number: 1, is_used: true, players: { name: 'Jokic', position: 'C', nba_team: 'DEN' } }),
+  pick({ pick_number: 1, is_used: true, players: { name: 'Jokic', position: 'C', nba_team: 'DEN', espn_id: null } }),
   pick({ id: 'on-clock', pick_number: 2 }),
   pick({ id: 'p3', pick_number: 3, team_id: 't2', original_team_id: 't1', is_used: true, players: null }),
-  pick({ id: 'r2p4', round: 2, pick_number: 14, is_used: true, players: { name: 'Sga', position: 'G', nba_team: 'OKC' } }),
+  pick({ id: 'r2p4', round: 2, pick_number: 14, is_used: true, players: { name: 'Sga', position: 'G', nba_team: 'OKC', espn_id: null } }),
 ];
 
 const renderBoard = () => render(<DraftBoard picks={picks} picksLoading={false} teamName={teamName} />);

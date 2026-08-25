@@ -6,6 +6,7 @@ import { KeeperManager } from '@/components/keepers/KeeperManager';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const GROUPS: { key: Acquisition; label: string }[] = [
@@ -105,7 +106,10 @@ function TeamRosterCard({ name, entries }: { name: string; entries: RosterEntry[
                 <ul className="space-y-1">
                   {group.map((e) => (
                     <li key={e.id} className="flex items-center justify-between text-sm">
-                      <span className="truncate font-medium">{e.players?.name ?? '—'}</span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <PlayerHeadshot espnId={e.players?.espn_id ?? null} name={e.players?.name ?? '—'} size={24} />
+                        <span className="truncate font-medium">{e.players?.name ?? '—'}</span>
+                      </span>
                       <span className="ml-2 shrink-0 text-xs text-muted-foreground">
                         {e.players?.position ?? '—'} · {e.players?.nba_team ?? '—'}
                       </span>
