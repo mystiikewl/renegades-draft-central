@@ -110,7 +110,7 @@ export function DraftPage() {
       {lastPick ? (
         <p className="text-sm text-muted-foreground">
           Last pick: <strong>{lastPick.players?.name ?? '—'}</strong> →{' '}
-          {lastPick.teams?.name ?? teamName(lastPick.team_id)} (#{lastPick.pick_number})
+          {lastPick.team?.name ?? teamName(lastPick.team_id)} (#{lastPick.pick_number})
         </p>
       ) : null}
 

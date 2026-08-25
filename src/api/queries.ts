@@ -105,7 +105,7 @@ export function useDraftPicks(seasonId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('draft_picks')
-        .select('*, players(name, position, nba_team), teams(name)')
+        .select('*, players(name, position, nba_team), team:teams!draft_picks_team_id_fkey(name)')
         .eq('season_id', seasonId)
         .order('pick_number');
       if (error) throw error;

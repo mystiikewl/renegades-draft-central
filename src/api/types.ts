@@ -76,7 +76,8 @@ export interface DraftPick {
   is_used: boolean;
   picked_at: string | null;
   players?: Pick<Player, 'name' | 'position' | 'nba_team'> | null;
-  teams?: Pick<Team, 'name'> | null;
+  /** aliased embed: teams!draft_picks_team_id_fkey — disambiguates the two team FKs */
+  team?: Pick<Team, 'name'> | null;
 }
 
 export interface RosterEntry {
