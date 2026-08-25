@@ -12,12 +12,22 @@ import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import { Button } from '@/components/ui/button';
 import { DraftPage } from '@/pages/DraftPage';
 import { LoginPage } from '@/pages/LoginPage';
+import { OnboardingPage } from '@/pages/OnboardingPage';
 
 /** Declarative auth guard — no navigate-in-effect, no blank frames. */
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
   if (loading) return <div className="flex min-h-screen items-center justify-center">Loading…</div>;
   if (!session) return <LoginPage />;
+  return <>{children}</>;
+}
+
+/** Profiles without a team must claim one before touching league pages. */
+function RequireTeam({ children }: { children: React.ReactNode }) {
+  const { profile, profileLoading } = useAuth();
+  if (profileLoading)
+    return <div className="flex min-h-screen items-center justify-center">Loading…</div>;
+  if (!profile || profile.team_id === null) return <OnboardingPage />;
   return <>{children}</>;
 }
 
@@ -52,7 +62,9 @@ const indexRoute = createRoute({
   path: '/',
   component: () => (
     <RequireAuth>
-      <DraftPage />
+      <RequireTeam>
+        <DraftPage />
+      </RequireTeam>
     </RequireAuth>
   ),
 });
