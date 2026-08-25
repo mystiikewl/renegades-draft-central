@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { isRookie, parseStats, type StatLine } from '@/lib/stats';
+import { useGameLog, type GameLogRow } from '@/api/gameLog';
 import type { PlayerWithStats } from '@/api/types';
 
 /** "8.3" x "69" gp -> totals string, keeping null/— passthrough. */
@@ -120,7 +123,72 @@ export function PlayerStatsDialog({
             </div>
           ))}
         </div>
+        {open && player.espn_id && <GameLogTable espnId={String(player.espn_id)} />}
       </DialogContent>
     </Dialog>
+  );
+}
+
+const LOG_COLS: { key: keyof GameLogRow; label: string }[] = [
+  { key: 'date', label: 'Date' },
+  { key: 'opponent', label: 'Opp' },
+  { key: 'min', label: 'MIN' },
+  { key: 'pts', label: 'PTS' },
+  { key: 'reb', label: 'REB' },
+  { key: 'ast', label: 'AST' },
+  { key: 'stl', label: 'STL' },
+  { key: 'blk', label: 'BLK' },
+  { key: 'to', label: 'TO' },
+];
+
+function GameLogTable({ espnId }: { espnId: string }) {
+  const [show, setShow] = useState(false);
+  const { data: rows, isLoading } = useGameLog(espnId, show);
+
+  return (
+    <div>
+      <Button variant="ghost" size="sm" className="w-full" onClick={() => setShow((v) => !v)}>
+        {show ? 'Hide' : 'Show'} game log
+      </Button>
+      {show && (
+        isLoading ? (
+          <div className="space-y-1 py-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-5 w-full" />
+            ))}
+          </div>
+        ) : !rows?.length ? (
+          <p className="py-2 text-center text-xs text-muted-foreground">No games logged.</p>
+        ) : (
+          // ponytail: max-h with native overflow — no ScrollArea for one table
+          <div className="max-h-64 overflow-y-auto rounded-md border">
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 bg-card">
+                <tr className="text-left uppercase tracking-wide text-muted-foreground">
+                  {LOG_COLS.map(({ key, label }) => (
+                    <th key={key} className={`px-2 py-1.5 font-semibold ${key !== 'date' && key !== 'opponent' ? 'text-right' : ''}`}>
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.gameId} className="border-t border-border/50 tabular-nums">
+                    <td className="whitespace-nowrap px-2 py-1">{r.date.slice(5)}</td>
+                    <td className="whitespace-nowrap px-2 py-1 text-muted-foreground">
+                      {r.location}{r.opponent} {r.result}
+                    </td>
+                    {LOG_COLS.slice(2).map(({ key }) => (
+                      <td key={key} className="px-2 py-1 text-right">{r[key]}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+    </div>
   );
 }

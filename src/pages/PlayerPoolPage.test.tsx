@@ -34,6 +34,9 @@ vi.mock('@/api/mutations', () => ({
 
 vi.mock('@/api/realtime', () => ({ useDraftRealtime: vi.fn(), useRealtimeStatus: () => 'connected' }));
 
+// Game log hits ESPN live — never in tests.
+vi.mock('@/api/gameLog', () => ({ useGameLog: vi.fn(() => ({ data: undefined, isLoading: false })) }));
+
 let profile: { team_id: string | null; is_admin: boolean } | null = {
   team_id: 't1',
   is_admin: false,
