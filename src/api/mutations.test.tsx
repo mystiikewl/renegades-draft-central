@@ -73,7 +73,7 @@ describe('useMakePick', () => {
       p_player_id: 'player-9',
     });
     expect(toast.error).not.toHaveBeenCalled();
-    const invalidated = invalidate.mock.calls.map((c) => c[0].queryKey);
+    const invalidated = invalidate.mock.calls.map((c) => c[0]!.queryKey);
     expect(invalidated).toEqual(
       expect.arrayContaining([
         ['draft-picks', SEASON],
@@ -155,7 +155,7 @@ describe('keepers', () => {
       p_player_id: 'player-1',
     });
     expect(toast.error).not.toHaveBeenCalled();
-    const invalidated = invalidate.mock.calls.map((c) => c[0].queryKey);
+    const invalidated = invalidate.mock.calls.map((c) => c[0]!.queryKey);
     expect(invalidated).toEqual(
       expect.arrayContaining([['rosters', SEASON], ['player-pool', SEASON]]),
     );
@@ -189,7 +189,7 @@ describe('keepers', () => {
       p_player_id: 'player-1',
     });
     expect(toast.error).not.toHaveBeenCalled();
-    const invalidated = invalidate.mock.calls.map((c) => c[0].queryKey);
+    const invalidated = invalidate.mock.calls.map((c) => c[0]!.queryKey);
     expect(invalidated).toEqual(
       expect.arrayContaining([['rosters', SEASON], ['player-pool', SEASON]]),
     );

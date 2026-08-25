@@ -77,7 +77,7 @@ function pick(partial: Partial<DraftPick>): DraftPick {
   } as DraftPick;
 }
 
-function player(partial: Partial<PlayerWithStats>): PlayerWithStats {
+function player(partial: Partial<PlayerWithStats> = {}): PlayerWithStats {
   return {
     id: 'pl1',
     name: 'Test Player',

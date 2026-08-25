@@ -107,7 +107,7 @@ export function DraftPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="board">
-          <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} seasonId={seasonId} myTeamId={profile?.team_id} />
+          <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} seasonId={seasonId} myTeamId={profile?.team_id ?? null} />
         </TabsContent>
         <TabsContent value="players">
           <PlayerPoolPanel
@@ -119,7 +119,7 @@ export function DraftPage() {
       </Tabs>
 
       <div className="hidden gap-6 lg:grid lg:grid-cols-[1fr_380px]">
-        <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} seasonId={seasonId} myTeamId={profile?.team_id} />
+        <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} seasonId={seasonId} myTeamId={profile?.team_id ?? null} />
         <PlayerPoolPanel
           seasonId={seasonId}
           canPick={isMyTurn || !!profile?.is_admin}
@@ -139,7 +139,7 @@ function PickTradesPanel({
 }: {
   picks: DraftPick[];
   seasonId: string;
-  myTeamId: string;
+  myTeamId: string | null;
   teamName: (id: string) => string;
 }) {
   const tradePick = useTradePick(seasonId);
@@ -316,7 +316,7 @@ function PlayerPoolPanel({
   canPick,
   playerNameFor,
 }: {
-  seasonId: string;
+  seasonId: string | undefined;
   canPick: boolean;
   playerNameFor: (pick: DraftPick) => string | null;
 }) {
@@ -324,8 +324,8 @@ function PlayerPoolPanel({
   const [confirming, setConfirming] = useState<PlayerWithStats | null>(null);
   const { data: players, isLoading } = usePlayerPool(seasonId);
   const { data: picks } = useDraftPicks(seasonId);
-  const makePick = useMakePick(seasonId);
-  const undoPick = useUndoLastPick(seasonId);
+  const makePick = useMakePick(seasonId ?? '');
+  const undoPick = useUndoLastPick(seasonId ?? '');
   const queued = useOfflineQueue((s) => s.queue);
   const queuedIds = useMemo(() => new Set(queued.map((q) => q.playerId)), [queued]);
 

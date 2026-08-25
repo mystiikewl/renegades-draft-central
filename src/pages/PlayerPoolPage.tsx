@@ -53,8 +53,8 @@ export function PlayerPoolPage() {
     }
     return [...pool].sort((a, b) => {
       if (sortKey === 'rank') {
-        const ra = a.player_seasons[0]?.stats?.rank ?? Infinity;
-        const rb = b.player_seasons[0]?.stats?.rank ?? Infinity;
+        const ra = Number(a.player_seasons[0]?.stats?.rank ?? Infinity);
+        const rb = Number(b.player_seasons[0]?.stats?.rank ?? Infinity);
         return ra - rb;
       }
       const statMap: Record<Exclude<SortKey, 'rank'>, string> = {

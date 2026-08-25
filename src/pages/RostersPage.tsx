@@ -63,7 +63,7 @@ export function RostersPage() {
       </div>
 
       {showKeeperManager && (
-        <KeeperManager seasonId={chosen} teamId={profile.team_id} />
+        <KeeperManager seasonId={chosen} teamId={profile.team_id ?? ''} />
       )}
 
       {isLoading ? (

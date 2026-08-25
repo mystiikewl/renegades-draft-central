@@ -36,7 +36,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     profile: profileQuery.data ?? null,
     profileLoading: profileQuery.isLoading,
-    signOut: () => supabase.auth.signOut(),
+    signOut: async () => {
+      await supabase.auth.signOut();
+    },
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
