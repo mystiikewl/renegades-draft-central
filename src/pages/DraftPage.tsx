@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePlayerPool } from '@/api/queries';
 import { useOfflineQueue } from '@/api/offlineQueue';
 import type { DraftPick, PlayerWithStats } from '@/api/types';
@@ -113,7 +114,28 @@ export function DraftPage() {
         </p>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      {/* Mobile: tabbed board/pool; desktop: side-by-side */}
+      <Tabs defaultValue="board" className="space-y-4 lg:hidden">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="board">Board</TabsTrigger>
+          <TabsTrigger value="players">
+            Player pool
+            {isMyTurn && <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">you're up</span>}
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="board">
+          <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} />
+        </TabsContent>
+        <TabsContent value="players">
+          <PlayerPoolPanel
+            seasonId={seasonId}
+            canPick={isMyTurn || !!profile?.is_admin}
+            playerNameFor={(pick: DraftPick) => pick.players?.name ?? null}
+          />
+        </TabsContent>
+      </Tabs>
+
+      <div className="hidden gap-6 lg:grid lg:grid-cols-[1fr_380px]">
         <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} />
         <PlayerPoolPanel
           seasonId={seasonId}
