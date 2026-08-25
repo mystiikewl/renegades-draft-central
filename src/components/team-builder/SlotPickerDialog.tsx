@@ -30,7 +30,7 @@ export function SlotPickerDialog({ open, onOpenChange, pool, current, impactFor,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>
             Pick a player{current ? ` (replacing ${current.name})` : ''}
@@ -42,7 +42,7 @@ export function SlotPickerDialog({ open, onOpenChange, pool, current, impactFor,
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <div className="max-h-96 overflow-y-auto rounded-md border">
+        <div className="max-h-[min(24rem,60vh)] overflow-y-auto rounded-md border">
           {filtered.length === 0 ? (
             <p className="p-4 text-center text-sm text-muted-foreground">No players found.</p>
           ) : (

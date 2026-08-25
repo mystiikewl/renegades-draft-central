@@ -44,27 +44,25 @@ function RootLayout() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 p-4">
-          <div className="flex items-center gap-6">
-            <span className="font-bold">Renegades Draft Central</span>
+          <div className="flex min-w-0 items-center gap-4 sm:gap-6">
+            <span className="shrink-0 font-bold">Renegades Draft Central</span>
             {profile?.team_id && (
-              <nav className="hidden gap-4 text-sm text-muted-foreground sm:flex">
-                <Link to="/" className="transition-colors hover:text-foreground">
-                  Draft
-                </Link>
-                <Link to="/pool" className="transition-colors hover:text-foreground">
-                  Player Pool
-                </Link>
-                <Link to="/rankings" className="transition-colors hover:text-foreground">
-                  Rankings
-                </Link>
-                <Link to="/rosters" className="transition-colors hover:text-foreground">
-                  Rosters
-                </Link>
-                {profile.is_admin && (
-                  <Link to="/admin" className="transition-colors hover:text-foreground">
-                    Admin
+              <nav className="flex min-w-0 gap-4 overflow-x-auto text-sm text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {[
+                  { to: '/', label: 'Draft' },
+                  { to: '/pool', label: 'Player Pool' },
+                  { to: '/rankings', label: 'Rankings' },
+                  { to: '/rosters', label: 'Rosters' },
+                  ...(profile.is_admin ? [{ to: '/admin', label: 'Admin' }] : []),
+                ].map((item) => (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className="whitespace-nowrap transition-colors hover:text-foreground"
+                  >
+                    {item.label}
                   </Link>
-                )}
+                ))}
               </nav>
             )}
           </div>

@@ -51,7 +51,7 @@ export function RostersPage() {
         <h1 className="text-2xl font-bold">Rosters</h1>
         {seasons && seasons.length > 0 && (
           <Tabs value={chosen ?? undefined} onValueChange={setSeasonId}>
-            <TabsList>
+            <TabsList className="max-w-full flex-wrap">
               {seasons.map((s) => (
                 <TabsTrigger key={s.id} value={s.id}>
                   {s.label}

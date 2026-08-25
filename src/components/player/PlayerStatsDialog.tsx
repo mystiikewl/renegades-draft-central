@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ChevronRight } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { isRookie, parseStats, type StatLine } from '@/lib/stats';
 import { useGameLog, type GameLogRow } from '@/api/gameLog';
@@ -95,9 +96,11 @@ export function PlayerStatsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md gap-0 p-0 sm:max-w-2xl">
-        {/* Header band — team logo watermark behind a large bare headshot */}
-        <div className="relative overflow-hidden p-5 sm:p-6">
+      <DialogContent className="gap-0 p-0 sm:max-w-xl">
+        {/* Header band — headshot + bio left, draft action right. Zero bottom
+            padding so the image sits flush against the body content. Right
+            padding clears the dialog's close (X) button. */}
+        <div className="relative flex items-center gap-4 overflow-hidden px-5 pb-0 pt-5 pr-12 sm:px-6 sm:pt-6 sm:pr-14">
           {teamLogo && (
             <img
               src={teamLogo}
@@ -106,46 +109,59 @@ export function PlayerStatsDialog({
               className="pointer-events-none absolute -left-6 top-1/2 w-56 -translate-y-1/2 opacity-10 sm:w-64 dark:opacity-[0.13]"
             />
           )}
-          <div className="relative flex items-center gap-4">
-            <PlayerHeadshot espnId={player.espn_id} name={player.name} size={104} variant="bare" />
-            <div className="min-w-0 flex-1">
-              <h2 className="truncate text-xl font-bold tracking-tight">{player.name}</h2>
-              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm">
-                <Badge variant="secondary" className="text-[11px] font-semibold">
-                  {player.position ?? '—'}
+          <PlayerHeadshot espnId={player.espn_id} name={player.name} size={104} variant="bare" />
+          <div className="relative min-w-0 flex-1">
+            <h2 className="truncate text-xl font-bold tracking-tight">{player.name}</h2>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm">
+              <Badge variant="secondary" className="text-[11px] font-semibold">
+                {player.position ?? '—'}
+              </Badge>
+              <span className="font-medium text-foreground/80">{player.nba_team ?? '—'}</span>
+              {isRookie(player) && (
+                <Badge variant="outline" className="px-1.5 py-0 text-[10px] text-primary border-primary/40">
+                  ROOK
                 </Badge>
-                <span className="font-medium text-foreground/80">{player.nba_team ?? '—'}</span>
-                {isRookie(player) && (
-                  <Badge variant="outline" className="px-1.5 py-0 text-[10px] text-primary border-primary/40">
-                    ROOK
-                  </Badge>
-                )}
-              </div>
-              {bioBits.length > 0 && (
-                <p className="mt-1 truncate text-xs text-muted-foreground">{bioBits.join(' · ')}</p>
               )}
             </div>
-            {canPick && (
-              <Button size="lg" className="shrink-0" disabled={picking} onClick={onPick}>
-                {picking ? 'Picking…' : `Draft ${player.name.split(' ').pop()}`}
-              </Button>
+            {bioBits.length > 0 && (
+              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{bioBits.join(' · ')}</p>
             )}
           </div>
+          {canPick && (
+            <Button
+              size="lg"
+              className="shrink-0 transition-transform active:scale-[0.98]"
+              disabled={picking}
+              onClick={onPick}
+            >
+              {picking ? 'Picking…' : `Draft ${player.name.split(' ').pop()}`}
+            </Button>
+          )}
         </div>
 
-        {/* Body — season stats + game log */}
-        <div className="space-y-4 p-5 sm:p-6">
+        {/* Body — season stats + game log; flush against the header image */}
+        <div className="space-y-4 px-5 pb-5 pt-0 sm:px-6 sm:pb-6">
           <section>
             <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Season stats
             </h3>
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-              {STAT_ROWS.map(({ key, label }) => (
-                <div key={key} className="rounded-lg bg-muted/60 p-2.5 text-center">
-                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
-                  <div className="text-sm font-semibold tabular-nums">{s[key] ?? '—'}</div>
-                </div>
-              ))}
+              {STAT_ROWS.map(({ key, label }) => {
+                // ponytail: rank is the only cross-category stat we have, so
+                // it's the anchor tile — tinted whenever the value exists.
+                const anchor = key === 'rank' && s.rank != null && s.rank !== '—';
+                return (
+                  <div
+                    key={key}
+                    className={`rounded-lg p-2.5 text-center ${
+                      anchor ? 'bg-primary/10 ring-1 ring-primary/30' : 'bg-muted/60'
+                    }`}
+                  >
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+                    <div className="text-sm font-semibold tabular-nums">{s[key] ?? '—'}</div>
+                  </div>
+                );
+              })}
             </div>
           </section>
 
@@ -176,8 +192,14 @@ function GameLogTable({ espnId }: { espnId: string }) {
 
   return (
     <div>
-      <Button variant="ghost" size="sm" className="-ml-2 px-2" onClick={() => setShow((v) => !v)}>
-        {show ? '▾ Hide game log' : '▸ Show game log'}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-2 gap-1 px-2 [&_svg]:transition-transform"
+        onClick={() => setShow((v) => !v)}
+      >
+        <ChevronRight className={`size-4 ${show ? 'rotate-90' : ''}`} />
+        {show ? 'Hide game log' : 'Show game log'}
       </Button>
       {show && (
         isLoading ? (
