@@ -127,7 +127,7 @@ describe('PlayerPoolPage', () => {
     expect(within(dialog).getByText('Confirm Me')).toBeInTheDocument();
     expect(within(dialog).getByText('BOS')).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole('button', { name: /pick/i }));
+    await user.click(within(dialog).getByRole('button', { name: /pick|draft/i }));
     expect(mutate).toHaveBeenCalledWith(
       { playerId: 'pl1', playerName: 'Confirm Me' },
       expect.objectContaining({ onSettled: expect.any(Function) }),
@@ -151,7 +151,7 @@ describe('PlayerPoolPage', () => {
 
     await user.click(screen.getByText('Test Player'));
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).queryByRole('button', { name: /pick/i })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /pick|draft/i })).not.toBeInTheDocument();
   });
 
   it('queued offline pick shows the banner and blocks re-picking from the dialog', async () => {
@@ -175,6 +175,6 @@ describe('PlayerPoolPage', () => {
     await user.click(screen.getByText('Queued Guy'));
     const dialog = await screen.findByRole('dialog');
     // Queued player can't be re-picked while the offline pick is pending.
-    expect(within(dialog).queryByRole('button', { name: /pick/i })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /pick|draft/i })).not.toBeInTheDocument();
   });
 });

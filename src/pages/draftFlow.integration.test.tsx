@@ -200,7 +200,7 @@ describe('draft pick flow (integration)', () => {
 
     // Confirm → RPC with the right args.
     rpc.mockResolvedValue({ data: { ok: true }, error: null } as never);
-    await user.click(within(dialog).getByRole('button', { name: /pick/i }));
+    await user.click(within(dialog).getByRole('button', { name: /pick|draft/i }));
     await waitFor(() =>
       expect(rpc).toHaveBeenCalledWith('make_pick', { p_season_id: 's1', p_player_id: 'pl1' }),
     );
@@ -236,7 +236,7 @@ describe('draft pick flow (integration)', () => {
     const dialog = await screen.findByRole('dialog');
 
     rpc.mockResolvedValue({ data: null, error: { message: 'Not your turn' } } as never);
-    await user.click(within(dialog).getByRole('button', { name: /pick/i }));
+    await user.click(within(dialog).getByRole('button', { name: /pick|draft/i }));
 
     // sonner is mocked — assert on the spy, not the DOM.
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Not your turn'));
@@ -247,7 +247,7 @@ describe('draft pick flow (integration)', () => {
     expect(screen.getByText('Test Player')).toBeInTheDocument();
     await user.click(screen.getByText('Test Player'));
     const retryDialog = await screen.findByRole('dialog');
-    expect(within(retryDialog).getByRole('button', { name: /pick/i })).toBeEnabled();
+    expect(within(retryDialog).getByRole('button', { name: /pick|draft/i })).toBeEnabled();
   });
 
   it('network failure queues the pick; successful flush replays make_pick and clears the badge', async () => {
@@ -261,7 +261,7 @@ describe('draft pick flow (integration)', () => {
     rpc.mockRejectedValue(new TypeError('fetch failed') as never);
     await user.click(screen.getByText('Test Player'));
     const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: /pick/i }));
+    await user.click(within(dialog).getByRole('button', { name: /pick|draft/i }));
 
     // Queued: info toast, offline banner, re-pick blocked from the dialog.
     expect(
@@ -273,7 +273,7 @@ describe('draft pick flow (integration)', () => {
     expect(toast.error).not.toHaveBeenCalled();
     await user.click(screen.getByText('Test Player'));
     const queuedDialog = await screen.findByRole('dialog');
-    expect(within(queuedDialog).queryByRole('button', { name: /pick/i })).not.toBeInTheDocument();
+    expect(within(queuedDialog).queryByRole('button', { name: /pick|draft/i })).not.toBeInTheDocument();
 
     // Connectivity returns → flush timer replays the queued pick.
     rpc.mockResolvedValue({ data: { ok: true }, error: null } as never);
@@ -335,6 +335,6 @@ describe('draft pick flow (integration)', () => {
     const poolRow = within(screen.getByRole('table')).getAllByText('Test Player')[0];
     await user.click(poolRow);
     const redraftDialog = await screen.findByRole('dialog');
-    expect(within(redraftDialog).getByRole('button', { name: /pick/i })).toBeEnabled();
+    expect(within(redraftDialog).getByRole('button', { name: /pick|draft/i })).toBeEnabled();
   });
 });

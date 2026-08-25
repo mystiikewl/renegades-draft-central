@@ -44,18 +44,19 @@ async function fetchGameLog(espnId: string): Promise<GameLogRow[]> {
   if (!res.ok) throw new Error(`ESPN gamelog: HTTP ${res.status}`);
   const j = await res.json();
 
-  const labels: string[] = j.labels ?? [];
-  const idx = (name: string) => labels.findIndex((l) => l.toLowerCase().includes(name));
+  // names are stable camelCase keys; labels are display abbreviations
+  const names: string[] = j.names ?? [];
+  const idx = (name: string) => names.findIndex((n) => n.startsWith(name));
   const iMin = idx('minutes');
   const iPts = idx('points');
-  const iReb = idx('rebound');
-  const iAst = idx('assist');
-  const iStl = idx('steal');
-  const iBlk = idx('block');
-  const iTo = idx('turnover');
-  const iFg = idx('field goals made');
-  const iTp = idx('3-point field goals made');
-  const iFt = idx('free throws made');
+  const iReb = idx('totalRebounds');
+  const iAst = idx('assists');
+  const iStl = idx('steals');
+  const iBlk = idx('blocks');
+  const iTo = idx('turnovers');
+  const iFg = idx('fieldGoalsMade');
+  const iTp = idx('threePointFieldGoalsMade');
+  const iFt = idx('freeThrowsMade');
 
   // Regular season section only; categories are month buckets of {eventId, stats}.
   const reg = (j.seasonTypes as { displayName: string; categories: { events: { eventId: string; stats: string[] }[] }[] }[])
