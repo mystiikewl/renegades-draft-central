@@ -277,7 +277,7 @@ function DraftStatusBadge({ status }: { status: string }) {
   return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
 }
 
-function DraftBoard({
+export function DraftBoard({
   picks,
   picksLoading,
   teamName,
@@ -301,6 +301,7 @@ function DraftBoard({
     );
 
   const rounds = [...new Set(picks.map((p) => p.round))].sort((a, b) => a - b);
+  const onClockId = picks.find((p) => !p.is_used)?.id;
 
   return (
     <Card>
@@ -316,23 +317,30 @@ function DraftBoard({
             <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
               Round {round}
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            {/* Single markup: full-width pick row on mobile, dense tile from sm up */}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-5">
               {picks
                 .filter((p) => p.round === round)
                 .map((p) => (
                   <div
                     key={p.id}
-                    className={`min-h-11 rounded-md border p-2 text-xs ${
-                      p.is_used ? 'border-border' : 'border-dashed border-muted-foreground/40 opacity-70'
+                    data-on-clock={onClockId === p.id || undefined}
+                    className={`flex min-h-11 items-center justify-between rounded-md border px-3 py-2 text-xs sm:block sm:p-2 ${
+                      onClockId === p.id
+                        ? 'border-primary ring-1 ring-primary'
+                        : p.is_used
+                          ? 'border-border'
+                          : 'border-dashed border-muted-foreground/40 opacity-70'
                     }`}
                   >
-                    <div className="flex justify-between font-mono text-[10px] text-muted-foreground">
+                    <div className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
                       <span>#{p.pick_number}</span>
                       <span className={p.team_id !== p.original_team_id ? 'text-amber-600' : undefined}>
-                        {teamName(p.team_id).slice(0, 14)}
+                        {teamName(p.team_id)}
                       </span>
                     </div>
-                    <div className="mt-1 truncate font-medium">
+                    {/* ponytail: truncate keeps long names from wrapping the mobile row */}
+                    <div className="truncate font-medium sm:mt-1 sm:text-left">
                       {p.players?.name ?? '—'}
                     </div>
                   </div>
