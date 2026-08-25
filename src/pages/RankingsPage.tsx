@@ -8,7 +8,6 @@ import { isRookie } from '@/lib/stats';
 import { zScores, LEAGUE_CATEGORIES, type Basis, type Category } from '@/lib/projections';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 
-/** The league's 13 ROTO categories, in standings order. */
 const CATS = LEAGUE_CATEGORIES;
 type Cat = Category;
 
@@ -53,7 +52,6 @@ export function RankingsPage() {
   const [basis, setBasis] = useState<Basis>('totals');
   const [rookiesOnly, setRookiesOnly] = useState(false);
 
-  // load saved weights/basis once the season id is known; persist per season on change
   useEffect(() => {
     if (!season?.id) return;
     setWeights(loadWeights(season.id));
@@ -104,16 +102,8 @@ export function RankingsPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Rankings</h1>
-        <p className="text-sm text-muted-foreground">
-          Z-score rankings over the {season?.label ?? ''} player pool, valued on{' '}
-          {basis === 'totals' ? "last season's totals (ROTO)" : 'per-game averages'}. Tune the
-          category weights to get your own composite ranking.
-        </p>
-      </div>
+      <h1 className="text-2xl font-bold">Rankings</h1>
 
-      {/* Weight sliders */}
       <Card>
         <CardContent className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
           {CATS.map((cat) => (
@@ -151,14 +141,14 @@ export function RankingsPage() {
           Rookies
         </button>
         <span className="ml-auto flex items-center gap-3">
-          <span className="text-sm tabular-nums text-muted-foreground">{rows.length} players</span>
+          <span className="text-sm tabular-nums text-muted-foreground">{rows.length}</span>
           <span className="flex overflow-hidden rounded-md border">
             {(['totals', 'averages'] as const).map((b) => (
               <button
                 key={b}
                 onClick={() => changeBasis(b)}
                 aria-pressed={basis === b}
-                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 text-sm font-medium transition-all active:scale-[0.98] ${
                   basis === b ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-muted/60'
                 }`}
               >
@@ -225,7 +215,7 @@ export function RankingsPage() {
                           </span>
                           {r.player.name}
                           {isRookie(r.player) && (
-                            <Badge variant="outline" className="text-[9px] px-1 py-0 text-primary border-primary/40">
+                            <Badge variant="outline" className="border-primary/40 px-1 py-0 text-[9px] text-primary">
                               ROOK
                             </Badge>
                           )}
