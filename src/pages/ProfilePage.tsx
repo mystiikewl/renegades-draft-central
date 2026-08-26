@@ -1,9 +1,10 @@
-import { useAuth } from '@/auth/AuthContext';
+import { LogOut } from 'lucide-react';
 import { useTeams } from '@/api/queries';
+import { useAuth } from '@/auth/AuthContext';
+import { PageHeader, PageShell } from '@/components/layout/PageLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut } from 'lucide-react';
 
 /** Profile / account settings — the only home of the Sign out action. */
 export function ProfilePage() {
@@ -14,8 +15,8 @@ export function ProfilePage() {
   if (!profile) return null;
 
   return (
-    <div className="mx-auto max-w-xl space-y-4 p-4 pb-[max(5rem,env(safe-area-inset-bottom))] md:p-6">
-      <h1 className="text-2xl font-bold">Profile</h1>
+    <PageShell size="compact" className="pb-[max(5rem,env(safe-area-inset-bottom))]">
+      <PageHeader title="Profile" titleClassName="text-2xl" />
 
       <Card>
         <CardHeader>
@@ -24,7 +25,9 @@ export function ProfilePage() {
         <CardContent className="divide-y text-sm">
           <div className="grid grid-cols-[5rem_1fr] gap-4 py-3 first:pt-0">
             <span className="text-muted-foreground">Name</span>
-            <span className="min-w-0 break-words text-right font-medium">{profile.display_name ?? '—'}</span>
+            <span className="min-w-0 break-words text-right font-medium">
+              {profile.display_name ?? '—'}
+            </span>
           </div>
           <div className="grid grid-cols-[5rem_1fr] gap-4 py-3">
             <span className="text-muted-foreground">Email</span>
@@ -56,6 +59,6 @@ export function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }
