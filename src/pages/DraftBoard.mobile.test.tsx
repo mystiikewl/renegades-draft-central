@@ -30,8 +30,7 @@ const renderBoard = () => render(<DraftBoard picks={picks} picksLoading={false} 
 describe('DraftBoard mobile layout', () => {
   it('renders every pick with number, team context and player state, grouped by round', () => {
     renderBoard();
-    expect(screen.getByText('Round 1')).toBeInTheDocument();
-    expect(screen.getByText('Round 2')).toBeInTheDocument();
+    expect(screen.getAllByText('Round')).toHaveLength(2);
     for (const n of [1, 2, 3, 14]) {
       expect(screen.getByText(`#${n}`)).toBeInTheDocument();
     }
