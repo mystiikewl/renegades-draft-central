@@ -156,6 +156,16 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AdminRoute({ section }: { section?: 'overview' | 'season' | 'draft' | 'order' | 'keepers' }) {
+  return (
+    <RequireAuth>
+      <RequireTeam>
+        <RequireAdmin><AdminPage section={section} /></RequireAdmin>
+      </RequireTeam>
+    </RequireAuth>
+  );
+}
+
 const rootRoute = createRootRoute({ component: RootLayout });
 
 const indexRoute = createRoute({
@@ -164,9 +174,7 @@ const indexRoute = createRoute({
   component: () => (
     <RequireAuth>
       <RequireTeam>
-        <ErrorBoundary label="draft">
-          <DraftPage />
-        </ErrorBoundary>
+        <ErrorBoundary label="draft"><DraftPage /></ErrorBoundary>
       </RequireTeam>
     </RequireAuth>
   ),
@@ -177,85 +185,55 @@ const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: '/login'
 const myTeamRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/my-team',
-  component: () => (
-    <RequireAuth>
-      <RequireTeam><MyTeamPage /></RequireTeam>
-    </RequireAuth>
-  ),
+  component: () => <RequireAuth><RequireTeam><MyTeamPage /></RequireTeam></RequireAuth>,
 });
 
 const playersHubRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/players',
-  component: () => (
-    <RequireAuth>
-      <RequireTeam><PlayersHubPage /></RequireTeam>
-    </RequireAuth>
-  ),
+  component: () => <RequireAuth><RequireTeam><PlayersHubPage /></RequireTeam></RequireAuth>,
 });
 
 const leagueHubRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/league',
-  component: () => (
-    <RequireAuth>
-      <RequireTeam><LeagueHubPage /></RequireTeam>
-    </RequireAuth>
-  ),
+  component: () => <RequireAuth><RequireTeam><LeagueHubPage /></RequireTeam></RequireAuth>,
 });
 
 const moreRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/more',
-  component: () => (
-    <RequireAuth>
-      <RequireTeam><MorePage /></RequireTeam>
-    </RequireAuth>
-  ),
+  component: () => <RequireAuth><RequireTeam><MorePage /></RequireTeam></RequireAuth>,
 });
 
-const adminRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/admin',
-  component: () => (
-    <RequireAuth>
-      <RequireTeam>
-        <RequireAdmin><AdminPage /></RequireAdmin>
-      </RequireTeam>
-    </RequireAuth>
-  ),
-});
+const adminRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin', component: () => <AdminRoute /> });
+const adminSeasonRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/season', component: () => <AdminRoute section="season" /> });
+const adminDraftRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/draft', component: () => <AdminRoute section="draft" /> });
+const adminOrderRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/order', component: () => <AdminRoute section="order" /> });
+const adminKeepersRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/keepers', component: () => <AdminRoute section="keepers" /> });
 
 const rostersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/rosters',
-  component: () => (
-    <RequireAuth><RequireTeam><RostersPage /></RequireTeam></RequireAuth>
-  ),
+  component: () => <RequireAuth><RequireTeam><RostersPage /></RequireTeam></RequireAuth>,
 });
 
 const poolRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/pool',
-  component: () => (
-    <RequireAuth><RequireTeam><PlayerPoolPage /></RequireTeam></RequireAuth>
-  ),
+  component: () => <RequireAuth><RequireTeam><PlayerPoolPage /></RequireTeam></RequireAuth>,
 });
 
 const tradesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/trades',
-  component: () => (
-    <RequireAuth><RequireTeam><TradeCenterPage /></RequireTeam></RequireAuth>
-  ),
+  component: () => <RequireAuth><RequireTeam><TradeCenterPage /></RequireTeam></RequireAuth>,
 });
 
 const rankingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/rankings',
-  component: () => (
-    <RequireAuth><RequireTeam><RankingsPage /></RequireTeam></RequireAuth>
-  ),
+  component: () => <RequireAuth><RequireTeam><RankingsPage /></RequireTeam></RequireAuth>,
 });
 
 const profileRoute = createRoute({
@@ -267,9 +245,7 @@ const profileRoute = createRoute({
 const teamBuilderRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/team-builder',
-  component: () => (
-    <RequireAuth><RequireTeam><TeamBuilderPage /></RequireTeam></RequireAuth>
-  ),
+  component: () => <RequireAuth><RequireTeam><TeamBuilderPage /></RequireTeam></RequireAuth>,
 });
 
 const routeTree = rootRoute.addChildren([
@@ -280,6 +256,10 @@ const routeTree = rootRoute.addChildren([
   leagueHubRoute,
   moreRoute,
   adminRoute,
+  adminSeasonRoute,
+  adminDraftRoute,
+  adminOrderRoute,
+  adminKeepersRoute,
   rostersRoute,
   poolRoute,
   tradesRoute,
