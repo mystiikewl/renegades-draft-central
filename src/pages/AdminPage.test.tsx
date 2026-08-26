@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
 
 const season = { id: 'season-1', label: '2026-27' };
 const settings = {
@@ -23,6 +23,7 @@ vi.mock('@/api/mutations', () => ({
   useCreateSeason: () => ({ mutate: vi.fn(), isPending: false }),
   useFinalizeKeepers: () => ({ mutate: vi.fn(), isPending: false }),
   useResetDraft: () => ({ mutate: vi.fn(), isPending: false }),
+  useSetTeamColor: () => ({ mutate: vi.fn(), isPending: false }),
   useSetDraftOrder: () => ({ mutate: vi.fn(), isPending: false }),
   useSetDraftStatus: () => ({ mutate: vi.fn(), isPending: false }),
 }));
@@ -60,6 +61,8 @@ vi.mock('@dnd-kit/utilities', () => ({ CSS: { Transform: { toString: () => '' } 
 
 import { AdminPage } from './AdminPage';
 
+afterEach(cleanup);
+
 describe('AdminPage', () => {
   it('groups commissioner workflows into a scannable control room', () => {
     render(<AdminPage />);
@@ -69,5 +72,12 @@ describe('AdminPage', () => {
     expect(screen.getByRole('heading', { name: /draft room/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /keeper operations/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /danger zone/i, level: 2 })).toBeInTheDocument();
+  });
+
+  it('gives the commissioner a saved colour control for each team', () => {
+    render(<AdminPage />);
+
+    expect(screen.getByRole('heading', { name: /team colours/i })).toBeInTheDocument();
+    expect(screen.getByLabelText('Alpha Team colour')).toHaveAttribute('type', 'color');
   });
 });

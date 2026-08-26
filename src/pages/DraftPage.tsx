@@ -56,6 +56,7 @@ export function DraftPage() {
   }, [picks]);
 
   const teamName = (id: string) => teams?.find((t) => t.id === id)?.name ?? '—';
+  const teamColor = (id: string) => teams?.find((t) => t.id === id)?.team_color;
   const isMyTurn = !!nextPick && !!profile?.team_id && nextPick.team_id === profile.team_id;
   const canPickNow = useCanPickNow(seasonId);
   const draftLive = settings?.status === 'running' || settings?.status === 'paused';
@@ -161,7 +162,7 @@ export function DraftPage() {
         </p>
       )}
 
-      <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} />
+      <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} teamColor={teamColor} />
 
       <Dialog open={undoConfirm} onOpenChange={setUndoConfirm}>
         <DialogContent className="sm:max-w-sm">
@@ -193,10 +194,12 @@ export function DraftBoard({
   picks,
   picksLoading,
   teamName,
+  teamColor,
 }: {
   picks: DraftPick[];
   picksLoading: boolean;
   teamName: (id: string) => string;
+  teamColor?: (id: string) => string | undefined;
 }) {
   if (picksLoading) return <Skeleton className="mx-4 h-96 w-[calc(100%-2rem)] sm:mx-0 sm:w-full" />;
   if (!picks.length)
@@ -240,11 +243,22 @@ export function DraftBoard({
                 {roundPicks.map((p) => {
                   const onClock = onClockId === p.id;
                   const traded = p.team_id !== p.original_team_id;
+                  const pickTeamColor = p.is_used ? teamColor?.(p.team_id) : undefined;
 
                   return (
                     <div
                       key={p.id}
                       data-on-clock={onClock || undefined}
+                      data-team-color={pickTeamColor}
+                      style={
+                        pickTeamColor
+                          ? {
+                              backgroundColor: `${pickTeamColor}1F`,
+                              borderTopColor: pickTeamColor,
+                              borderTopWidth: '2px',
+                            }
+                          : undefined
+                      }
                       className={`relative flex h-[6.75rem] w-36 shrink-0 flex-col border-r p-2.5 text-xs sm:h-28 sm:w-40 ${
                         onClock
                           ? 'bg-primary/[0.07] ring-2 ring-inset ring-primary'

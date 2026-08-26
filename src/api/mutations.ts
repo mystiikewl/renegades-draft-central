@@ -76,6 +76,24 @@ export function useClaimTeam() {
   });
 }
 
+export function useSetTeamColor() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ teamId, teamColor }: { teamId: string; teamColor: string }) => {
+      const { error } = await supabase.rpc('set_team_color', {
+        p_team_id: teamId,
+        p_team_color: teamColor,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.teams });
+      toast.success('Team colour saved');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 export function useCreateSeason() {
   const qc = useQueryClient();
   return useMutation({
