@@ -20,7 +20,7 @@ export interface Team {
   id: string;
   name: string;
   owner_profile_id: string | null;
-  is_shadow?: boolean; // shadow teams are E2E/guest-only, hidden from the app
+  is_shadow?: boolean;
   created_at: string;
 }
 
@@ -83,6 +83,8 @@ export interface DraftPick {
   original_team_id: string;
   player_id: string | null;
   is_used: boolean;
+  is_skipped?: boolean;
+  skipped_at?: string | null;
   picked_at: string | null;
   players?: Pick<Player, 'name' | 'position' | 'nba_team' | 'espn_id'> | null;
   team?: Pick<Team, 'name'> | null;
@@ -122,6 +124,10 @@ export interface Trade {
   note: string | null;
   created_at: string;
   resolved_at: string | null;
+  is_admin_override?: boolean;
+  reversed_at?: string | null;
+  reversed_by?: string | null;
+  reversal_reason?: string | null;
   from_team?: Pick<Team, 'id' | 'name'> | null;
   to_team?: Pick<Team, 'id' | 'name'> | null;
   assets?: TradeAsset[];

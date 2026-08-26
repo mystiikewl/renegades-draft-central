@@ -52,6 +52,14 @@ describe('DraftBoard mobile layout', () => {
     expect(onClock[0].textContent).toContain('Live');
   });
 
+  it('renders a skipped slot as resolved without inventing a player', () => {
+    const skipped = pick({ id: 'skip', pick_number: 7, is_used: true, is_skipped: true, team_id: 't2' });
+    const { container } = render(<DraftBoard picks={[skipped]} picksLoading={false} teamName={teamName} />);
+    expect(screen.getByText('SKIPPED')).toBeInTheDocument();
+    expect(screen.getByText('Beta')).toBeInTheDocument();
+    expect(container.querySelector('[data-skipped="true"]')).toBeTruthy();
+  });
+
   it('flags traded picks in amber', () => {
     const { container } = renderBoard();
     expect(container.querySelectorAll('.text-amber-600')).toHaveLength(1);
