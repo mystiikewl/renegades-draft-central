@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ArrowRightLeft, Clock3 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { useActiveSeason, useDraftPicks, useRosters, useTeams, useTrades } from '@/api/queries';
+import { useDraftRealtime } from '@/api/realtime';
 import { useAcceptTrade, useCancelTrade, useProposeTrade, useRejectTrade } from '@/api/trades';
 import type { DraftPick, RosterEntry, Trade, TradeAsset } from '@/api/types';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +21,8 @@ export function TradeCenterPage() {
   const { profile } = useAuth();
   const { data: season } = useActiveSeason();
   const seasonId = season?.id;
+  useDraftRealtime(seasonId);
+
   const { data: teams } = useTeams();
   const { data: rosters, isLoading: rostersLoading } = useRosters(seasonId);
   const { data: picks, isLoading: picksLoading } = useDraftPicks(seasonId);
@@ -38,7 +41,9 @@ export function TradeCenterPage() {
   const cancel = useCancelTrade(seasonId ?? '');
 
   const myTeamId = profile?.team_id ?? '';
-  const availablePartners = (teams ?? []).filter((team) => team.id !== myTeamId);
+  const availablePartners = (teams ?? []).filter(
+    (team) => team.id !== myTeamId && team.owner_profile_id !== null,
+  );
   const myPlayers = (rosters ?? []).filter((row) => row.team_id === myTeamId);
   const theirPlayers = (rosters ?? []).filter((row) => row.team_id === partnerId);
   const myPicks = (picks ?? []).filter((pick) => pick.team_id === myTeamId && !pick.is_used);
