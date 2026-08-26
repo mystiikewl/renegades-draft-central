@@ -130,6 +130,7 @@ export function BasketballScene() {
         window.addEventListener('pointermove', onPointerMove, { passive: true });
 
         const clock = new THREE.Clock();
+        let lastElapsed = 0;
         let flashAt = 1.7;
 
         const resize = () => {
@@ -151,7 +152,8 @@ export function BasketballScene() {
 
         const animate = () => {
           const elapsed = clock.getElapsedTime();
-          const delta = clock.getDelta();
+          const delta = elapsed - lastElapsed;
+          lastElapsed = elapsed;
 
           if (!reducedMotion) {
             ball.rotation.y += delta * 0.17;
@@ -159,14 +161,19 @@ export function BasketballScene() {
             particles.rotation.y = elapsed * 0.012;
             world.rotation.y += (pointer.x * 0.055 - world.rotation.y) * 0.025;
             world.rotation.x += (-pointer.y * 0.025 - world.rotation.x) * 0.025;
-          }
 
-          const cycle = elapsed % 5.6;
-          const flash = cycle > flashAt && cycle < flashAt + 0.11 ? Math.sin(((cycle - flashAt) / 0.11) * Math.PI) : 0;
-          electric.intensity = flash * 18;
-          boltMaterial.opacity = flash * 0.78;
-          if (flash > 0) setBolt(elapsed);
-          if (cycle > 5.45) flashAt = 1.2 + ((Math.sin(elapsed * 1.73) + 1) / 2) * 1.8;
+            const cycle = elapsed % 5.6;
+            const flash = cycle > flashAt && cycle < flashAt + 0.11
+              ? Math.sin(((cycle - flashAt) / 0.11) * Math.PI)
+              : 0;
+            electric.intensity = flash * 18;
+            boltMaterial.opacity = flash * 0.78;
+            if (flash > 0) setBolt(elapsed);
+            if (cycle > 5.45) flashAt = 1.2 + ((Math.sin(elapsed * 1.73) + 1) / 2) * 1.8;
+          } else {
+            electric.intensity = 0;
+            boltMaterial.opacity = 0;
+          }
 
           renderer.render(scene, camera);
           frame = window.requestAnimationFrame(animate);
