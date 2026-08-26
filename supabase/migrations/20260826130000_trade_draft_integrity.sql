@@ -60,7 +60,8 @@ begin
   values (p_season_id, v_my_team, p_to_team_id, auth.uid(), nullif(trim(p_note), '')) returning id into v_trade_id;
 
   foreach v_id in array p_offered_roster_ids loop
-    select r, p.name into v_roster, v_player_name from public.rosters r join public.players p on p.id = r.player_id where r.id = v_id and r.season_id = p_season_id for update of r;
+    select r.* into v_roster from public.rosters r where r.id = v_id and r.season_id = p_season_id for update;
+    select p.name into v_player_name from public.players p where p.id = v_roster.player_id;
     if v_roster.id is null or v_roster.team_id <> v_my_team then raise exception 'Offered player is no longer on your roster'; end if;
     if exists (select 1 from public.trade_assets a join public.trades t on t.id = a.trade_id where a.roster_id = v_id and t.status = 'proposed') then raise exception '% is already in a pending trade', v_player_name; end if;
     insert into public.trade_assets (trade_id, from_team_id, to_team_id, asset_type, roster_id, asset_label) values (v_trade_id, v_my_team, p_to_team_id, 'player', v_id, v_player_name);
@@ -75,7 +76,8 @@ begin
   end loop;
 
   foreach v_id in array p_requested_roster_ids loop
-    select r, p.name into v_roster, v_player_name from public.rosters r join public.players p on p.id = r.player_id where r.id = v_id and r.season_id = p_season_id for update of r;
+    select r.* into v_roster from public.rosters r where r.id = v_id and r.season_id = p_season_id for update;
+    select p.name into v_player_name from public.players p where p.id = v_roster.player_id;
     if v_roster.id is null or v_roster.team_id <> p_to_team_id then raise exception 'Requested player is no longer on that roster'; end if;
     if exists (select 1 from public.trade_assets a join public.trades t on t.id = a.trade_id where a.roster_id = v_id and t.status = 'proposed') then raise exception '% is already in a pending trade', v_player_name; end if;
     insert into public.trade_assets (trade_id, from_team_id, to_team_id, asset_type, roster_id, asset_label) values (v_trade_id, p_to_team_id, v_my_team, 'player', v_id, v_player_name);
@@ -169,7 +171,8 @@ begin
   values (p_season_id, p_from_team_id, p_to_team_id, auth.uid(), auth.uid(), 'accepted', nullif(trim(p_note), ''), now(), true) returning id into v_trade_id;
 
   foreach v_id in array p_from_roster_ids loop
-    select r, p.name into v_roster, v_player_name from public.rosters r join public.players p on p.id = r.player_id where r.id = v_id and r.season_id = p_season_id for update of r;
+    select r.* into v_roster from public.rosters r where r.id = v_id and r.season_id = p_season_id for update;
+    select p.name into v_player_name from public.players p where p.id = v_roster.player_id;
     if v_roster.id is null or v_roster.team_id <> p_from_team_id then raise exception 'A selected player is no longer on the source roster'; end if;
     insert into public.trade_assets (trade_id, from_team_id, to_team_id, asset_type, roster_id, asset_label) values (v_trade_id, p_from_team_id, p_to_team_id, 'player', v_id, v_player_name);
     update public.rosters set team_id = p_to_team_id, acquired_at = now() where id = v_id;
@@ -183,7 +186,8 @@ begin
   end loop;
 
   foreach v_id in array p_to_roster_ids loop
-    select r, p.name into v_roster, v_player_name from public.rosters r join public.players p on p.id = r.player_id where r.id = v_id and r.season_id = p_season_id for update of r;
+    select r.* into v_roster from public.rosters r where r.id = v_id and r.season_id = p_season_id for update;
+    select p.name into v_player_name from public.players p where p.id = v_roster.player_id;
     if v_roster.id is null or v_roster.team_id <> p_to_team_id then raise exception 'A selected player is no longer on the counterparty roster'; end if;
     insert into public.trade_assets (trade_id, from_team_id, to_team_id, asset_type, roster_id, asset_label) values (v_trade_id, p_to_team_id, p_from_team_id, 'player', v_id, v_player_name);
     update public.rosters set team_id = p_from_team_id, acquired_at = now() where id = v_id;

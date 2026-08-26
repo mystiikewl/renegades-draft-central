@@ -45,9 +45,10 @@ begin
   returning id into v_trade_id;
 
   foreach v_id in array p_offered_roster_ids loop
-    select r, p.name into v_roster, v_player_name
-    from public.rosters r join public.players p on p.id = r.player_id
-    where r.id = v_id and r.season_id = p_season_id for update of r;
+    select r.* into v_roster
+    from public.rosters r
+    where r.id = v_id and r.season_id = p_season_id for update;
+    select p.name into v_player_name from public.players p where p.id = v_roster.player_id;
     if v_roster.id is null or v_roster.team_id <> v_my_team then raise exception 'Offered player is no longer on your roster'; end if;
     if exists (
       select 1 from public.trade_assets a
@@ -72,9 +73,10 @@ begin
   end loop;
 
   foreach v_id in array p_requested_roster_ids loop
-    select r, p.name into v_roster, v_player_name
-    from public.rosters r join public.players p on p.id = r.player_id
-    where r.id = v_id and r.season_id = p_season_id for update of r;
+    select r.* into v_roster
+    from public.rosters r
+    where r.id = v_id and r.season_id = p_season_id for update;
+    select p.name into v_player_name from public.players p where p.id = v_roster.player_id;
     if v_roster.id is null or v_roster.team_id <> p_to_team_id then raise exception 'Requested player is no longer on that roster'; end if;
     if exists (
       select 1 from public.trade_assets a
