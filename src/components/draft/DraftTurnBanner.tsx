@@ -3,7 +3,6 @@ import { ArrowRight, Clock3 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { useActiveSeason, useDraftPicks, useDraftSettings } from '@/api/queries';
 import { useDraftRealtime } from '@/api/realtime';
-import { DraftTurnClock } from './DraftTurnClock';
 
 /** Pull a manager back into the live draft when their turn arrives elsewhere in the app. */
 export function DraftTurnBanner() {
@@ -32,10 +31,9 @@ export function DraftTurnBanner() {
           <Clock3 className="size-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-draft-active">You're on the clock</div>
+          <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-draft-active">It's your pick</div>
           <div className="truncate text-sm font-semibold">Pick #{nextPick.pick_number} is yours</div>
         </div>
-        <DraftTurnClock settings={settings} />
         <Link
           to="/pool"
           className="flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground transition-transform active:scale-[0.98]"

@@ -230,7 +230,6 @@ export interface UpdateDraftSettingsInput {
   roster_size: number;
   keeper_limit: number;
   draft_type: 'snake' | 'linear';
-  pick_time_limit_seconds: number;
 }
 
 /** Upserts the editable draft config. Locked server-side once status != pre_draft. */
@@ -244,7 +243,6 @@ export function useUpdateDraftSettings(seasonId: string) {
         p_roster_size: input.roster_size,
         p_keeper_limit: input.keeper_limit,
         p_draft_type: input.draft_type,
-        p_pick_time_limit_seconds: input.pick_time_limit_seconds,
       });
       if (error) throw new Error(error.message);
     },

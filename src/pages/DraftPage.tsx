@@ -21,7 +21,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { RealtimeBadge } from '@/components/draft/RealtimeBadge';
-import { DraftTurnClock } from '@/components/draft/DraftTurnClock';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { getTeamColour } from '@/lib/teamColours';
 
@@ -98,7 +97,6 @@ export function DraftPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <DraftTurnClock settings={settings} />
           <DraftStatusBadge status={settings?.status ?? 'pre_draft'} />
           <RealtimeBadge />
         </div>
@@ -159,7 +157,7 @@ export function DraftPage() {
 
             {settings?.status === 'paused' && (
               <p className="mt-3 rounded-lg border bg-background/70 px-3 py-2 text-xs text-muted-foreground">
-                Draft actions are locked while paused. Your remaining clock time is preserved until the commissioner resumes.
+                Draft actions are locked while paused. The commissioner can resume the draft at any time.
               </p>
             )}
           </div>

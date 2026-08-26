@@ -24,7 +24,6 @@ function settings(overrides: Partial<DraftSettings> = {}): DraftSettings {
     roster_size: 13,
     keeper_limit: 9,
     draft_type: 'snake',
-    pick_time_limit_seconds: 120,
     status: 'pre_draft',
     draft_order: [],
     updated_at: '2026-08-26T00:00:00Z',
@@ -42,12 +41,11 @@ beforeEach(() => {
 
 describe('DraftSettingsCard', () => {
   it('renders the current values', () => {
-    setup({ league_size: 12, roster_size: 14, keeper_limit: 8, pick_time_limit_seconds: 90 });
+    setup({ league_size: 12, roster_size: 14, keeper_limit: 8 });
 
     expect(screen.getByTestId('ds-league')).toHaveValue(12);
     expect(screen.getByTestId('ds-roster')).toHaveValue(14);
     expect(screen.getByTestId('ds-keeper')).toHaveValue(8);
-    expect(screen.getByTestId('ds-time')).toHaveValue(90);
     expect(screen.getByTestId('ds-type')).toHaveTextContent('Snake');
     expect(screen.getByTestId('ds-save')).toBeEnabled();
   });
@@ -68,7 +66,7 @@ describe('DraftSettingsCard', () => {
     setup({ status: 'running' });
 
     expect(screen.getByText(/read-only/i)).toBeInTheDocument();
-    for (const id of ['ds-league', 'ds-roster', 'ds-keeper', 'ds-time']) {
+    for (const id of ['ds-league', 'ds-roster', 'ds-keeper']) {
       expect(screen.getByTestId(id)).toBeDisabled();
     }
     expect(screen.queryByTestId('ds-save')).not.toBeInTheDocument();

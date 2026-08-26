@@ -22,11 +22,6 @@ const settingsSchema = z
     roster_size: z.coerce.number().int('Whole numbers only').min(8, 'Roster size must be 8–20').max(20),
     keeper_limit: z.coerce.number().int('Whole numbers only').min(0).max(20),
     draft_type: z.enum(['snake', 'linear']),
-    pick_time_limit_seconds: z.coerce
-      .number()
-      .int('Whole numbers only')
-      .min(15, 'Must be 15–600 seconds')
-      .max(600, 'Must be 15–600 seconds'),
   })
   .superRefine((v, ctx) => {
     if (v.keeper_limit > v.roster_size) {
@@ -57,7 +52,6 @@ export function DraftSettingsCard({ seasonId, settings }: { seasonId: string; se
       roster_size: settings.roster_size,
       keeper_limit: settings.keeper_limit,
       draft_type: settings.draft_type,
-      pick_time_limit_seconds: settings.pick_time_limit_seconds,
     },
   });
 
@@ -68,7 +62,6 @@ export function DraftSettingsCard({ seasonId, settings }: { seasonId: string; se
       roster_size: settings.roster_size,
       keeper_limit: settings.keeper_limit,
       draft_type: settings.draft_type,
-      pick_time_limit_seconds: settings.pick_time_limit_seconds,
     });
   }, [reset, settings]);
 
@@ -106,13 +99,6 @@ export function DraftSettingsCard({ seasonId, settings }: { seasonId: string; se
             <Label htmlFor="ds-keeper">Keeper limit</Label>
             <Input id="ds-keeper" data-testid="ds-keeper" {...num('keeper_limit')} />
             {errors.keeper_limit && <p className="text-sm text-destructive">{errors.keeper_limit.message}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="ds-time">Pick time limit (seconds)</Label>
-            <Input id="ds-time" data-testid="ds-time" {...num('pick_time_limit_seconds')} />
-            {errors.pick_time_limit_seconds && (
-              <p className="text-sm text-destructive">{errors.pick_time_limit_seconds.message}</p>
-            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ds-type">Draft type</Label>

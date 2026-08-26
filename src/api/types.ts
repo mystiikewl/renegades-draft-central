@@ -68,12 +68,9 @@ export interface DraftSettings {
   roster_size: number;
   keeper_limit: number;
   draft_type: DraftType;
-  pick_time_limit_seconds: number;
   status: DraftStatus;
   draft_order: string[];
   keepers_finalized_at?: string | null;
-  turn_deadline_at?: string | null;
-  paused_remaining_seconds?: number | null;
   updated_at: string;
 }
 

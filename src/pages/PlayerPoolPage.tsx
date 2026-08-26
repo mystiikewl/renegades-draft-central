@@ -14,7 +14,6 @@ import { isRookie, STAT_COLUMNS, statColumnValue, fmtStat, type StatColumnKey } 
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { PlayerStatsDialog } from '@/components/player/PlayerStatsDialog';
 import { RealtimeBadge } from '@/components/draft/RealtimeBadge';
-import { DraftTurnClock } from '@/components/draft/DraftTurnClock';
 import type { PlayerWithStats } from '@/api/types';
 
 type SortKey = StatColumnKey;
@@ -93,7 +92,6 @@ export function PlayerPoolPage() {
       <div className="flex items-center justify-between gap-3 px-4 sm:px-0">
         <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Player Pool</h1>
         <div className="flex items-center gap-2">
-          <DraftTurnClock settings={settings} />
           <RealtimeBadge />
         </div>
       </div>
