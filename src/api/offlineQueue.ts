@@ -3,17 +3,14 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 
 /**
- * Offline pick queue. If make_pick fails due to a NETWORK error (fetch
- * failure / offline — not an RPC rejection like wrong-turn or player-taken),
- * the intent is queued here and replayed when connectivity returns.
- * RPC rejections are never queued; they are toasted by the mutation.
- *
- * Successful replays rely on the realtime channel (./realtime.ts) to
- * invalidate the draft caches — same as any other client's pick.
+ * Offline pick queue. Every intent is bound to the exact pick slot the user
+ * was viewing. A reconnect can never apply an old player choice to a later
+ * round or snake-turnaround pick.
  */
-
 export interface QueuedPick {
   seasonId: string;
+  pickId: string;
+  pickNumber: number;
   playerId: string;
   playerName: string;
   queuedAt: number;
@@ -22,22 +19,21 @@ export interface QueuedPick {
 interface OfflineQueueState {
   queue: QueuedPick[];
   enqueue: (pick: QueuedPick) => void;
-  drop: (playerId: string) => void;
+  drop: (pickId: string) => void;
 }
 
 export const useOfflineQueue = create<OfflineQueueState>((set) => ({
   queue: [],
   enqueue: (pick) =>
     set((s) =>
-      s.queue.some((q) => q.playerId === pick.playerId)
+      s.queue.some((q) => q.pickId === pick.pickId)
         ? s
         : { queue: [...s.queue, pick] }
     ),
-  drop: (playerId) =>
-    set((s) => ({ queue: s.queue.filter((q) => q.playerId !== playerId) })),
+  drop: (pickId) =>
+    set((s) => ({ queue: s.queue.filter((q) => q.pickId !== pickId) })),
 }));
 
-/** Distinguish transport failures (queue + retry) from RPC rejections (toast, drop). */
 export function isNetworkError(err: unknown): boolean {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
   if (err instanceof TypeError) return true;
@@ -60,27 +56,26 @@ async function flushQueue() {
     stopTimer();
     return;
   }
-  if (typeof navigator !== 'undefined' && !navigator.onLine) return; // wait for 'online'
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return;
 
   const head = state.queue[0];
   try {
-    const { error } = await supabase.rpc('make_pick', {
+    const { error } = await supabase.rpc('make_pick_for_slot', {
       p_season_id: head.seasonId,
+      p_pick_id: head.pickId,
       p_player_id: head.playerId,
     });
     if (error) {
-      // Definitive rejection (wrong turn, player taken, …) — drop, don't retry.
-      useOfflineQueue.getState().drop(head.playerId);
-      toast.error(`Queued pick for ${head.playerName} was rejected: ${error.message}`);
+      useOfflineQueue.getState().drop(head.pickId);
+      toast.error(`Queued pick #${head.pickNumber} for ${head.playerName} was rejected: ${error.message}`);
     } else {
-      useOfflineQueue.getState().drop(head.playerId);
-      toast.success(`Pick submitted: ${head.playerName}`);
+      useOfflineQueue.getState().drop(head.pickId);
+      toast.success(`Pick #${head.pickNumber} submitted: ${head.playerName}`);
     }
-    // Continue draining (next tick) whether this one landed or was dropped.
     if (useOfflineQueue.getState().queue.length) scheduleFlush(3000);
     else stopTimer();
   } catch {
-    // Still offline — keep the queue; timer/online-event will retry.
+    // Still offline; retain the exact-slot intent and retry later.
   }
 }
 
