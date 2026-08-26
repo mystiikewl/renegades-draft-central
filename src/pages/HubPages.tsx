@@ -6,12 +6,13 @@ import {
   ListChecks,
   Shield,
   Sparkles,
+  TrendingUp,
   UserCircle,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 
-type HubPath = '/pool' | '/rankings' | '/rosters' | '/trades' | '/profile' | '/team-builder' | '/admin' | '/admin/trades';
+type HubPath = '/pool' | '/rankings' | '/power-rankings' | '/rosters' | '/trades' | '/profile' | '/team-builder' | '/admin' | '/admin/trades';
 type HubAction = {
   to: HubPath;
   icon: LucideIcon;
@@ -38,6 +39,12 @@ export function LeagueHubPage() {
       icon: BarChart3,
       title: 'Rankings',
       detail: 'Category-weighted rankings and fantasy value comparisons across the player pool.',
+    },
+    {
+      to: '/power-rankings',
+      icon: TrendingUp,
+      title: 'Power Rankings',
+      detail: 'See how your roster stacks up against every team, category by category.',
     },
     {
       to: '/team-builder',

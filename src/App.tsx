@@ -24,6 +24,7 @@ import { AdminTradeOverridesPage } from '@/pages/AdminTradeOverridesPage';
 import { RostersPage } from '@/pages/RostersPage';
 import { PlayerPoolPage } from '@/pages/PlayerPoolPage';
 import { RankingsPage } from '@/pages/RankingsPage';
+import { PowerRankingsPage } from '@/pages/PowerRankingsPage';
 import { TeamBuilderPage } from '@/pages/TeamBuilderPage';
 import { TradeCenterPage } from '@/pages/TradeCenterPage';
 import { ProfilePage } from '@/pages/ProfilePage';
@@ -50,7 +51,7 @@ const primaryNav = [
   { to: '/my-team', label: 'My Team', short: 'My Team', icon: UserCircle, matches: ['/my-team'] },
   { to: '/', label: 'Draft', short: 'Draft', icon: ClipboardList, matches: ['/'] },
   { to: '/pool', label: 'Pool', short: 'Pool', icon: Users, matches: ['/pool'] },
-  { to: '/league', label: 'League', short: 'League', icon: ListChecks, matches: ['/league', '/rosters', '/trades', '/rankings'] },
+  { to: '/league', label: 'League', short: 'League', icon: ListChecks, matches: ['/league', '/rosters', '/trades', '/rankings', '/power-rankings'] },
   { to: '/more', label: 'More', short: 'More', icon: Settings, matches: ['/more', '/profile', '/team-builder', '/admin'] },
 ] as const;
 
@@ -249,6 +250,12 @@ const rankingsRoute = createRoute({
   component: () => <RequireAuth><RequireTeam><RankingsPage /></RequireTeam></RequireAuth>,
 });
 
+const powerRankingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/power-rankings',
+  component: () => <RequireAuth><RequireTeam><PowerRankingsPage /></RequireTeam></RequireAuth>,
+});
+
 const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/profile',
@@ -278,6 +285,7 @@ const routeTree = rootRoute.addChildren([
   poolRoute,
   tradesRoute,
   rankingsRoute,
+  powerRankingsRoute,
   teamBuilderRoute,
   profileRoute,
 ]);

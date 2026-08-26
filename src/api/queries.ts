@@ -149,7 +149,7 @@ export function useRosters(seasonId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rosters')
-        .select('*, players(name, position, nba_team, espn_id)')
+        .select('*, players(name, position, nba_team, espn_id, player_seasons(season_id, stats))')
         .eq('season_id', seasonId);
       if (error) throw error;
       return data as RosterEntry[];

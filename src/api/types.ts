@@ -100,7 +100,9 @@ export interface RosterEntry {
   acquisition: Acquisition;
   draft_pick_id: string | null;
   acquired_at: string;
-  players?: Pick<Player, 'name' | 'position' | 'nba_team' | 'espn_id'> | null;
+  players?: Pick<Player, 'name' | 'position' | 'nba_team' | 'espn_id'> & {
+    player_seasons?: Pick<PlayerSeason, 'season_id' | 'stats'>[];
+  } | null;
 }
 
 export interface TradeAsset {

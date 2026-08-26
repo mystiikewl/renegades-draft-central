@@ -15,7 +15,7 @@ import {
   LEAGUE_CATEGORIES,
   type Category,
 } from '@/lib/projections';
-import { parseStats } from '@/lib/stats';
+import { parseStats, pickStatsSeason, type StatsSeasonRow } from '@/lib/stats';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import type { PlayerWithStats } from '@/api/types';
 
@@ -49,7 +49,7 @@ export function TeamBuilderPage() {
   const { data: pool, isLoading: poolLoading } = usePlayerPool(seasonId);
   const { data: rosters } = useRosters(seasonId);
 
-  const liveRounds = settings ? Math.max(1, settings.roster_size - settings.keeper_limit) : 9;
+  const liveRounds = settings ? Math.max(1, settings.roster_size) : 18;
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [rounds, setRounds] = useState(liveRounds);
   const [picks, setPicks] = useState<(string | null)[] | null>(null);
@@ -73,29 +73,23 @@ export function TeamBuilderPage() {
 
   const rosteredById = useMemo(() => {
     if (!rosters || !profile?.team_id) return new Map<string, PlayerWithStats>();
-    return indexById(
-      [],
-      rosters
-        .filter((entry) => entry.team_id === profile.team_id)
-        .flatMap((entry) =>
-          entry.players && entry.player_id
-            ? [{
-                id: entry.player_id,
-                name: entry.players.name,
-                position: entry.players.position,
-                nba_team: entry.players.nba_team ?? null,
-                espn_id: entry.players.espn_id ?? null,
-              }]
-            : [],
-        )
-        .map((player) => ({
-          ...player,
-          image_url: null,
-          created_at: '',
-          player_seasons: [],
-        })) as PlayerWithStats[],
-    );
-  }, [rosters, profile?.team_id]);
+    const map = new Map<string, PlayerWithStats>();
+    for (const entry of rosters) {
+      if (entry.team_id !== profile.team_id || !entry.player_id || !entry.players) continue;
+      const best = pickStatsSeason((entry.players.player_seasons ?? []) as StatsSeasonRow[], seasonId ?? '');
+      map.set(entry.player_id, {
+        id: entry.player_id,
+        name: entry.players.name,
+        position: entry.players.position,
+        nba_team: entry.players.nba_team ?? null,
+        espn_id: entry.players.espn_id ?? null,
+        image_url: null,
+        created_at: '',
+        player_seasons: best ? [best] : [],
+      });
+    }
+    return map;
+  }, [rosters, profile?.team_id, seasonId]);
 
   const byId = useMemo(() => indexById(pool ?? [], [...rosteredById.values()]), [pool, rosteredById]);
 

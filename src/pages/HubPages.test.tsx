@@ -19,7 +19,8 @@ describe('navigation hubs', () => {
     render(<LeagueHubPage />);
     expect(screen.getByRole('link', { name: /Rosters/i })).toHaveAttribute('href', '/rosters');
     expect(screen.getByRole('link', { name: /Trade Center/i })).toHaveAttribute('href', '/trades');
-    expect(screen.getByRole('link', { name: /Rankings/i })).toHaveAttribute('href', '/rankings');
+    expect(screen.getByRole('link', { name: /^Rankings / })).toHaveAttribute('href', '/rankings');
+    expect(screen.getByRole('link', { name: /^Power Rankings / })).toHaveAttribute('href', '/power-rankings');
   });
 
   it('keeps Admin secondary and only exposes it to admins', () => {
