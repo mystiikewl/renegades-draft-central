@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Users } from 'lucide-react';
 import { useActiveSeason, useRosters, useSeasons, useTeams } from '@/api/queries';
-import { useAuth } from '@/auth/AuthContext';
 import type { Acquisition, RosterEntry } from '@/api/types';
+import { useAuth } from '@/auth/AuthContext';
 import { KeeperManager } from '@/components/keepers/KeeperManager';
+import { PageHeader, PageShell } from '@/components/layout/PageLayout';
+import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const GROUPS: { key: Acquisition; label: string; short: string }[] = [
@@ -50,17 +51,18 @@ export function RostersPage() {
   const totalPlayers = rosters?.length ?? 0;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-3 px-0 py-3 sm:px-4 md:space-y-4 md:p-6">
-      <div className="flex items-center justify-between gap-3 px-4 sm:px-0">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Rosters</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">{totalPlayers} rostered players</p>
-        </div>
-        <Badge variant="outline" className="gap-1.5 text-[10px]">
-          <Users className="size-3" />
-          {orderedTeams.length} teams
-        </Badge>
-      </div>
+    <PageShell mobileBleed>
+      <PageHeader
+        className="px-4 sm:px-0"
+        title="Rosters"
+        description={`${totalPlayers} rostered players`}
+        actions={
+          <Badge variant="outline" className="gap-1.5 text-[10px]">
+            <Users className="size-3" />
+            {orderedTeams.length} teams
+          </Badge>
+        }
+      />
 
       {seasons && seasons.length > 0 && (
         <div className="overflow-x-auto border-y bg-card px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:rounded-xl sm:border sm:px-3">
@@ -72,7 +74,8 @@ export function RostersPage() {
                   value={s.id}
                   className="shrink-0 rounded-full border px-3 py-1.5 text-xs data-[state=active]:border-foreground data-[state=active]:bg-foreground data-[state=active]:text-background"
                 >
-                  {s.label}{s.is_active ? ' · Active' : ''}
+                  {s.label}
+                  {s.is_active ? ' · Active' : ''}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -104,7 +107,7 @@ export function RostersPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }
 
@@ -118,8 +121,16 @@ function TeamRosterSection({
   isMine: boolean;
 }) {
   return (
-    <section className={`overflow-hidden border-y bg-card sm:rounded-xl sm:border ${isMine ? 'sm:ring-1 sm:ring-primary/40' : ''}`}>
-      <div className={`flex items-center justify-between gap-3 border-b px-4 py-3 ${isMine ? 'bg-primary/[0.05]' : 'bg-muted/20'}`}>
+    <section
+      className={`overflow-hidden border-y bg-card sm:rounded-xl sm:border ${
+        isMine ? 'sm:ring-1 sm:ring-primary/40' : ''
+      }`}
+    >
+      <div
+        className={`flex items-center justify-between gap-3 border-b px-4 py-3 ${
+          isMine ? 'bg-primary/[0.05]' : 'bg-muted/20'
+        }`}
+      >
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
             <h2 className="line-clamp-1 font-bold leading-tight">{name}</h2>
@@ -131,7 +142,9 @@ function TeamRosterSection({
                 const count = entries.filter((entry) => entry.acquisition === key).length;
                 if (!count) return null;
                 return (
-                  <span key={key} className="text-[10px] text-muted-foreground">{count} {label.toLowerCase()}</span>
+                  <span key={key} className="text-[10px] text-muted-foreground">
+                    {count} {label.toLowerCase()}
+                  </span>
                 );
               })}
             </div>
@@ -149,7 +162,9 @@ function TeamRosterSection({
             return (
               <div
                 key={entry.id}
-                className={`flex min-h-14 items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/40 ${index % 2 ? 'bg-muted/[0.14]' : ''}`}
+                className={`flex min-h-14 items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/40 ${
+                  index % 2 ? 'bg-muted/[0.14]' : ''
+                }`}
               >
                 <PlayerHeadshot
                   espnId={entry.players?.espn_id ?? null}
@@ -158,14 +173,20 @@ function TeamRosterSection({
                   variant="bare"
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="line-clamp-1 text-sm font-semibold leading-tight">{entry.players?.name ?? '—'}</div>
+                  <div className="line-clamp-1 text-sm font-semibold leading-tight">
+                    {entry.players?.name ?? '—'}
+                  </div>
                   <div className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
                     {entry.players?.nba_team ?? 'FA'} · {entry.players?.position ?? '—'}
                   </div>
                 </div>
                 <Badge
                   variant="outline"
-                  className={`shrink-0 px-1.5 py-0.5 text-[9px] uppercase ${entry.acquisition === 'trade' ? 'border-amber-500/40 text-amber-600' : ''}`}
+                  className={`shrink-0 px-1.5 py-0.5 text-[9px] uppercase ${
+                    entry.acquisition === 'trade'
+                      ? 'border-amber-500/40 text-amber-600'
+                      : ''
+                  }`}
                 >
                   {group?.short ?? entry.acquisition}
                 </Badge>
