@@ -22,7 +22,6 @@ import {
   useCreateSeason,
   useFinalizeKeepers,
   useResetDraft,
-  useSetTeamColor,
   useSetDraftOrder,
   useSetDraftStatus,
 } from '@/api/mutations';
@@ -130,15 +129,6 @@ export function AdminPage() {
         )}
 
         <ControlRoomSection
-          title="Team colours"
-          description="Choose a colour for each team. Completed picks use it on the draft board."
-          icon={Trophy}
-          className="xl:col-span-2"
-        >
-          <TeamColoursCard />
-        </ControlRoomSection>
-
-        <ControlRoomSection
           title="Keeper operations"
           description="Sync league data, manage keepers, then lock in the next draft."
           icon={UsersRound}
@@ -200,39 +190,6 @@ function ControlRoomSection({
 
 function EmptyControlRoomState({ message }: { message: string }) {
   return <div className="rounded-lg border border-dashed px-4 py-8 text-sm text-muted-foreground">{message}</div>;
-}
-
-function TeamColoursCard() {
-  const { data: teams } = useTeams();
-  const setTeamColor = useSetTeamColor();
-
-  if (!teams) return <Skeleton className="h-32 w-full" />;
-
-  return (
-    <Card>
-      <CardContent className="divide-y p-0">
-        {teams.map((team) => {
-          const color = team.team_color ?? '#2563EB';
-          return (
-            <div key={team.id} className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span aria-hidden className="size-3 shrink-0 rounded-full ring-1 ring-border" style={{ backgroundColor: color }} />
-                <span className="truncate text-sm font-medium">{team.name}</span>
-              </div>
-              <input
-                aria-label={`${team.name} colour`}
-                type="color"
-                defaultValue={color}
-                disabled={setTeamColor.isPending}
-                className="size-9 shrink-0 cursor-pointer rounded border bg-transparent p-1 disabled:cursor-not-allowed"
-                onChange={(event) => setTeamColor.mutate({ teamId: team.id, teamColor: event.target.value.toUpperCase() })}
-              />
-            </div>
-          );
-        })}
-      </CardContent>
-    </Card>
-  );
 }
 
 function CreateSeasonCard({
