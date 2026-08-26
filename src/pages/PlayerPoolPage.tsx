@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Search, SlidersHorizontal } from 'lucide-react';
 import { usePlayerPool, useActiveSeason, useDraftPicks, useDraftSettings, useTeams } from '@/api/queries';
-import { useMakePick } from '@/api/mutations';
+import { useMakePickForSlot } from '@/api/draftTurnActions';
 import { useDraftRealtime } from '@/api/realtime';
 import { useCanPickNow } from '@/hooks/useCanPickNow';
 import { useAuth } from '@/auth/AuthContext';
@@ -14,6 +14,7 @@ import { isRookie, STAT_COLUMNS, statColumnValue, fmtStat, type StatColumnKey } 
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { PlayerStatsDialog } from '@/components/player/PlayerStatsDialog';
 import { RealtimeBadge } from '@/components/draft/RealtimeBadge';
+import { DraftTurnClock } from '@/components/draft/DraftTurnClock';
 import type { PlayerWithStats } from '@/api/types';
 
 type SortKey = StatColumnKey;
@@ -39,7 +40,7 @@ export function PlayerPoolPage() {
   const { data: settings } = useDraftSettings(seasonId);
   const { data: teams } = useTeams();
   const canPick = useCanPickNow(seasonId);
-  const makePick = useMakePick(seasonId ?? '');
+  const makePick = useMakePickForSlot(seasonId ?? '');
   const queued = useOfflineQueue((s) => s.queue);
   const queuedIds = useMemo(() => new Set(queued.map((q) => q.playerId)), [queued]);
 
@@ -53,6 +54,7 @@ export function PlayerPoolPage() {
   const nextPick = useMemo(() => picks?.find((p) => !p.is_used) ?? null, [picks]);
   const teamName = (id: string) => teams?.find((t) => t.id === id)?.name ?? '—';
   const isMyTurn = !!nextPick && !!profile?.team_id && nextPick.team_id === profile.team_id;
+  const paused = settings?.status === 'paused';
 
   const filtered = useMemo(() => {
     if (!players) return [];
@@ -84,10 +86,13 @@ export function PlayerPoolPage() {
     <div className="mx-auto max-w-7xl space-y-3 px-0 py-3 sm:px-4 md:space-y-4 md:p-6">
       <div className="flex items-center justify-between gap-3 px-4 sm:px-0">
         <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Player Pool</h1>
-        <RealtimeBadge />
+        <div className="flex items-center gap-2">
+          <DraftTurnClock settings={settings} />
+          <RealtimeBadge />
+        </div>
       </div>
 
-      {nextPick && (settings?.status === 'running' || settings?.status === 'paused') && (
+      {nextPick && (settings?.status === 'running' || paused) && (
         <Card className={`mx-4 overflow-hidden sm:mx-0 ${isMyTurn ? 'border-primary bg-primary/5 ring-1 ring-primary' : ''}`}>
           <CardContent className="flex items-center gap-3 py-3">
             <Badge variant="outline" className="shrink-0 text-xs">
@@ -95,15 +100,21 @@ export function PlayerPoolPage() {
             </Badge>
             <span className="line-clamp-1 min-w-0 flex-1 text-sm font-semibold">{teamName(nextPick.team_id)}</span>
             <span className={`shrink-0 text-xs font-bold uppercase tracking-wide ${isMyTurn ? 'text-primary' : 'text-muted-foreground'}`}>
-              {isMyTurn ? 'Your pick' : 'On clock'}
+              {paused ? 'Paused' : isMyTurn ? 'Your pick' : 'On clock'}
             </span>
           </CardContent>
         </Card>
       )}
 
+      {paused && (
+        <p className="mx-4 rounded-md border bg-card px-3 py-2 text-xs leading-relaxed text-muted-foreground sm:mx-0">
+          The draft is paused. You can keep scouting, but player selection is locked until the commissioner resumes.
+        </p>
+      )}
+
       {queued.length > 0 && (
         <p className="mx-4 rounded-md bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground sm:mx-0">
-          Offline — {queued.length} pick{queued.length > 1 ? 's' : ''} queued. They'll submit when you reconnect.
+          Offline — {queued.length} exact-slot pick{queued.length > 1 ? 's' : ''} queued. Stale queued choices are rejected instead of moving to a later pick.
         </p>
       )}
 
@@ -235,12 +246,18 @@ export function PlayerPoolPage() {
         open={selected !== null}
         onOpenChange={(o) => !o && setSelected(null)}
         basis={basis}
-        canPick={canPick && !!selected && !queuedIds.has(selected.id)}
+        canPick={canPick && !!nextPick && !!selected && !queuedIds.has(selected.id)}
         picking={makePick.isPending}
+        pickNumber={nextPick?.pick_number}
         onPick={() =>
-          selected &&
+          selected && nextPick &&
           makePick.mutate(
-            { playerId: selected.id, playerName: selected.name },
+            {
+              pickId: nextPick.id,
+              pickNumber: nextPick.pick_number,
+              playerId: selected.id,
+              playerName: selected.name,
+            },
             { onSettled: () => setSelected(null) },
           )
         }

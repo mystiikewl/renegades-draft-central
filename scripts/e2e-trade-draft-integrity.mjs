@@ -3,21 +3,9 @@
 /**
  * Trade/draft integrity simulation against a throwaway Supabase season.
  *
- * Exercises commissioner overrides, pick ownership across reset, skipped picks,
- * reset protection for traded drafted players, reversal, and post-completion locks.
- * Setup/verification uses the Supabase Management API; league mutations use the
- * real authenticated RPC surface.
- *
- * Required env:
- *   VITE_SUPABASE_URL
- *   VITE_SUPABASE_ANON_KEY
- *   SUPABASE_ACCESS_TOKEN
- *   SIM_ADMIN_EMAIL
- *   SIM_ADMIN_PASSWORD
- * Optional:
- *   SUPABASE_PROJECT_REF
- *
- * Usage: npm run test:e2e:trade
+ * Exercises commissioner overrides, pick ownership across reset, exact-slot
+ * skip/pick/undo behavior, reset protection for traded drafted players,
+ * reversal, and post-completion locks.
  */
 
 import fs from 'fs';
@@ -193,19 +181,47 @@ await step('draft-order regeneration is blocked while pick ownership is traded',
   );
 });
 
-await step('skip pick is first-class and undo restores the same slot', async () => {
+await step('skip pick is exact-slot and undo restores that exact slot', async () => {
   await rpc('set_draft_status', { p_season_id: seasonId, p_status: 'running' }, admin);
   const before = (await picks(seasonId)).find((pick) => !pick.is_used);
-  const skipped = await rpc('skip_pick', { p_season_id: seasonId }, admin);
+  const skipped = await rpc('skip_pick_for_slot', {
+    p_season_id: seasonId,
+    p_pick_id: before.id,
+  }, admin);
   assert(skipped.id === before.id, 'skip resolved wrong slot');
   assert(skipped.is_used === true && skipped.is_skipped === true && skipped.player_id === null, 'skip state invalid');
-  await rpc('undo_last_pick', { p_season_id: seasonId }, admin);
+  await rpc('undo_draft_action_for_slot', {
+    p_season_id: seasonId,
+    p_pick_id: before.id,
+  }, admin);
   const restored = (await picks(seasonId)).find((pick) => pick.id === before.id);
   assert(restored.is_used === false && restored.is_skipped === false && restored.player_id === null, 'undo did not restore skipped slot');
 });
 
-await step('draft a player then trade that roster row', async () => {
-  const made = await rpc('make_pick', { p_season_id: seasonId, p_player_id: playerA }, admin);
+await step('stale exact-slot intent is rejected after board advances', async () => {
+  const before = (await picks(seasonId)).find((pick) => !pick.is_used);
+  await rpc('skip_pick_for_slot', { p_season_id: seasonId, p_pick_id: before.id }, admin);
+  await expectError(
+    rpc('make_pick_for_slot', {
+      p_season_id: seasonId,
+      p_pick_id: before.id,
+      p_player_id: playerB,
+    }, admin),
+    'Draft moved to another pick',
+  );
+  const after = await picks(seasonId);
+  const next = after.find((pick) => !pick.is_used);
+  assert(next && next.id !== before.id && next.player_id === null, 'stale intent affected the next slot');
+  await rpc('undo_draft_action_for_slot', { p_season_id: seasonId, p_pick_id: before.id }, admin);
+});
+
+await step('draft a player through exact-slot contract then trade that roster row', async () => {
+  const onClock = (await picks(seasonId)).find((pick) => !pick.is_used);
+  const made = await rpc('make_pick_for_slot', {
+    p_season_id: seasonId,
+    p_pick_id: onClock.id,
+    p_player_id: playerA,
+  }, admin);
   const roster = await sql(`select id, team_id, draft_pick_id from public.rosters where season_id = '${seasonId}'::uuid and player_id = '${playerA}'::uuid`);
   assert(roster.length === 1 && roster[0].draft_pick_id === made.id, 'draft roster provenance missing');
   draftedRosterId = roster[0].id;

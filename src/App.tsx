@@ -13,6 +13,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TradeAnnouncementBanner } from '@/components/trades/TradeAnnouncementBanner';
+import { DraftTurnBanner } from '@/components/draft/DraftTurnBanner';
 import { ClipboardList, ListChecks, Settings, UserCircle, Users } from 'lucide-react';
 import { DraftPage } from '@/pages/DraftPage';
 import { LoginPage } from '@/pages/LoginPage';
@@ -146,6 +147,7 @@ function RootLayout() {
         </nav>
       )}
 
+      {profile?.team_id && <DraftTurnBanner />}
       {profile?.team_id && <TradeAnnouncementBanner />}
       <Outlet />
       <Toaster />

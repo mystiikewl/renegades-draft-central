@@ -71,6 +71,8 @@ export interface DraftSettings {
   pick_time_limit_seconds: number;
   status: DraftStatus;
   draft_order: string[];
+  turn_deadline_at?: string | null;
+  paused_remaining_seconds?: number | null;
   updated_at: string;
 }
 
