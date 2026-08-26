@@ -182,6 +182,25 @@ export async function syncLeague({
     );
     const teamByEspn = new Map(teamRows.map((t) => [t.espn_team_id, t.id]));
 
+    // Keeper protection (same contract as the edge fn): never overwrite rows
+    // already tagged acquisition='keeper', and go fully read-only once
+    // keepers are finalized — otherwise a sync silently un-keeps players and
+    // the next finalize drops them.
+    const { data: settingsRow } = await applyQuery(
+      `select keepers_finalized_at from public.draft_settings where season_id = '${seasonId}'`,
+    );
+    if (settingsRow?.length && settingsRow[0].keepers_finalized_at) {
+      log(
+        `Keepers finalized for ${seasonLabel} — roster mirror skipped (read-only after finalize).`,
+      );
+      return { teamsMatched: plan.length, teamsUpdated: plan.length, rosterUpserted: 0, playersResolved: 0, playersSkipped: 0 };
+    }
+    const { data: keeperRows } = await applyQuery(
+      `select player_id from public.rosters where season_id = '${seasonId}' and acquisition = 'keeper'`,
+    );
+    const keeperSet = new Set((keeperRows ?? []).map((r) => r.player_id));
+    if (keeperSet.size) log(`Protecting ${keeperSet.size} tagged keeper row(s) from overwrite.`);
+
     const rosterRows = [];
     for (const t of league.teams) {
       const teamId = teamByEspn.get(t.id);
@@ -215,7 +234,9 @@ export async function syncLeague({
     }
     const missing = new Set(rosterRows.filter((r) => !r.player_id));
     playersSkipped = missing.size;
-    const rows = rosterRows.filter((r) => r.player_id);
+    const keptSkipped = rosterRows.filter((r) => r.player_id && keeperSet.has(r.player_id)).length;
+    if (keptSkipped) log(`Skipping ${keptSkipped} ESPN row(s) that conflict with tagged keepers.`);
+    const rows = rosterRows.filter((r) => r.player_id && !keeperSet.has(r.player_id));
 
     // upsert, batched
     for (let i = 0; i < rows.length; i += 100) {

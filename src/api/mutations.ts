@@ -203,6 +203,28 @@ export function useFinalizeKeepers(seasonId: string) {
   });
 }
 
+/** Full undo of finalize: restores dropped roster rows, clears the pick grid, reopens keeper editing. */
+export function useRevertFinalizeKeepers(seasonId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc('revert_finalize_keepers', {
+        p_season_id: seasonId,
+      });
+      if (error) throw new Error(error.message);
+      return data as number;
+    },
+    onSuccess: (restored) => {
+      qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
+      qc.invalidateQueries({ queryKey: qk.playerPool(seasonId) });
+      qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
+      qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) });
+      toast.success(`Keeper finalize reverted — ${restored} roster spot(s) restored, pick grid cleared.`);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 export interface UpdateDraftSettingsInput {
   league_size: number;
   roster_size: number;

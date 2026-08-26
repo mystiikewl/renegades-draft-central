@@ -34,6 +34,7 @@ import {
   useCreateSeason,
   useFinalizeKeepers,
   useResetDraft,
+  useRevertFinalizeKeepers,
   useSetDraftOrder,
   useSetDraftStatus,
 } from '@/api/mutations';
@@ -452,23 +453,63 @@ function AdminKeepersCard({ seasonId, keeperLimit }: { seasonId: string; keeperL
 
 function FinalizeKeepersButton({ seasonId }: { seasonId: string }) {
   const finalize = useFinalizeKeepers(seasonId);
+  const revert = useRevertFinalizeKeepers(seasonId);
   const { data: settings } = useDraftSettings(seasonId);
   const { data: rosters } = useRosters(seasonId);
+  const { data: teams } = useTeams();
   const keeperCount = (rosters ?? []).filter((entry) => entry.acquisition === 'keeper').length;
   const orderSet = !!settings?.draft_order?.length;
-  const finalized = (settings?.status ?? 'pre_draft') !== 'pre_draft';
+  const finalized = !!settings?.keepers_finalized_at;
+  const rounds = (settings?.roster_size ?? 0) - (settings?.keeper_limit ?? 0);
+
+  const keeperCountByTeam = new Map<string, number>(
+    (teams ?? []).map((team) => [
+      team.id,
+      (rosters ?? []).filter((entry) => entry.team_id === team.id && entry.acquisition === 'keeper').length,
+    ]),
+  );
+  const unkeptTeams = (teams ?? []).filter((team) => !keeperCountByTeam.get(team.id));
 
   return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild><Button disabled={finalized || !orderSet || finalize.isPending}>{finalized ? 'Keepers finalized' : `Finalize keepers (${keeperCount})`}</Button></AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Finalize keepers?</AlertDialogTitle>
-          <AlertDialogDescription>Drops every non-kept player from all rosters, then generates the empty draft pick slots ({settings?.roster_size} − {settings?.keeper_limit} = {(settings?.roster_size ?? 0) - (settings?.keeper_limit ?? 0)} rounds × {settings?.league_size}). Non-keepers return to the pool. This cannot be undone.</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => finalize.mutate()}>Yes, finalize</AlertDialogAction></AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <div className="flex flex-wrap items-center gap-2">
+      <AlertDialog>
+        <AlertDialogTrigger asChild><Button disabled={finalized || !orderSet || finalize.isPending}>{finalized ? 'Keepers finalized' : `Finalize keepers (${keeperCount})`}</Button></AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finalize keepers?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>Drops every non-kept player from all rosters ({rounds} rounds × {settings?.league_size} pick slots generated). Non-keepers return to the pool and can be restored later by reverting the finalize.</p>
+                <p className="font-medium">Keepers tagged: {keeperCount}</p>
+                {unkeptTeams.length > 0 && (
+                  <p className="font-medium text-destructive">
+                    No keepers tagged for: {unkeptTeams.map((team) => team.name).join(', ')} — their whole roster would be dropped. Tag keepers for every team first.
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => finalize.mutate()}>Yes, finalize</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {finalized && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild><Button variant="outline" disabled={revert.isPending}>Revert finalize</Button></AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Revert keeper finalize?</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-2 text-sm">
+                  <p>Restores every roster spot that was dropped at finalize (with the exact tags they had), clears the generated draft pick slots, and reopens keeper editing.</p>
+                  <p className="text-destructive">Only possible before any pick has been made.</p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => revert.mutate()}>Yes, revert</AlertDialogAction></AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </div>
   );
 }
 

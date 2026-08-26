@@ -28,6 +28,7 @@ vi.mock('@/api/queries', () => ({
 vi.mock('@/api/mutations', () => ({
   useCreateSeason: () => ({ mutate: vi.fn(), isPending: false }),
   useFinalizeKeepers: () => ({ mutate: vi.fn(), isPending: false }),
+  useRevertFinalizeKeepers: () => ({ mutate: vi.fn(), isPending: false }),
   useResetDraft: () => ({ mutate: vi.fn(), isPending: false }),
   useSetDraftOrder: () => ({ mutate: vi.fn(), isPending: false }),
   useSetDraftStatus: () => ({ mutate: vi.fn(), isPending: false }),
