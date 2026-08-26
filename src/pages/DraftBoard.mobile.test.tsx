@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
 import type { DraftPick } from '@/api/types';
 import { DraftBoard } from './DraftPage';
 
@@ -27,6 +27,8 @@ const picks = [
 
 const renderBoard = () => render(<DraftBoard picks={picks} picksLoading={false} teamName={teamName} />);
 
+afterEach(cleanup);
+
 describe('DraftBoard mobile layout', () => {
   it('renders every pick with number, team context and player state, grouped by round', () => {
     renderBoard();
@@ -38,7 +40,7 @@ describe('DraftBoard mobile layout', () => {
     expect(screen.getByText('Beta')).toBeInTheDocument();
     expect(screen.getByText('Jokic')).toBeInTheDocument();
     expect(screen.getByText('Sga')).toBeInTheDocument();
-    expect(screen.getByText('Upcoming')).toBeInTheDocument();
+    expect(screen.getByText('On the clock')).toBeInTheDocument();
   });
 
   it('marks exactly the current on-clock slot', () => {
@@ -54,6 +56,20 @@ describe('DraftBoard mobile layout', () => {
     const { container } = renderBoard();
     expect(container.querySelectorAll('.text-amber-600')).toHaveLength(1);
     expect(screen.getByText('TRADE')).toBeInTheDocument();
+  });
+
+  it('tints a completed traded pick with the current picking team colour', () => {
+    render(
+      <DraftBoard
+        picks={picks}
+        picksLoading={false}
+        teamName={teamName}
+        teamColor={(id) => (id === 't1' ? '#2563EB' : '#E11D48')}
+      />,
+    );
+
+    expect(screen.getByText('Jokic').closest('[data-team-color]')).toHaveAttribute('data-team-color', '#2563EB');
+    expect(screen.getByText('—').closest('[data-team-color]')).toHaveAttribute('data-team-color', '#E11D48');
   });
 
   it('keeps loading skeleton and empty state', () => {
