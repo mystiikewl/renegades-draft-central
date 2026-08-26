@@ -7,11 +7,10 @@ headers = []
 [functions."*"]
 
 [build]
-publish = "C:\\Users\\ataha\\Documents\\Projects\\Renegades Draft\\renegades-draft-central\\dist"
+publish = "C:\\Users\\ataha\\Documents\\Projects\\renegades-draft-central\\dist"
 publishOrigin = "config"
 commandOrigin = "config"
-base = "C:\\Users\\ataha\\Documents\\Projects\\Renegades Draft"
-command = "cd renegades-draft-central && npm run build"
+command = "npm run build"
 
 [build.environment]
 
