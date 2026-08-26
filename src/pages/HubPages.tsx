@@ -10,8 +10,18 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
+import { PageHeader, PageShell } from '@/components/layout/PageLayout';
 
-type HubPath = '/pool' | '/rankings' | '/rosters' | '/trades' | '/profile' | '/team-builder' | '/admin' | '/admin/trades';
+type HubPath =
+  | '/pool'
+  | '/rankings'
+  | '/rosters'
+  | '/trades'
+  | '/profile'
+  | '/team-builder'
+  | '/admin'
+  | '/admin/trades';
+
 type HubAction = {
   to: HubPath;
   icon: LucideIcon;
@@ -19,35 +29,35 @@ type HubAction = {
   detail: string;
 };
 
-export function LeagueHubPage() {
-  const actions: HubAction[] = [
-    {
-      to: '/rosters',
-      icon: ListChecks,
-      title: 'Rosters',
-      detail: 'Scan every roster in the league and see how each player was acquired.',
-    },
-    {
-      to: '/trades',
-      icon: ArrowRightLeft,
-      title: 'Trade Center',
-      detail: 'Build offers, respond to proposals and review the league trade ledger.',
-    },
-    {
-      to: '/rankings',
-      icon: BarChart3,
-      title: 'Rankings',
-      detail: 'Category-weighted rankings and fantasy value comparisons across the player pool.',
-    },
-    {
-      to: '/team-builder',
-      icon: Sparkles,
-      title: 'Team Builder',
-      detail: 'Experiment with roster construction outside the live league roster.',
-    },
-  ];
+const leagueActions: HubAction[] = [
+  {
+    to: '/rosters',
+    icon: ListChecks,
+    title: 'Rosters',
+    detail: 'Scan every roster in the league and see how each player was acquired.',
+  },
+  {
+    to: '/trades',
+    icon: ArrowRightLeft,
+    title: 'Trade Center',
+    detail: 'Build offers, respond to proposals and review the league trade ledger.',
+  },
+  {
+    to: '/rankings',
+    icon: BarChart3,
+    title: 'Rankings',
+    detail: 'Category-weighted rankings and fantasy value comparisons across the player pool.',
+  },
+  {
+    to: '/team-builder',
+    icon: Sparkles,
+    title: 'Team Builder',
+    detail: 'Experiment with roster construction outside the live league roster.',
+  },
+];
 
-  return <HubPage eyebrow="League" title="League activity" actions={actions} />;
+export function LeagueHubPage() {
+  return <HubPage eyebrow="League" title="League activity" actions={leagueActions} />;
 }
 
 export function MorePage() {
@@ -89,11 +99,12 @@ export function MorePage() {
 
 function HubPage({ eyebrow, title, actions }: { eyebrow: string; title: string; actions: HubAction[] }) {
   return (
-    <div className="mx-auto max-w-4xl space-y-4 px-4 py-4 md:p-6">
-      <header>
-        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">{eyebrow}</div>
-        <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">{title}</h1>
-      </header>
+    <PageShell size="medium">
+      <PageHeader
+        eyebrow={eyebrow}
+        title={title}
+        titleClassName="text-2xl font-black sm:text-3xl"
+      />
 
       <div className="grid gap-3 sm:grid-cols-2">
         {actions.map(({ to, icon: Icon, title: actionTitle, detail }) => (
@@ -113,6 +124,6 @@ function HubPage({ eyebrow, title, actions }: { eyebrow: string; title: string; 
           </Link>
         ))}
       </div>
-    </div>
+    </PageShell>
   );
 }
