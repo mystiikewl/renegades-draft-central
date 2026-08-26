@@ -11,6 +11,8 @@ vi.mock('@/auth/AuthContext', () => ({
   useAuth: () => ({ profile: { team_id: 't1', is_admin: false } }),
 }));
 
+vi.mock('@/api/realtime', () => ({ useDraftRealtime: vi.fn() }));
+
 vi.mock('@/api/queries', () => ({
   useActiveSeason: vi.fn(() => ({ data: { id: 's1', label: '2026-27' } })),
   useTeams: vi.fn(() => ({ data: [{ id: 't1', name: 'Alpha Team' }, { id: 't2', name: 'Beta Team' }] })),
