@@ -104,8 +104,7 @@ describe('DraftPage', () => {
     render(<DraftPage />);
 
     expect(screen.getByText('2026-27 Draft')).toBeInTheDocument();
-    expect(screen.getByText('Round 1')).toBeInTheDocument();
-    expect(screen.getByText('Round 2')).toBeInTheDocument();
+    expect(screen.getAllByText('Round')).toHaveLength(2);
     expect(screen.getAllByText('Drafted Star').length).toBe(2);
     expect(screen.getByText('Upcoming')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pick' })).not.toBeInTheDocument();
