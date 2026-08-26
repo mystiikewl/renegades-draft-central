@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from '@tanstack/react-router';
-import { ArrowRight, ArrowRightLeft, ClipboardList, Users } from 'lucide-react';
+import { ArrowRight, ArrowRightLeft, ClipboardList, Users, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { useActiveSeason, useDraftPicks, useRosters, useTeams, useTrades } from '@/api/queries';
 import type { RosterEntry } from '@/api/types';
@@ -13,6 +13,8 @@ const acquisitionLabel: Record<RosterEntry['acquisition'], string> = {
   draft: 'Draft',
   trade: 'Trade',
 };
+
+type QuickPath = '/pool' | '/trades' | '/team-builder';
 
 export function MyTeamPage() {
   const { profile } = useAuth();
@@ -34,10 +36,11 @@ export function MyTeamPage() {
     [rosters, teamId],
   );
 
-  const upcomingPicks = useMemo(
-    () => (picks ?? []).filter((pick) => pick.team_id === teamId && !pick.is_used).slice(0, 6),
+  const ownedUpcomingPicks = useMemo(
+    () => (picks ?? []).filter((pick) => pick.team_id === teamId && !pick.is_used),
     [picks, teamId],
   );
+  const upcomingPicks = ownedUpcomingPicks.slice(0, 6);
 
   const teamTrades = useMemo(
     () =>
@@ -72,7 +75,7 @@ export function MyTeamPage() {
               <span>·</span>
               <span>{myRoster.length} players</span>
               <span>·</span>
-              <span>{upcomingPicks.length} upcoming pick{upcomingPicks.length === 1 ? '' : 's'}</span>
+              <span>{ownedUpcomingPicks.length} upcoming pick{ownedUpcomingPicks.length === 1 ? '' : 's'}</span>
             </div>
           </div>
           <Badge variant="outline" className="shrink-0 font-mono text-[10px]">ACTIVE</Badge>
@@ -193,7 +196,7 @@ function SummaryStat({ label, value }: { label: string; value: number }) {
   );
 }
 
-function QuickLink({ to, icon: Icon, label }: { to: string; icon: typeof Users; label: string }) {
+function QuickLink({ to, icon: Icon, label }: { to: QuickPath; icon: LucideIcon; label: string }) {
   return (
     <Link
       to={to}
