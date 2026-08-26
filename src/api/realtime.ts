@@ -5,7 +5,6 @@ import { qk } from './queries';
 
 export type RealtimeStatus = 'connected' | 'connecting' | 'disconnected';
 
-// ponytail: module store instead of zustand — one value, one writer
 let realtimeStatus: RealtimeStatus = 'connecting';
 const listeners = new Set<() => void>();
 
@@ -31,16 +30,9 @@ function setChannelStatus(status: string) {
     setRealtimeStatus('disconnected');
 }
 
-// ponytail: test seam — same function passed to channel.subscribe()
 export const _setChannelStatusForTest = setChannelStatus;
 
-/**
- * THE realtime layer — one Postgres channel that invalidates the TanStack
- * Query cache on any draft-relevant change. Every client sees picks, rosters
- * and settings updates without bespoke subscription hooks.
- *
- * Mount once (in the app root) with the active season id.
- */
+/** One Postgres channel invalidating all active-season league state. */
 export function useDraftRealtime(seasonId: string | undefined) {
   const qc = useQueryClient();
 
@@ -71,6 +63,16 @@ export function useDraftRealtime(seasonId: string | undefined) {
           filter: `season_id=eq.${seasonId}`,
         },
         () => qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) })
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'trades', filter: `season_id=eq.${seasonId}` },
+        () => qc.invalidateQueries({ queryKey: qk.trades(seasonId) })
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'trade_assets' },
+        () => qc.invalidateQueries({ queryKey: qk.trades(seasonId) })
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () =>
         qc.invalidateQueries({ queryKey: qk.teams })

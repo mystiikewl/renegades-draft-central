@@ -12,7 +12,7 @@ import { useLocation } from '@tanstack/react-router';
 import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { BarChart3, ClipboardList, Shield, UserCircle, Users, ListChecks } from 'lucide-react';
+import { ArrowRightLeft, BarChart3, ClipboardList, Shield, UserCircle, Users, ListChecks } from 'lucide-react';
 import { DraftPage } from '@/pages/DraftPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { OnboardingPage } from '@/pages/OnboardingPage';
@@ -21,6 +21,7 @@ import { RostersPage } from '@/pages/RostersPage';
 import { PlayerPoolPage } from '@/pages/PlayerPoolPage';
 import { RankingsPage } from '@/pages/RankingsPage';
 import { TeamBuilderPage } from '@/pages/TeamBuilderPage';
+import { TradeCenterPage } from '@/pages/TradeCenterPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 
 /** Declarative auth guard — no navigate-in-effect, no blank frames. */
@@ -47,6 +48,7 @@ function RootLayout() {
   const navItems = [
     { to: '/', label: 'Draft', short: 'Draft', icon: ClipboardList },
     { to: '/pool', label: 'Player Pool', short: 'Pool', icon: Users },
+    { to: '/trades', label: 'Trades', short: 'Trades', icon: ArrowRightLeft },
     { to: '/rankings', label: 'Rankings', short: 'Ranks', icon: BarChart3 },
     { to: '/rosters', label: 'Rosters', short: 'Roster', icon: ListChecks },
     ...(profile?.is_admin ? [{ to: '/admin', label: 'Admin', short: 'Admin', icon: Shield }] : []),
@@ -102,7 +104,6 @@ function RootLayout() {
         </div>
       </header>
 
-      {/* Mobile: bottom tab bar (sm and up uses the header nav) */}
       {profile?.team_id && (
         <nav className="fixed inset-x-0 bottom-0 z-40 grid auto-cols-fr grid-flow-col border-t bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_-20px_hsl(var(--foreground))] backdrop-blur sm:hidden">
           {navItems.map((item) => {
@@ -114,7 +115,7 @@ function RootLayout() {
                 to={item.to}
                 aria-current={active ? 'page' : undefined}
                 className={`relative flex min-w-0 flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-medium transition-all active:scale-[0.98] ${
-                  active ? 'bg-primary/8 text-primary' : 'text-muted-foreground hover:text-foreground'
+                  active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <span
@@ -137,7 +138,6 @@ function RootLayout() {
   );
 }
 
-/** Admin-only pages. */
 function RequireAdmin({ children }: { children: React.ReactNode }) {
   const { profile } = useAuth();
   if (!profile?.is_admin)
@@ -205,6 +205,18 @@ const poolRoute = createRoute({
   ),
 });
 
+const tradesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/trades',
+  component: () => (
+    <RequireAuth>
+      <RequireTeam>
+        <TradeCenterPage />
+      </RequireTeam>
+    </RequireAuth>
+  ),
+});
+
 const rankingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/rankings',
@@ -239,7 +251,17 @@ const teamBuilderRoute = createRoute({
   ),
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute, adminRoute, rostersRoute, poolRoute, rankingsRoute, teamBuilderRoute, profileRoute]);
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  loginRoute,
+  adminRoute,
+  rostersRoute,
+  poolRoute,
+  tradesRoute,
+  rankingsRoute,
+  teamBuilderRoute,
+  profileRoute,
+]);
 const router = createRouter({ routeTree });
 
 declare module '@tanstack/react-router' {

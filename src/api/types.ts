@@ -5,6 +5,8 @@ export type SeasonStatus = 'archived' | 'pre_draft' | 'live' | 'complete';
 export type DraftStatus = 'pre_draft' | 'paused' | 'running' | 'complete';
 export type DraftType = 'snake' | 'linear';
 export type Acquisition = 'draft' | 'keeper' | 'trade';
+export type TradeStatus = 'proposed' | 'accepted' | 'rejected' | 'cancelled';
+export type TradeAssetType = 'player' | 'pick';
 
 export interface Season {
   id: string;
@@ -38,12 +40,10 @@ export interface Player {
   position: string | null;
   nba_team: string | null;
   image_url: string | null;
-  /** ESPN years-of-league-experience; 0 = rookie */
   experience?: number | null;
   birth_date?: string | null;
   height?: string | null;
   weight?: number | null;
-  /** ESPN display string, e.g. "2014: Rd 1, Pk 3 (PHI)" */
   draft_display?: string | null;
   created_at: string;
 }
@@ -57,7 +57,6 @@ export interface PlayerSeason {
 
 export type PlayerWithStats = Player & {
   player_seasons: (Pick<PlayerSeason, 'season_id' | 'stats'> & {
-    /** embedded seasons(label) used to order fallback stats rows */
     seasons?: { label: string } | null;
   })[];
 };
@@ -86,7 +85,6 @@ export interface DraftPick {
   is_used: boolean;
   picked_at: string | null;
   players?: Pick<Player, 'name' | 'position' | 'nba_team' | 'espn_id'> | null;
-  /** aliased embed: teams!draft_picks_team_id_fkey — disambiguates the two team FKs */
   team?: Pick<Team, 'name'> | null;
 }
 
@@ -99,6 +97,34 @@ export interface RosterEntry {
   draft_pick_id: string | null;
   acquired_at: string;
   players?: Pick<Player, 'name' | 'position' | 'nba_team' | 'espn_id'> | null;
+}
+
+export interface TradeAsset {
+  id: string;
+  trade_id: string;
+  from_team_id: string;
+  to_team_id: string;
+  asset_type: TradeAssetType;
+  roster_id: string | null;
+  draft_pick_id: string | null;
+  asset_label: string;
+  created_at: string;
+}
+
+export interface Trade {
+  id: string;
+  season_id: string;
+  from_team_id: string;
+  to_team_id: string;
+  proposed_by: string;
+  resolved_by: string | null;
+  status: TradeStatus;
+  note: string | null;
+  created_at: string;
+  resolved_at: string | null;
+  from_team?: Pick<Team, 'id' | 'name'> | null;
+  to_team?: Pick<Team, 'id' | 'name'> | null;
+  assets?: TradeAsset[];
 }
 
 export interface Favourite {

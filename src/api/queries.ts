@@ -9,12 +9,12 @@ import type {
   RosterEntry,
   Season,
   Team,
+  Trade,
 } from './types';
 
 /**
  * Query keys: one per table, scoped by season where relevant. The realtime
- * layer (./realtime.ts) invalidates these keys on Postgres changes — the
- * single cache-invalidation pattern replacing the old 5 overlapping hooks.
+ * layer (./realtime.ts) invalidates these keys on Postgres changes.
  */
 export const qk = {
   seasons: ['seasons'] as const,
@@ -25,6 +25,7 @@ export const qk = {
   draftPicks: (seasonId: string) => ['draft-picks', seasonId] as const,
   playerPool: (seasonId: string) => ['player-pool', seasonId] as const,
   rosters: (seasonId: string) => ['rosters', seasonId] as const,
+  trades: (seasonId: string) => ['trades', seasonId] as const,
 };
 
 export function useSeasons() {
@@ -121,12 +122,7 @@ export function usePlayerPool(seasonId: string | undefined) {
     queryKey: qk.playerPool(seasonId ?? 'none'),
     enabled: !!seasonId,
     queryFn: async () => {
-      // Rostered players (draft picks AND keepers/trades) are excluded from
-      // the pool — fetching the season's rostered ids in the same queryFn so
-      // keepers never show as draftable.
       const [playersRes, rosteredRes] = await Promise.all([
-        // no season filter on stats: prefer the active season's row at merge
-        // time below. espn_id filter hides 2025-archive-only players (retirees).
         supabase
           .from('players')
           .select('*, player_seasons(season_id, stats, seasons(label))')
@@ -138,10 +134,7 @@ export function usePlayerPool(seasonId: string | undefined) {
       if (rosteredRes.error) throw rosteredRes.error;
       const rostered = new Set(rosteredRes.data.map((r) => r.player_id));
       const withPreferredStats = (playersRes.data as PlayerWithStats[]).map((p) => {
-        // Prefer the active season's row only when it carries stats; otherwise
-        // fall back to the most recent labeled season that has numbers.
         const best = pickStatsSeason(p.player_seasons ?? [], seasonId!);
-        // pickStatsSeason widens stats to nullable; input rows are PlayerWithStats
         return { ...p, player_seasons: best ? [best as PlayerWithStats['player_seasons'][number]] : [] };
       });
       return withPreferredStats.filter((p) => !rostered.has(p.id));
@@ -164,6 +157,27 @@ export function useRosters(seasonId: string | undefined) {
   });
 }
 
+export function useTrades(seasonId: string | undefined) {
+  return useQuery({
+    queryKey: qk.trades(seasonId ?? 'none'),
+    enabled: !!seasonId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('trades')
+        .select(`
+          *,
+          from_team:teams!trades_from_team_id_fkey(id, name),
+          to_team:teams!trades_to_team_id_fkey(id, name),
+          assets:trade_assets(*)
+        `)
+        .eq('season_id', seasonId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as Trade[];
+    },
+  });
+}
+
 /** Convenience: invalidate every query key touching a season's draft data. */
 export function useInvalidateDraft() {
   const qc = useQueryClient();
@@ -172,5 +186,6 @@ export function useInvalidateDraft() {
     qc.invalidateQueries({ queryKey: qk.playerPool(seasonId) });
     qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
     qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) });
+    qc.invalidateQueries({ queryKey: qk.trades(seasonId) });
   };
 }
