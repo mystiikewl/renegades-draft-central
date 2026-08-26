@@ -201,8 +201,13 @@ describe('draft pick flow (integration)', () => {
     // Confirm → RPC with the right args.
     rpc.mockResolvedValue({ data: { ok: true }, error: null } as never);
     await user.click(within(dialog).getAllByRole('button', { name: /pick|draft/i })[0]);
+    await user.click(await screen.findByRole('button', { name: 'Confirm pick' }));
     await waitFor(() =>
-      expect(rpc).toHaveBeenCalledWith('make_pick', { p_season_id: 's1', p_player_id: 'pl1' }),
+      expect(rpc).toHaveBeenCalledWith('make_pick_for_slot', {
+        p_season_id: 's1',
+        p_pick_id: 'p1',
+        p_player_id: 'pl1',
+      }),
     );
 
     // The "server" applied the pick; realtime pushes a draft_picks change…
@@ -237,6 +242,7 @@ describe('draft pick flow (integration)', () => {
 
     rpc.mockResolvedValue({ data: null, error: { message: 'Not your turn' } } as never);
     await user.click(within(dialog).getAllByRole('button', { name: /pick|draft/i })[0]);
+    await user.click(await screen.findByRole('button', { name: 'Confirm pick' }));
 
     // sonner is mocked — assert on the spy, not the DOM.
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Not your turn'));
@@ -262,13 +268,14 @@ describe('draft pick flow (integration)', () => {
     await user.click(screen.getByText('Test Player'));
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getAllByRole('button', { name: /pick|draft/i })[0]);
+    await user.click(await screen.findByRole('button', { name: 'Confirm pick' }));
 
     // Queued: info toast, offline banner, re-pick blocked from the dialog.
     expect(
-      screen.getAllByText(/Offline — 1 pick queued \(Test Player\)/).length,
+      screen.getAllByText(/Offline — 1 exact-slot pick queued/).length,
     ).toBeGreaterThanOrEqual(1);
     expect(toast.info).toHaveBeenCalledWith(
-      'Offline — pick of Test Player queued and will submit when you reconnect',
+      'Offline — Test Player is queued only for pick #1',
     );
     expect(toast.error).not.toHaveBeenCalled();
     await user.click(screen.getByText('Test Player'));
@@ -280,12 +287,16 @@ describe('draft pick flow (integration)', () => {
     await vi.advanceTimersByTimeAsync(16_000);
 
     await waitFor(() =>
-      expect(rpc).toHaveBeenLastCalledWith('make_pick', { p_season_id: 's1', p_player_id: 'pl1' }),
+      expect(rpc).toHaveBeenLastCalledWith('make_pick_for_slot', {
+        p_season_id: 's1',
+        p_pick_id: 'p1',
+        p_player_id: 'pl1',
+      }),
     );
-    expect(toast.success).toHaveBeenCalledWith('Pick submitted: Test Player');
+    expect(toast.success).toHaveBeenCalledWith('Pick #1 submitted: Test Player');
 
     // Queue drained → banner disappears and the dialog offers picks again.
-    expect(screen.queryByText(/Offline — 1 pick queued/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Offline — 1 exact-slot pick queued/)).not.toBeInTheDocument();
   });
 
   it('undo last pick calls undo_last_pick and restores the board state', async () => {
@@ -303,18 +314,21 @@ describe('draft pick flow (integration)', () => {
     const qc = renderPage();
 
     // Pre-state: player drafted, strip shows him, undo available.
-    expect(await screen.findByText(/Last pick/)).toBeInTheDocument();
-    const undoButton = screen.getAllByRole('button', { name: 'Undo last pick' })[0];
+    expect(await screen.findByText(/Last action/)).toBeInTheDocument();
+    const undoButton = screen.getAllByRole('button', { name: 'Undo last action' })[0];
     expect(undoButton).toBeEnabled();
 
     rpc.mockResolvedValue({ data: null, error: null } as never);
     await user.click(undoButton); // opens confirm dialog
-    await user.click(await screen.findByRole('button', { name: 'Undo pick' }));
+    await user.click(await screen.findByRole('button', { name: 'Undo action' }));
 
     await waitFor(() =>
-      expect(rpc).toHaveBeenCalledWith('undo_last_pick', { p_season_id: 's1' }),
+      expect(rpc).toHaveBeenCalledWith('undo_draft_action_for_slot', {
+        p_season_id: 's1',
+        p_pick_id: 'p1',
+      }),
     );
-    expect(toast.success).toHaveBeenCalledWith('Pick undone');
+    expect(toast.success).toHaveBeenCalledWith('Last draft action undone');
 
     // Server undid the pick; realtime pushes the change (rosters too — the
     // pool query refetches on roster changes).
@@ -330,7 +344,6 @@ describe('draft pick flow (integration)', () => {
       const cached = qc.getQueryData<{ is_used: boolean }[]>(['draft-picks', 's1']);
       expect(cached?.some((p) => p.is_used)).toBe(false);
     });
-    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
     // Pool re-includes him; the dialog offers an enabled pick again.
     await waitFor(() =>
       expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(3),

@@ -73,10 +73,10 @@ describe('Admin workspace', () => {
     render(<AdminPage />);
 
     expect(screen.getByRole('heading', { name: /league administration/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Season/i })).toHaveAttribute('href', '/admin/season');
+    expect(screen.getByRole('link', { name: 'Season' })).toHaveAttribute('href', '/admin/season');
     expect(screen.getByRole('link', { name: /Draft setup & control/i })).toHaveAttribute('href', '/admin/draft');
-    expect(screen.getByRole('link', { name: /Draft order/i })).toHaveAttribute('href', '/admin/order');
-    expect(screen.getByRole('link', { name: /Keepers/i })).toHaveAttribute('href', '/admin/keepers');
+    expect(screen.getByRole('link', { name: 'Draft order' })).toHaveAttribute('href', '/admin/order');
+    expect(screen.getByRole('link', { name: 'Keepers' })).toHaveAttribute('href', '/admin/keepers');
     expect(screen.queryByText('Draft settings form')).not.toBeInTheDocument();
     expect(screen.queryByText('Keeper manager')).not.toBeInTheDocument();
   });

@@ -14,7 +14,7 @@ vi.mock('sonner', () => ({
 const rpc = vi.mocked(supabase.rpc);
 
 function queuedPick(playerId = 'p1') {
-  return { seasonId: 's1', playerId, playerName: `Player ${playerId}`, queuedAt: 1 };
+  return { seasonId: 's1', pickId: 'pk1', pickNumber: 7, playerId, playerName: `Player ${playerId}`, queuedAt: 1 };
 }
 
 describe('isNetworkError', () => {
@@ -65,8 +65,12 @@ describe('offline queue', () => {
     queuePick(queuedPick('p1'));
     await vi.advanceTimersByTimeAsync(3000);
     expect(useOfflineQueue.getState().queue).toHaveLength(0);
-    expect(rpc).toHaveBeenCalledWith('make_pick', { p_season_id: 's1', p_player_id: 'p1' });
-    expect(toast.success).toHaveBeenCalledWith('Pick submitted: Player p1');
+    expect(rpc).toHaveBeenCalledWith('make_pick_for_slot', {
+      p_season_id: 's1',
+      p_pick_id: 'pk1',
+      p_player_id: 'p1',
+    });
+    expect(toast.success).toHaveBeenCalledWith('Pick #7 submitted: Player p1');
     expect(toast.error).not.toHaveBeenCalled();
   });
 
@@ -76,7 +80,7 @@ describe('offline queue', () => {
     await vi.advanceTimersByTimeAsync(3000);
     expect(useOfflineQueue.getState().queue).toHaveLength(0);
     expect(toast.error).toHaveBeenCalledWith(
-      'Queued pick for Player p1 was rejected: Player already drafted',
+      'Queued pick #7 for Player p1 was rejected: Player already drafted',
     );
     // Drop is definitive — no further replay attempts.
     const calls = rpc.mock.calls.length;

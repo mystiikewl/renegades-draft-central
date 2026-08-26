@@ -50,23 +50,38 @@ export async function importProjections({
   };
 
   // Page through the full player universe via kona_player_info.
-  // ESPN caps this view at 50 players per page regardless of the requested limit.
+  // The players filter must go in the X-Fantasy-Filter header (the query-param
+  // form silently ignores `offset` and returns the same 50 players forever),
+  // and ESPN requires an explicit sort when a limit/offset is given.
+  // A seen-ID guard stops paging even if ESPN regresses to repeated pages.
   const PAGE = 50;
   const allPlayers = [];
+  const seen = new Set();
   for (let offset = 0; ; offset += PAGE) {
-    const filter = encodeURIComponent(
-      JSON.stringify({ filter: { slotCategoryIds: [0] }, players: { limit: PAGE, offset } }),
-    );
+    const filter = JSON.stringify({
+      players: { limit: PAGE, offset, sortStatId: { sortPriority: 1, sortAsc: true, value: 0 } },
+    });
     const res = await fetch(
       `https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba/seasons/${season}/segments/0/leagues/201` +
-        `?view=kona_player_info&players=${filter}`,
-      { headers: { 'User-Agent': 'Mozilla/5.0', Cookie: `espn_s2=${espnS2}; SWID=${espnSwid};` } },
+        `?view=kona_player_info`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+          'X-Fantasy-Filter': filter,
+          Cookie: `espn_s2=${espnS2}; SWID=${espnSwid};`,
+        },
+        signal: AbortSignal.timeout(30000),
+      },
     );
-    if (!res.ok) throw new Error(`ESPN API ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    if (!res.ok) throw new Error(`ESPN API ${res.status} (offset ${offset}): ${(await res.text()).slice(0, 200)}`);
     const page = await res.json();
+    if (page.messages?.length) throw new Error(`ESPN filter rejected (offset ${offset}): ${page.messages.join('; ')}`);
     const players = page.players ?? [];
-    allPlayers.push(...players);
-    if (players.length < PAGE) break;
+    const fresh = players.filter((w) => w.player?.id && !seen.has(String(w.player.id)));
+    for (const w of fresh) seen.add(String(w.player.id));
+    allPlayers.push(...fresh);
+    log(`  fetched offset ${offset}: ${players.length} players, ${fresh.length} new (total ${allPlayers.length})`);
+    if (players.length < PAGE || fresh.length === 0) break;
   }
 
   // Extract statSourceId=1 rows for the target ESPN seasonId.

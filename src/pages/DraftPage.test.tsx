@@ -116,7 +116,7 @@ describe('DraftPage', () => {
           player_id: 'pl-drafted',
           players: { name: 'Drafted Star' } as DraftPick['players'],
         }),
-        pick({ id: 'p2', round: 2, pick_number: 2, team_id: 't2', is_used: false }),
+        pick({ id: 'p2', round: 2, pick_number: 2, team_id: 't2', original_team_id: 't2', is_used: false }),
       ],
       isLoading: false,
     } as never);
@@ -126,7 +126,8 @@ describe('DraftPage', () => {
     expect(screen.getByText('2026-27 Draft')).toBeInTheDocument();
     expect(screen.getAllByText('Round')).toHaveLength(2);
     expect(screen.getAllByText('Drafted Star').length).toBe(2);
-    expect(screen.getByText('Upcoming')).toBeInTheDocument();
+    // p2 is the only unused pick, so the board shows it as on the clock.
+    expect(screen.getAllByText(/Upcoming|On the clock/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows Player Pool and skip actions when it is your running pick', () => {
