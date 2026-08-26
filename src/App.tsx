@@ -15,7 +15,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ClipboardList, ListChecks, Settings, UserCircle, Users } from 'lucide-react';
 import { DraftPage } from '@/pages/DraftPage';
 import { LoginPage } from '@/pages/LoginPage';
-import { OnboardingPage } from '@/pages/OnboardingPage';
+import { LeagueAccessPage } from '@/pages/LeagueAccessPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { RostersPage } from '@/pages/RostersPage';
 import { PlayerPoolPage } from '@/pages/PlayerPoolPage';
@@ -38,7 +38,7 @@ function RequireTeam({ children }: { children: React.ReactNode }) {
   const { profile, profileLoading } = useAuth();
   if (profileLoading)
     return <div className="flex min-h-screen items-center justify-center">Loading…</div>;
-  if (!profile || profile.team_id === null) return <OnboardingPage />;
+  if (!profile || profile.team_id === null) return <LeagueAccessPage />;
   return <>{children}</>;
 }
 
@@ -54,6 +54,7 @@ function RootLayout() {
   const { profile } = useAuth();
   const { pathname } = useLocation();
   const { browserBottom, keyboardOpen } = useMobileViewportInsets();
+  const hasLeagueShell = Boolean(profile?.team_id);
 
   const isActive = (matches: readonly string[]) =>
     matches.some((path) => (path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`)));
@@ -65,16 +66,16 @@ function RootLayout() {
     <div
       style={shellStyle}
       className={`min-h-screen bg-background text-foreground ${
-        profile?.team_id
+        hasLeagueShell
           ? 'pb-[calc(4rem+env(safe-area-inset-bottom)+var(--browser-bottom))] sm:pb-0'
           : ''
       }`}
     >
-      <header className="border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:py-4">
-          <div className="flex min-w-0 items-center gap-6">
-            <span className="shrink-0 font-bold tracking-tight">Renegades Draft Central</span>
-            {profile?.team_id && (
+      {hasLeagueShell && (
+        <header className="border-b bg-background/95 backdrop-blur">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:py-4">
+            <div className="flex min-w-0 items-center gap-6">
+              <span className="shrink-0 font-bold tracking-tight">Renegades Draft Central</span>
               <nav className="hidden items-center gap-1 text-sm sm:flex">
                 {primaryNav.map((item) => {
                   const active = isActive(item.matches);
@@ -92,22 +93,22 @@ function RootLayout() {
                   );
                 })}
               </nav>
+            </div>
+            {profile && (
+              <Link
+                to="/more"
+                aria-label="More, profile and settings"
+                className="hidden min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:flex"
+              >
+                <span className="max-w-44 truncate">{profile.display_name ?? profile.email}</span>
+                {profile.is_admin && <span className="text-[10px] font-bold uppercase tracking-wide text-primary">admin</span>}
+              </Link>
             )}
           </div>
-          {profile && (
-            <Link
-              to="/more"
-              aria-label="More, profile and settings"
-              className="hidden min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:flex"
-            >
-              <span className="max-w-44 truncate">{profile.display_name ?? profile.email}</span>
-              {profile.is_admin && <span className="text-[10px] font-bold uppercase tracking-wide text-primary">admin</span>}
-            </Link>
-          )}
-        </div>
-      </header>
+        </header>
+      )}
 
-      {profile?.team_id && (
+      {hasLeagueShell && (
         <nav
           aria-label="Primary navigation"
           aria-hidden={keyboardOpen || undefined}
