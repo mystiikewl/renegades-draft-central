@@ -3,8 +3,6 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { DraftPick } from '@/api/types';
 
-// --- Module mocks: everything under src/api + auth + router, so only layout/flow logic runs ---
-
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
     <a href={to} className={className}>{children}</a>
@@ -35,8 +33,6 @@ vi.mock('@/api/queries', () => ({
 const undoMutate = vi.fn();
 vi.mock('@/api/mutations', () => ({
   useUndoLastPick: vi.fn(() => ({ mutate: undoMutate, isPending: false })),
-  useTradePick: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
-  useSwapPicks: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
 vi.mock('@/api/realtime', () => ({ useDraftRealtime: vi.fn(), useRealtimeStatus: () => 'connected' }));
@@ -70,11 +66,12 @@ function pick(partial: Partial<DraftPick>): DraftPick {
     round: 1,
     pick_number: 1,
     team_id: 't1',
+    original_team_id: 't1',
     player_id: null,
     is_used: false,
     picked_at: null,
     players: null,
-    teams: null,
+    team: null,
     ...partial,
   } as DraftPick;
 }
@@ -107,18 +104,14 @@ describe('DraftPage', () => {
     render(<DraftPage />);
 
     expect(screen.getByText('2026-27 Draft')).toBeInTheDocument();
-    // Board renders once — the player pool lives on /pool now.
     expect(screen.getByText('Round 1')).toBeInTheDocument();
     expect(screen.getByText('Round 2')).toBeInTheDocument();
-    // Once on the board + once in the "Last pick" strip.
     expect(screen.getAllByText('Drafted Star').length).toBe(2);
-    // Unused slot shows an em dash, not a player.
-    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
-    // No pick UI on the board page.
+    expect(screen.getByText('Upcoming')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pick' })).not.toBeInTheDocument();
   });
 
-  it('shows the on-clock banner and Player Pool CTA when it is your pick', () => {
+  it('shows the live room and Player Pool CTA when it is your pick', () => {
     mockedPicks.mockReturnValue({
       data: [pick({ team_id: 't1', is_used: false })],
       isLoading: false,
@@ -126,10 +119,9 @@ describe('DraftPage', () => {
 
     render(<DraftPage />);
 
-    // Banner + board slot both show the team name.
     expect(screen.getAllByText('Alpha Team').length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('YOUR PICK')).toBeInTheDocument();
-    const cta = screen.getByRole('link', { name: /Player Pool/ });
+    const cta = screen.getByRole('link', { name: /Open Player Pool/i });
     expect(cta).toHaveAttribute('href', '/pool');
   });
 
@@ -143,8 +135,8 @@ describe('DraftPage', () => {
     render(<DraftPage />);
 
     expect(screen.queryByText('YOUR PICK')).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Player Pool/ })).not.toBeInTheDocument();
-    expect(screen.getByText('is on the clock')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Player Pool/i })).not.toBeInTheDocument();
+    expect(screen.getAllByText('On the clock').length).toBeGreaterThanOrEqual(1);
   });
 
   it('queued offline pick shows the banner', () => {
