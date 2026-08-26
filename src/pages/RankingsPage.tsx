@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Search, SlidersHorizontal } from 'lucide-react';
 import { usePlayerPool, useActiveSeason } from '@/api/queries';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isRookie } from '@/lib/stats';
@@ -39,8 +39,10 @@ function loadBasis(seasonId?: string): Basis {
 }
 
 const chip = (active: boolean) =>
-  `rounded-md px-3 py-1.5 text-sm font-medium transition-all active:scale-[0.98] ${
-    active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
+  `shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold transition-all active:scale-[0.98] ${
+    active
+      ? 'border-foreground bg-foreground text-background shadow-sm'
+      : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground'
   }`;
 
 export function RankingsPage() {
@@ -51,6 +53,7 @@ export function RankingsPage() {
   const [weights, setWeights] = useState<Record<Cat, number>>(DEFAULT_WEIGHTS);
   const [basis, setBasis] = useState<Basis>('totals');
   const [rookiesOnly, setRookiesOnly] = useState(false);
+  const [showWeights, setShowWeights] = useState(false);
 
   useEffect(() => {
     if (!season?.id) return;
@@ -100,148 +103,147 @@ export function RankingsPage() {
     if (season?.id) localStorage.setItem(`rankings:${season.id}:basis`, b);
   };
 
+  const sortLabel = sortKey === 'composite' ? 'Score' : LABELS[sortKey];
+
   return (
-    <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
-      <h1 className="text-2xl font-bold">Rankings</h1>
-
-      <Card>
-        <CardContent className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
-          {CATS.map((cat) => (
-            <label key={cat} className="space-y-1 text-xs font-medium text-muted-foreground">
-              <span className="flex justify-between">
-                {LABELS[cat]}
-                <span className="tabular-nums">{weights[cat]}</span>
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={5}
-                step={1}
-                value={weights[cat]}
-                onChange={(e) => setWeight(cat, Number(e.target.value))}
-                className="w-full accent-primary"
-              />
-            </label>
-          ))}
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          placeholder="Search name or team…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
-        />
-        <button
-          onClick={() => setRookiesOnly((v) => !v)}
-          aria-pressed={rookiesOnly}
-          className={chip(rookiesOnly)}
-        >
-          Rookies
-        </button>
-        <span className="ml-auto flex items-center gap-3">
-          <span className="text-sm tabular-nums text-muted-foreground">{rows.length}</span>
-          <span className="flex overflow-hidden rounded-md border">
-            {(['totals', 'averages'] as const).map((b) => (
-              <button
-                key={b}
-                onClick={() => changeBasis(b)}
-                aria-pressed={basis === b}
-                className={`px-3 py-1.5 text-sm font-medium transition-all active:scale-[0.98] ${
-                  basis === b ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-muted/60'
-                }`}
-              >
-                {b === 'totals' ? 'Totals' : 'Avg'}
-              </button>
-            ))}
-          </span>
-        </span>
+    <div className="mx-auto max-w-7xl space-y-3 px-0 py-3 sm:px-4 md:space-y-4 md:p-6">
+      <div className="flex items-center justify-between gap-3 px-4 sm:px-0">
+        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Rankings</h1>
+        <Badge variant="outline" className="font-mono text-[10px]">{basis === 'totals' ? 'TOTAL' : 'AVG'}</Badge>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="space-y-2 p-4">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
+      <div className="border-y bg-card/70 py-3 sm:rounded-xl sm:border">
+        <div className="flex items-center gap-2 px-4 sm:px-3">
+          <div className="relative min-w-0 flex-1 sm:max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search players or teams"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-10 rounded-full bg-muted/60 pl-9"
+            />
+          </div>
+          <button
+            type="button"
+            aria-expanded={showWeights}
+            onClick={() => setShowWeights((v) => !v)}
+            className={`flex size-10 shrink-0 items-center justify-center rounded-full border transition-colors active:scale-[0.98] ${
+              showWeights ? 'border-foreground bg-foreground text-background' : 'bg-card text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <SlidersHorizontal className="size-4" />
+            <span className="sr-only">Category weights</span>
+          </button>
+        </div>
+
+        <div className="mt-3 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-3">
+          <div className="flex w-max items-center gap-2">
+            <button onClick={() => setRookiesOnly((v) => !v)} aria-pressed={rookiesOnly} className={chip(rookiesOnly)}>
+              Rookies
+            </button>
+            <div className="flex overflow-hidden rounded-full border bg-background">
+              {(['totals', 'averages'] as const).map((b) => (
+                <button
+                  key={b}
+                  onClick={() => changeBasis(b)}
+                  aria-pressed={basis === b}
+                  className={`px-3.5 py-2 text-xs font-semibold transition-colors active:scale-[0.98] ${
+                    basis === b ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {b === 'totals' ? 'Totals' : 'Avg'}
+                </button>
               ))}
             </div>
-          ) : rows.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">No players found.</p>
-          ) : (
-            <div className="max-h-[70vh] overflow-auto">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 z-10 bg-card">
-                  <tr className="border-b text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                    <th className="sticky left-0 z-20 bg-card px-4 py-2.5 font-semibold">#</th>
-                    <th className="sticky left-12 z-20 bg-card px-2 py-2.5 font-semibold">Player</th>
-                    <th className="px-2 py-2.5 font-semibold">Pos</th>
-                    <th className="px-2 py-2.5 text-right font-semibold">
-                      <button
-                        onClick={() => setSortKey('composite')}
-                        className={`hover:text-foreground ${sortKey === 'composite' ? 'text-primary' : ''}`}
-                      >
-                        Score
-                      </button>
+          </div>
+        </div>
+
+        {showWeights && (
+          <div className="mt-3 border-t px-4 pt-3 sm:px-3">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4 lg:grid-cols-7">
+              {CATS.map((cat) => (
+                <label key={cat} className="space-y-1 text-[11px] font-medium text-muted-foreground">
+                  <span className="flex items-center justify-between gap-2">
+                    <span>{LABELS[cat]}</span>
+                    <span className="font-mono text-foreground">{weights[cat]}</span>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={5}
+                    step={1}
+                    value={weights[cat]}
+                    onChange={(e) => setWeight(cat, Number(e.target.value))}
+                    className="w-full accent-primary"
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <section className="overflow-hidden border-y bg-card sm:rounded-xl sm:border">
+        <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+          <div>
+            <div className="text-sm font-bold uppercase tracking-wide">Ranked players</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">{rows.length} players · sorted by {sortLabel}</div>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-1 p-3">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <Skeleton key={i} className="h-14 w-full" />
+            ))}
+          </div>
+        ) : rows.length === 0 ? (
+          <p className="py-12 text-center text-sm text-muted-foreground">No players found.</p>
+        ) : (
+          <div className="max-h-[calc(100dvh-15rem)] overflow-auto sm:max-h-[72vh]">
+            <table className="w-full min-w-[48rem] border-collapse text-sm sm:min-w-[64rem]">
+              <thead className="sticky top-0 z-30 bg-card shadow-[0_1px_0_0_var(--border)]">
+                <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  <th className="sticky left-0 z-40 w-[15rem] bg-card px-3 py-2 text-left font-bold sm:w-[19rem] sm:px-4">Player</th>
+                  <th className="min-w-[4.5rem] px-2 py-2 text-right font-bold">
+                    <button onClick={() => setSortKey('composite')} className={sortKey === 'composite' ? 'text-primary' : ''}>Score</button>
+                  </th>
+                  {CATS.map((cat) => (
+                    <th key={cat} className="min-w-[3.7rem] px-2 py-2 text-right font-bold">
+                      <button onClick={() => setSortKey(cat)} className={sortKey === cat ? 'text-primary' : ''}>{LABELS[cat]}</button>
                     </th>
-                    {CATS.map((cat) => (
-                      <th key={cat} className="px-2 py-2.5 text-right font-semibold">
-                        <button
-                          onClick={() => setSortKey(cat)}
-                          className={`hover:text-foreground ${sortKey === cat ? 'text-primary' : ''}`}
-                        >
-                          {LABELS[cat]}
-                        </button>
-                      </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={r.player.id} className={`border-b border-border/50 transition-colors hover:bg-muted/50 ${i % 2 ? 'bg-muted/[0.18]' : ''}`}>
+                    <td className={`sticky left-0 z-20 px-3 py-2 shadow-[6px_0_12px_-12px_hsl(var(--foreground))] sm:px-4 ${i % 2 ? 'bg-muted/[0.18]' : 'bg-card'} hover:bg-muted/50`}>
+                      <div className="flex items-center gap-3">
+                        <span className="w-6 shrink-0 text-right font-mono text-xs font-bold tabular-nums text-muted-foreground">{i + 1}</span>
+                        <PlayerHeadshot espnId={r.player.espn_id} name={r.player.name} size={38} variant="bare" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            <span className="line-clamp-1 font-semibold leading-tight">{r.player.name}</span>
+                            {isRookie(r.player) && (
+                              <Badge variant="outline" className="shrink-0 border-primary/40 px-1 py-0 text-[9px] text-primary">R</Badge>
+                            )}
+                          </div>
+                          <div className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{r.player.nba_team ?? 'FA'} · {r.player.position ?? '—'}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className={`whitespace-nowrap px-2 py-3 text-right font-bold tabular-nums ${sortKey === 'composite' ? 'text-primary' : ''}`}>{r.composite.toFixed(2)}</td>
+                    {CATS.map((c) => (
+                      <td key={c} className={`whitespace-nowrap px-2 py-3 text-right text-xs tabular-nums ${sortKey === c ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>{r.zs[c].toFixed(2)}</td>
                     ))}
                   </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r, i) => (
-                    <tr
-                      key={r.player.id}
-                      className={`border-b border-border/50 last:border-0 hover:bg-muted/40 ${
-                        sortKey === 'composite' && i < 12 ? 'bg-primary/[0.04]' : ''
-                      }`}
-                    >
-                      <td className="sticky left-0 z-10 bg-card px-4 py-2 tabular-nums text-muted-foreground">
-                        {i + 1}
-                      </td>
-                      <td className="sticky left-12 z-10 bg-card px-2 py-2 font-medium shadow-[inset_-8px_0_8px_-8px_var(--border)] hover:bg-muted/40">
-                        <span className="flex items-center gap-2">
-                          <span className="hidden sm:inline-flex">
-                            <PlayerHeadshot espnId={r.player.espn_id} name={r.player.name} />
-                          </span>
-                          {r.player.name}
-                          {isRookie(r.player) && (
-                            <Badge variant="outline" className="border-primary/40 px-1 py-0 text-[9px] text-primary">
-                              ROOK
-                            </Badge>
-                          )}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2">
-                        <Badge variant="secondary" className="text-[10px]">
-                          {r.player.position ?? '—'}
-                        </Badge>
-                      </td>
-                      <td className="px-2 py-2 text-right font-semibold tabular-nums">
-                        {r.composite.toFixed(2)}
-                      </td>
-                      {CATS.map((c) => (
-                        <td key={c} className="whitespace-nowrap px-2 py-2 text-right tnum text-muted-foreground">
-                          {r.zs[c].toFixed(2)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
