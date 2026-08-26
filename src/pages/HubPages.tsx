@@ -7,7 +7,6 @@ import {
   Shield,
   Sparkles,
   UserCircle,
-  Users,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
@@ -19,25 +18,6 @@ type HubAction = {
   title: string;
   detail: string;
 };
-
-export function PlayersHubPage() {
-  const actions: HubAction[] = [
-    {
-      to: '/pool',
-      icon: Users,
-      title: 'Player Pool',
-      detail: 'Search available players, compare stats and draft when you are on the clock.',
-    },
-    {
-      to: '/rankings',
-      icon: BarChart3,
-      title: 'Rankings',
-      detail: 'Build category-weighted rankings and compare fantasy value across the league pool.',
-    },
-  ];
-
-  return <HubPage eyebrow="Players" title="Scout the player pool" actions={actions} />;
-}
 
 export function LeagueHubPage() {
   const actions: HubAction[] = [
@@ -52,6 +32,18 @@ export function LeagueHubPage() {
       icon: ArrowRightLeft,
       title: 'Trade Center',
       detail: 'Build offers, respond to proposals and review the league trade ledger.',
+    },
+    {
+      to: '/rankings',
+      icon: BarChart3,
+      title: 'Rankings',
+      detail: 'Category-weighted rankings and fantasy value comparisons across the player pool.',
+    },
+    {
+      to: '/team-builder',
+      icon: Sparkles,
+      title: 'Team Builder',
+      detail: 'Experiment with roster construction outside the live league roster.',
     },
   ];
 

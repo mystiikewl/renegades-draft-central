@@ -4,6 +4,7 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  redirect,
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
@@ -27,7 +28,7 @@ import { TeamBuilderPage } from '@/pages/TeamBuilderPage';
 import { TradeCenterPage } from '@/pages/TradeCenterPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { MyTeamPage } from '@/pages/MyTeamPage';
-import { LeagueHubPage, MorePage, PlayersHubPage } from '@/pages/HubPages';
+import { LeagueHubPage, MorePage } from '@/pages/HubPages';
 import { useMobileViewportInsets } from '@/hooks/useMobileViewportInsets';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -48,8 +49,8 @@ function RequireTeam({ children }: { children: React.ReactNode }) {
 const primaryNav = [
   { to: '/my-team', label: 'My Team', short: 'My Team', icon: UserCircle, matches: ['/my-team'] },
   { to: '/', label: 'Draft', short: 'Draft', icon: ClipboardList, matches: ['/'] },
-  { to: '/players', label: 'Players', short: 'Players', icon: Users, matches: ['/players', '/pool', '/rankings'] },
-  { to: '/league', label: 'League', short: 'League', icon: ListChecks, matches: ['/league', '/rosters', '/trades'] },
+  { to: '/pool', label: 'Pool', short: 'Pool', icon: Users, matches: ['/pool'] },
+  { to: '/league', label: 'League', short: 'League', icon: ListChecks, matches: ['/league', '/rosters', '/trades', '/rankings'] },
   { to: '/more', label: 'More', short: 'More', icon: Settings, matches: ['/more', '/profile', '/team-builder', '/admin'] },
 ] as const;
 
@@ -78,7 +79,6 @@ function RootLayout() {
         <header className="border-b bg-background/95 backdrop-blur">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:py-4">
             <div className="flex min-w-0 items-center gap-6">
-              <span className="shrink-0 font-bold tracking-tight">Renegades Draft Central</span>
               <nav className="hidden items-center gap-1 text-sm sm:flex">
                 {primaryNav.map((item) => {
                   const active = isActive(item.matches);
@@ -194,10 +194,12 @@ const myTeamRoute = createRoute({
   component: () => <RequireAuth><RequireTeam><MyTeamPage /></RequireTeam></RequireAuth>,
 });
 
-const playersHubRoute = createRoute({
+const playersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/players',
-  component: () => <RequireAuth><RequireTeam><PlayersHubPage /></RequireTeam></RequireAuth>,
+  beforeLoad: () => {
+    throw redirect({ to: '/pool' });
+  },
 });
 
 const leagueHubRoute = createRoute({
@@ -263,7 +265,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
   myTeamRoute,
-  playersHubRoute,
+  playersRoute,
   leagueHubRoute,
   moreRoute,
   adminRoute,
