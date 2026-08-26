@@ -7,7 +7,7 @@ import {
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { useLocation } from '@tanstack/react-router';
 import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider, useAuth } from '@/auth/AuthContext';
@@ -23,6 +23,7 @@ import { RankingsPage } from '@/pages/RankingsPage';
 import { TeamBuilderPage } from '@/pages/TeamBuilderPage';
 import { TradeCenterPage } from '@/pages/TradeCenterPage';
 import { ProfilePage } from '@/pages/ProfilePage';
+import { useMobileViewportInsets } from '@/hooks/useMobileViewportInsets';
 
 /** Declarative auth guard — no navigate-in-effect, no blank frames. */
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -44,6 +45,7 @@ function RequireTeam({ children }: { children: React.ReactNode }) {
 function RootLayout() {
   const { profile } = useAuth();
   const { pathname } = useLocation();
+  const { browserBottom, keyboardOpen } = useMobileViewportInsets();
 
   const navItems = [
     { to: '/', label: 'Draft', short: 'Draft', icon: ClipboardList },
@@ -54,11 +56,17 @@ function RootLayout() {
     ...(profile?.is_admin ? [{ to: '/admin', label: 'Admin', short: 'Admin', icon: Shield }] : []),
   ];
   const isActive = (to: string) => (to === '/' ? pathname === '/' : pathname.startsWith(to));
+  const shellStyle = {
+    '--browser-bottom': `${browserBottom}px`,
+  } as CSSProperties;
 
   return (
     <div
+      style={shellStyle}
       className={`min-h-screen bg-background text-foreground ${
-        profile?.team_id ? 'pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-0' : ''
+        profile?.team_id
+          ? 'pb-[calc(4rem+env(safe-area-inset-bottom)+var(--browser-bottom))] sm:pb-0'
+          : ''
       }`}
     >
       <header className="border-b">
@@ -105,7 +113,13 @@ function RootLayout() {
       </header>
 
       {profile?.team_id && (
-        <nav className="fixed inset-x-0 bottom-0 z-40 grid auto-cols-fr grid-flow-col border-t bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_-20px_hsl(var(--foreground))] backdrop-blur sm:hidden">
+        <nav
+          aria-hidden={keyboardOpen || undefined}
+          className={`fixed inset-x-0 z-40 grid auto-cols-fr grid-flow-col border-t bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_-20px_hsl(var(--foreground))] backdrop-blur transition-[bottom,transform,opacity] duration-200 sm:hidden ${
+            keyboardOpen ? 'pointer-events-none translate-y-full opacity-0' : 'translate-y-0 opacity-100'
+          }`}
+          style={{ bottom: 'var(--browser-bottom)' }}
+        >
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.to);
@@ -114,6 +128,7 @@ function RootLayout() {
                 key={item.to}
                 to={item.to}
                 aria-current={active ? 'page' : undefined}
+                tabIndex={keyboardOpen ? -1 : undefined}
                 className={`relative flex min-w-0 flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-medium transition-all active:scale-[0.98] ${
                   active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'
                 }`}

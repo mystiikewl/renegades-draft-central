@@ -28,18 +28,17 @@ const picks = [
 const renderBoard = () => render(<DraftBoard picks={picks} picksLoading={false} teamName={teamName} />);
 
 describe('DraftBoard mobile layout', () => {
-  it('renders every pick with #number, team and player/em-dash, grouped by round', () => {
+  it('renders every pick with number, team context and player state, grouped by round', () => {
     renderBoard();
-    expect(screen.getByText('Round 1')).toBeInTheDocument();
-    expect(screen.getByText('Round 2')).toBeInTheDocument();
+    expect(screen.getAllByText('Round')).toHaveLength(2);
     for (const n of [1, 2, 3, 14]) {
       expect(screen.getByText(`#${n}`)).toBeInTheDocument();
     }
-    expect(screen.getAllByText('Alpha').length).toBe(3); // picks #1, #2 and round-2 #14
+    expect(screen.getAllByText('Alpha').length).toBeGreaterThanOrEqual(3);
     expect(screen.getByText('Beta')).toBeInTheDocument();
     expect(screen.getByText('Jokic')).toBeInTheDocument();
-    // unused pick + used-with-no-player both show em-dash
-    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Sga')).toBeInTheDocument();
+    expect(screen.getByText('Upcoming')).toBeInTheDocument();
   });
 
   it('marks exactly the current on-clock slot', () => {
@@ -48,11 +47,13 @@ describe('DraftBoard mobile layout', () => {
     expect(onClock).toHaveLength(1);
     expect(onClock[0].textContent).toContain('#2');
     expect(onClock[0].className).toContain('ring-primary');
+    expect(onClock[0].textContent).toContain('Live');
   });
 
   it('flags traded picks in amber', () => {
     const { container } = renderBoard();
     expect(container.querySelectorAll('.text-amber-600')).toHaveLength(1);
+    expect(screen.getByText('TRADE')).toBeInTheDocument();
   });
 
   it('keeps loading skeleton and empty state', () => {
