@@ -2,8 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ArrowRight, Radio, SkipForward } from 'lucide-react';
 import { useActiveSeason, useDraftPicks, useDraftSettings, useRosters, useTeams } from '@/api/queries';
-import { useUndoLastPick } from '@/api/mutations';
-import { useSkipPick } from '@/api/draftExtras';
+import { useSkipPickForSlot, useUndoDraftActionForSlot } from '@/api/draftTurnActions';
 import { useDraftRealtime } from '@/api/realtime';
 import { useCanPickNow } from '@/hooks/useCanPickNow';
 import { useAuth } from '@/auth/AuthContext';
@@ -22,6 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { RealtimeBadge } from '@/components/draft/RealtimeBadge';
+import { DraftTurnClock } from '@/components/draft/DraftTurnClock';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { getTeamColour } from '@/lib/teamColours';
 
@@ -47,8 +47,8 @@ export function DraftPage() {
   const { data: picks, isLoading: picksLoading } = useDraftPicks(seasonId);
   const { data: teams } = useTeams();
   const { data: rosters } = useRosters(seasonId);
-  const undoPick = useUndoLastPick(seasonId ?? '');
-  const skipPick = useSkipPick(seasonId ?? '');
+  const undoAction = useUndoDraftActionForSlot(seasonId ?? '');
+  const skipPick = useSkipPickForSlot(seasonId ?? '');
   const [undoConfirm, setUndoConfirm] = useState(false);
   const [skipConfirm, setSkipConfirm] = useState(false);
   const queued = useOfflineQueue((s) => s.queue);
@@ -60,16 +60,23 @@ export function DraftPage() {
     return used.length ? used[used.length - 1] : null;
   }, [picks]);
 
+  const myNextPick = useMemo(() => {
+    if (!profile?.team_id || !picks || !nextPick) return null;
+    return picks.find((pick) => !pick.is_used && pick.pick_number >= nextPick.pick_number && pick.team_id === profile.team_id) ?? null;
+  }, [picks, nextPick, profile?.team_id]);
+
   const teamName = (id: string) => teams?.find((t) => t.id === id)?.name ?? '—';
   const isMyTurn = !!nextPick && !!profile?.team_id && nextPick.team_id === profile.team_id;
   const canPickNow = useCanPickNow(seasonId);
-  const draftLive = settings?.status === 'running' || settings?.status === 'paused';
+  const draftVisible = settings?.status === 'running' || settings?.status === 'paused';
+  const draftRunning = settings?.status === 'running';
   const myRosterCount = (rosters ?? []).filter((row) => row.team_id === profile?.team_id).length;
   const rosterFull = !!settings && myRosterCount >= settings.roster_size;
   const canUndo =
-    !!draftLive &&
+    !!draftVisible &&
     !!lastPick &&
     (!!profile?.is_admin || (!!profile?.team_id && profile.team_id === lastPick.team_id));
+  const picksUntilMine = nextPick && myNextPick ? Math.max(0, myNextPick.pick_number - nextPick.pick_number) : null;
 
   if (!season) {
     return (
@@ -91,12 +98,13 @@ export function DraftPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <DraftTurnClock settings={settings} />
           <DraftStatusBadge status={settings?.status ?? 'pre_draft'} />
           <RealtimeBadge />
         </div>
       </div>
 
-      {nextPick && draftLive ? (
+      {nextPick && draftVisible ? (
         <section className={`overflow-hidden border-y bg-card sm:rounded-2xl sm:border ${isMyTurn ? 'sm:border-primary/60' : ''}`}>
           <div className={`relative px-4 py-4 sm:px-5 ${isMyTurn ? 'bg-primary/[0.06]' : 'bg-muted/25'}`}>
             {isMyTurn && <div aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-primary" />}
@@ -107,16 +115,16 @@ export function DraftPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
                   <Radio className={`size-3.5 ${isMyTurn ? 'text-primary' : ''}`} />
-                  On the clock
+                  {settings?.status === 'paused' ? 'Draft paused' : 'On the clock'}
                 </div>
                 <div className="mt-1 line-clamp-2 text-lg font-bold leading-tight">{teamName(nextPick.team_id)}</div>
                 <div className={`mt-1 text-xs font-medium ${isMyTurn ? 'text-primary' : 'text-muted-foreground'}`}>
-                  {isMyTurn ? 'YOUR PICK' : `Round ${nextPick.round}`}
+                  {isMyTurn ? (draftRunning ? 'YOUR PICK' : 'YOUR PICK · WAITING FOR RESUME') : `Round ${nextPick.round}`}
                 </div>
               </div>
               {isMyTurn && (
                 <div className="hidden shrink-0 items-center gap-2 sm:flex">
-                  <Button variant="outline" disabled={settings?.status !== 'running'} onClick={() => setSkipConfirm(true)}>
+                  <Button variant="outline" disabled={!draftRunning} onClick={() => setSkipConfirm(true)}>
                     <SkipForward className="mr-2 size-4" /> Skip pick
                   </Button>
                   <Button asChild disabled={!canPickNow || rosterFull} className="transition-transform active:scale-[0.98]">
@@ -125,9 +133,10 @@ export function DraftPage() {
                 </div>
               )}
             </div>
+
             {isMyTurn && (
               <div className="mt-4 grid grid-cols-[auto_1fr] gap-2 sm:hidden">
-                <Button variant="outline" disabled={settings?.status !== 'running'} onClick={() => setSkipConfirm(true)}>
+                <Button variant="outline" disabled={!draftRunning} onClick={() => setSkipConfirm(true)}>
                   <SkipForward className="mr-1.5 size-4" /> Skip
                 </Button>
                 <Button asChild disabled={!canPickNow || rosterFull} className="transition-transform active:scale-[0.98]">
@@ -135,9 +144,22 @@ export function DraftPage() {
                 </Button>
               </div>
             )}
+
+            {!isMyTurn && myNextPick && picksUntilMine !== null && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Your next pick is #{myNextPick.pick_number}{picksUntilMine === 1 ? ' · 1 pick away' : ` · ${picksUntilMine} picks away`}.
+              </p>
+            )}
+
             {isMyTurn && rosterFull && (
               <p className="mt-3 rounded-lg border border-primary/20 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
                 Your roster is at its {settings?.roster_size}-player limit. You can trade/drop a player or skip this pick.
+              </p>
+            )}
+
+            {settings?.status === 'paused' && (
+              <p className="mt-3 rounded-lg border bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+                Draft actions are locked while paused. Your remaining clock time is preserved until the commissioner resumes.
               </p>
             )}
           </div>
@@ -168,7 +190,7 @@ export function DraftPage() {
                   variant="ghost"
                   className="ml-auto shrink-0 text-xs transition-transform active:scale-[0.98]"
                   onClick={() => setUndoConfirm(true)}
-                  disabled={undoPick.isPending || !picks?.some((p) => p.is_used)}
+                  disabled={undoAction.isPending}
                 >
                   Undo last action
                 </Button>
@@ -180,8 +202,8 @@ export function DraftPage() {
 
       {queued.length > 0 && (
         <p className="mx-4 rounded-md bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground sm:mx-0">
-          Offline — {queued.length} pick{queued.length > 1 ? 's' : ''} queued (
-          {queued.map((q) => q.playerName).join(', ')}). They'll submit automatically when you reconnect.
+          Offline — {queued.length} exact-slot pick{queued.length > 1 ? 's' : ''} queued (
+          {queued.map((q) => `#${q.pickNumber} ${q.playerName}`).join(', ')}). A stale intent will be rejected rather than moved to a later turn.
         </p>
       )}
 
@@ -192,14 +214,17 @@ export function DraftPage() {
           <DialogHeader>
             <DialogTitle>Skip pick #{nextPick?.pick_number}?</DialogTitle>
             <DialogDescription>
-              No player will be added to your roster and the draft will move to the next slot. The latest action can still be undone.
+              No player will be added to your roster and the draft will move to the next slot. This confirmation is bound to the pick shown here; if the board moves first, the server rejects it.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSkipConfirm(false)}>Keep pick</Button>
             <Button
-              disabled={skipPick.isPending || settings?.status !== 'running'}
-              onClick={() => skipPick.mutate(undefined, { onSettled: () => setSkipConfirm(false) })}
+              disabled={skipPick.isPending || !draftRunning || !nextPick}
+              onClick={() => nextPick && skipPick.mutate(
+                { pickId: nextPick.id, pickNumber: nextPick.pick_number },
+                { onSettled: () => setSkipConfirm(false) },
+              )}
             >
               {skipPick.isPending ? 'Skipping…' : 'Skip pick'}
             </Button>
@@ -212,7 +237,7 @@ export function DraftPage() {
           <DialogHeader>
             <DialogTitle>Undo last action?</DialogTitle>
             <DialogDescription>
-              The most recent pick or skip will be removed and that team goes back on the clock.
+              The most recent pick or skip will be removed and that team goes back on the clock. If another action lands first, this stale undo is rejected.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -221,10 +246,13 @@ export function DraftPage() {
             </Button>
             <Button
               className="transition-transform active:scale-[0.98]"
-              disabled={undoPick.isPending}
-              onClick={() => undoPick.mutate(undefined, { onSettled: () => setUndoConfirm(false) })}
+              disabled={undoAction.isPending || !lastPick}
+              onClick={() => lastPick && undoAction.mutate(
+                { pickId: lastPick.id },
+                { onSettled: () => setUndoConfirm(false) },
+              )}
             >
-              {undoPick.isPending ? 'Undoing…' : 'Undo action'}
+              {undoAction.isPending ? 'Undoing…' : 'Undo action'}
             </Button>
           </DialogFooter>
         </DialogContent>
