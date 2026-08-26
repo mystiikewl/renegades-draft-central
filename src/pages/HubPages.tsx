@@ -4,63 +4,63 @@ import {
   ArrowRightLeft,
   BarChart3,
   ListChecks,
-  Settings,
   Shield,
   Sparkles,
   UserCircle,
   Users,
+  type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 
+type HubPath = '/pool' | '/rankings' | '/rosters' | '/trades' | '/profile' | '/team-builder' | '/admin';
+type HubAction = {
+  to: HubPath;
+  icon: LucideIcon;
+  title: string;
+  detail: string;
+};
+
 export function PlayersHubPage() {
-  return (
-    <HubPage
-      eyebrow="Players"
-      title="Scout the player pool"
-      actions={[
-        {
-          to: '/pool',
-          icon: Users,
-          title: 'Player Pool',
-          detail: 'Search available players, compare stats and draft when you are on the clock.',
-        },
-        {
-          to: '/rankings',
-          icon: BarChart3,
-          title: 'Rankings',
-          detail: 'Build category-weighted rankings and compare fantasy value across the league pool.',
-        },
-      ]}
-    />
-  );
+  const actions: HubAction[] = [
+    {
+      to: '/pool',
+      icon: Users,
+      title: 'Player Pool',
+      detail: 'Search available players, compare stats and draft when you are on the clock.',
+    },
+    {
+      to: '/rankings',
+      icon: BarChart3,
+      title: 'Rankings',
+      detail: 'Build category-weighted rankings and compare fantasy value across the league pool.',
+    },
+  ];
+
+  return <HubPage eyebrow="Players" title="Scout the player pool" actions={actions} />;
 }
 
 export function LeagueHubPage() {
-  return (
-    <HubPage
-      eyebrow="League"
-      title="League activity"
-      actions={[
-        {
-          to: '/rosters',
-          icon: ListChecks,
-          title: 'Rosters',
-          detail: 'Scan every roster in the league and see how each player was acquired.',
-        },
-        {
-          to: '/trades',
-          icon: ArrowRightLeft,
-          title: 'Trade Center',
-          detail: 'Build offers, respond to proposals and review the league trade ledger.',
-        },
-      ]}
-    />
-  );
+  const actions: HubAction[] = [
+    {
+      to: '/rosters',
+      icon: ListChecks,
+      title: 'Rosters',
+      detail: 'Scan every roster in the league and see how each player was acquired.',
+    },
+    {
+      to: '/trades',
+      icon: ArrowRightLeft,
+      title: 'Trade Center',
+      detail: 'Build offers, respond to proposals and review the league trade ledger.',
+    },
+  ];
+
+  return <HubPage eyebrow="League" title="League activity" actions={actions} />;
 }
 
 export function MorePage() {
   const { profile } = useAuth();
-  const actions = [
+  const actions: HubAction[] = [
     {
       to: '/profile',
       icon: UserCircle,
@@ -73,35 +73,21 @@ export function MorePage() {
       title: 'Team Builder',
       detail: 'Experiment with roster construction outside the live league roster.',
     },
-    ...(profile?.is_admin
-      ? [
-          {
-            to: '/admin',
-            icon: Shield,
-            title: 'Admin',
-            detail: 'Season, draft order and commissioner controls.',
-          },
-        ]
-      : []),
   ];
+
+  if (profile?.is_admin) {
+    actions.push({
+      to: '/admin',
+      icon: Shield,
+      title: 'Admin',
+      detail: 'Season, draft order and commissioner controls.',
+    });
+  }
 
   return <HubPage eyebrow="More" title="Tools & settings" actions={actions} />;
 }
 
-function HubPage({
-  eyebrow,
-  title,
-  actions,
-}: {
-  eyebrow: string;
-  title: string;
-  actions: Array<{
-    to: string;
-    icon: typeof Settings;
-    title: string;
-    detail: string;
-  }>;
-}) {
+function HubPage({ eyebrow, title, actions }: { eyebrow: string; title: string; actions: HubAction[] }) {
   return (
     <div className="mx-auto max-w-4xl space-y-4 px-4 py-4 md:p-6">
       <header>
