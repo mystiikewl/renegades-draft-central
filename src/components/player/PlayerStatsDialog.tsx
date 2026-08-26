@@ -3,7 +3,6 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronRight } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
@@ -12,27 +11,28 @@ import { isRookie, parseStats, type StatLine } from '@/lib/stats';
 import { useGameLog, type GameLogRow } from '@/api/gameLog';
 import type { PlayerWithStats } from '@/api/types';
 
-/** "8.3" x "69" gp -> totals string, keeping null/— passthrough. */
 const scale = (v: string | null, gp: string | null): string | null => {
   if (v == null || gp == null) return v;
   const n = Number(v) * Number(gp);
   return Number.isFinite(n) ? String(Math.round(n)) : v;
 };
 
-const STAT_ROWS: { key: keyof StatLine; label: string }[] = [
-  { key: 'gp', label: 'GP' },
-  { key: 'mpg', label: 'MPG' },
-  { key: 'pts', label: 'PTS' },
+const PRIMARY_STATS: { key: keyof StatLine; label: string }[] = [
+  { key: 'mpg', label: 'MIN' },
+  { key: 'fgm', label: 'FGM' },
+  { key: 'fgPct', label: 'FG%' },
+  { key: 'ftPct', label: 'FT%' },
+  { key: 'tp', label: '3PM' },
   { key: 'reb', label: 'REB' },
   { key: 'ast', label: 'AST' },
   { key: 'stl', label: 'STL' },
   { key: 'blk', label: 'BLK' },
   { key: 'to', label: 'TO' },
-  { key: 'fgm', label: 'FGM' },
-  { key: 'fgPct', label: 'FG%' },
-  { key: 'tp', label: '3PM' },
-  { key: 'tpPct', label: '3P%' },
-  { key: 'ftPct', label: 'FT%' },
+  { key: 'pts', label: 'PTS' },
+];
+
+const SECONDARY_STATS: { key: keyof StatLine; label: string }[] = [
+  { key: 'gp', label: 'GP' },
   { key: 'dd', label: 'DD' },
   { key: 'td', label: 'TD' },
   { key: 'rank', label: 'Rank' },
@@ -54,20 +54,12 @@ interface PlayerProfileDialogProps {
   player: PlayerWithStats | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** which values to show for counting stats; defaults to per-game averages */
   basis?: 'averages' | 'totals';
-  /** draft-day extras: show a pick action when set (only passed on the pool page) */
   canPick?: boolean;
   picking?: boolean;
   onPick?: () => void;
 }
 
-/**
- * Player profile — centered Dialog on desktop, bottom-sheet Drawer on mobile
- * (a fixed-height centered modal fights a small screen once the game log
- * opens; a sheet scrolls natively and swipes to dismiss).
- * Both surfaces render the same <PlayerProfileBody/>.
- */
 export function PlayerStatsDialog({
   player,
   open,
@@ -93,14 +85,14 @@ export function PlayerStatsDialog({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="max-h-[92dvh]">{body}</DrawerContent>
+        <DrawerContent className="max-h-[95dvh] overflow-hidden">{body}</DrawerContent>
       </Drawer>
     );
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-0 p-0 sm:max-w-xl">{body}</DialogContent>
+      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-2xl">{body}</DialogContent>
     </Dialog>
   );
 }
@@ -117,125 +109,163 @@ function PlayerProfileBody({
   }) {
   const raw = parseStats(player.player_seasons[0]?.stats);
   const s = basis === 'totals'
-    ? { ...raw, pts: scale(raw.pts, raw.gp), reb: scale(raw.reb, raw.gp), ast: scale(raw.ast, raw.gp), stl: scale(raw.stl, raw.gp), blk: scale(raw.blk, raw.gp), tp: scale(raw.tp, raw.gp), to: scale(raw.to, raw.gp), fgm: scale(raw.fgm, raw.gp) }
+    ? {
+        ...raw,
+        pts: scale(raw.pts, raw.gp),
+        reb: scale(raw.reb, raw.gp),
+        ast: scale(raw.ast, raw.gp),
+        stl: scale(raw.stl, raw.gp),
+        blk: scale(raw.blk, raw.gp),
+        tp: scale(raw.tp, raw.gp),
+        to: scale(raw.to, raw.gp),
+        fgm: scale(raw.fgm, raw.gp),
+      }
     : raw;
 
   const age = ageFrom(player.birth_date);
   const exp = player.experience;
-  const expLabel =
-    exp == null ? null : exp === 0 ? 'Rookie' : `${exp}${exp >= 11 && exp <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][exp] ?? 'th'} season`;
-  // ponytail: one joined string covers bio; structured layout only if this grows
+  const expLabel = exp == null ? null : exp === 0 ? 'Rookie' : `${exp} yr`;
   const bioBits = [
     age != null ? `${age} yrs` : null,
     player.height,
     player.weight != null ? `${player.weight} lbs` : null,
     expLabel,
-    player.draft_display,
   ].filter(Boolean);
 
-  // ponytail: ESPN CDN logo URL derived from the abbrev — tiny alias map for
-  // the variants in our data ESPN doesn't use (UTA/PHX/etc); FA has no logo.
   const teamLogo = player.nba_team
     ? `https://a.espncdn.com/i/teamlogos/nba/500/${LOGO_ABBREV[player.nba_team] ?? player.nba_team.toLowerCase()}.png`
     : null;
 
   return (
-    <div className="flex max-h-[inherit] flex-col overflow-y-auto">
-      {/* Header band — headshot + identity left; the Draft action drops BELOW
-          the band on mobile so it never squeezes the name/bio into a corner.
-          Zero bottom padding keeps the image flush against the body. Right
-          padding clears the dialog's close (X) button on desktop. */}
-      <div className="relative shrink-0 overflow-hidden px-4 pb-0 pt-4 pr-12 sm:px-6 sm:pt-6 sm:pr-14">
+    <div className="flex max-h-[inherit] flex-col overflow-y-auto bg-background">
+      <div className="relative min-h-44 shrink-0 overflow-hidden border-b bg-gradient-to-br from-muted via-background to-muted/40 px-4 pb-4 pt-5 pr-12 sm:min-h-48 sm:px-6 sm:pt-6 sm:pr-14">
         {teamLogo && (
           <img
             src={teamLogo}
             alt=""
             aria-hidden
-            className="pointer-events-none absolute -left-6 top-1/2 w-56 -translate-y-1/2 opacity-10 sm:w-64 dark:opacity-[0.13]"
+            className="pointer-events-none absolute -left-10 top-1/2 w-64 -translate-y-1/2 opacity-[0.07] dark:opacity-[0.12]"
           />
         )}
-        {/* ponytail: two header layouts (stacked vs inline) via order utilities —
-            cheaper than branching the whole band */}
-        <div className="relative flex items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
-          <PlayerHeadshot espnId={player.espn_id} name={player.name} size={72} variant="bare" className="sm:hidden" />
-          <PlayerHeadshot espnId={player.espn_id} name={player.name} size={104} variant="bare" className="hidden sm:inline-block" />
-          <div className="relative min-w-0 flex-1">
-            <h2 className="text-lg font-bold leading-tight tracking-tight sm:text-xl">
-              {/* mobile: allow one wrap instead of truncating names off */}
-              <span className="line-clamp-2 sm:line-clamp-1">{player.name}</span>
-            </h2>
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-              <Badge variant="secondary" className="text-[11px] font-semibold">
-                {player.position ?? '—'}
+        <div className="absolute bottom-0 right-2 sm:right-8">
+          <PlayerHeadshot
+            espnId={player.espn_id}
+            name={player.name}
+            size={142}
+            variant="bare"
+            className="sm:hidden"
+          />
+          <PlayerHeadshot
+            espnId={player.espn_id}
+            name={player.name}
+            size={168}
+            variant="bare"
+            className="hidden sm:inline-block"
+          />
+        </div>
+
+        <div className="relative z-10 max-w-[62%] sm:max-w-[58%]">
+          <h2 className="line-clamp-2 text-xl font-black uppercase leading-tight tracking-tight sm:text-2xl">
+            {player.name}
+          </h2>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+            <span>{player.nba_team ?? 'FA'}</span>
+            <span>·</span>
+            <span>{player.position ?? '—'}</span>
+            {isRookie(player) && (
+              <Badge variant="outline" className="border-primary/40 px-1.5 py-0 text-[9px] text-primary">
+                ROOK
               </Badge>
-              <span className="font-medium text-foreground/80">{player.nba_team ?? '—'}</span>
-              {isRookie(player) && (
-                <Badge variant="outline" className="px-1.5 py-0 text-[10px] text-primary border-primary/40">
-                  ROOK
-                </Badge>
-              )}
-            </div>
-            {bioBits.length > 0 && (
-              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{bioBits.join(' · ')}</p>
             )}
           </div>
+          {bioBits.length > 0 && (
+            <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+              {bioBits.join(' · ')}
+            </p>
+          )}
+          {player.draft_display && (
+            <p className="mt-1 line-clamp-1 text-[10px] text-muted-foreground">{player.draft_display}</p>
+          )}
+
+          {canPick && (
+            <Button
+              size="sm"
+              className="mt-4 rounded-full px-5 font-bold transition-transform active:scale-[0.98] sm:hidden"
+              disabled={picking}
+              onClick={onPick}
+            >
+              {picking ? 'Picking…' : `Draft ${player.name.split(' ').pop()}`}
+            </Button>
+          )}
         </div>
-        {canPick && (
-          <Button
-            size="lg"
-            className="mt-3 w-full transition-transform active:scale-[0.98] sm:hidden"
-            disabled={picking}
-            onClick={onPick}
-          >
-            {picking ? 'Picking…' : `Draft ${player.name.split(' ').pop()}`}
-          </Button>
-        )}
       </div>
 
-      {/* Body — season stats + game log; flush against the header image */}
-      <div className="space-y-4 px-4 pb-4 pt-0 sm:px-6 sm:pb-6">
-        {canPick && (
-          <>
-            <div className="hidden pt-6 sm:block">
-              <Button
-                size="lg"
-                className="shrink-0 transition-transform active:scale-[0.98]"
-                disabled={picking}
-                onClick={onPick}
-              >
-                {picking ? 'Picking…' : `Draft ${player.name.split(' ').pop()}`}
-              </Button>
-            </div>
-          </>
-        )}
-        <section className="pt-5 sm:pt-5">
-          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Season stats
-          </h3>
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-            {STAT_ROWS.map(({ key, label }) => {
-              // ponytail: rank is the only cross-category stat we have, so
-              // it's the anchor tile — tinted whenever the value exists.
-              const anchor = key === 'rank' && s.rank != null && s.rank !== '—';
-              return (
-                <div
-                  key={key}
-                  className={`rounded-lg p-2.5 text-center ${
-                    anchor ? 'bg-primary/10 ring-1 ring-primary/30' : 'bg-muted/60'
-                  }`}
-                >
-                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
-                  <div className="text-sm font-semibold tabular-nums">{s[key] ?? '—'}</div>
-                </div>
-              );
-            })}
+      <div className="border-b bg-card px-4 py-3 sm:px-6">
+        <div className="flex items-center justify-between gap-4">
+          <div className="grid min-w-0 flex-1 grid-cols-3 gap-2 text-center">
+            <SummaryStat label="Rank" value={s.rank} />
+            <SummaryStat label="PTS" value={s.pts} />
+            <SummaryStat label="REB" value={s.reb} />
+          </div>
+          {canPick && (
+            <Button
+              size="sm"
+              className="hidden shrink-0 rounded-full px-5 font-bold transition-transform active:scale-[0.98] sm:inline-flex"
+              disabled={picking}
+              onClick={onPick}
+            >
+              {picking ? 'Picking…' : `Draft ${player.name.split(' ').pop()}`}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-4 p-4 sm:p-6">
+        <section className="overflow-hidden rounded-xl border bg-card">
+          <div className="border-b px-4 py-3">
+            <h3 className="text-xs font-bold uppercase tracking-wide">Season stats</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[42rem] text-xs">
+              <thead>
+                <tr className="border-b text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {PRIMARY_STATS.map(({ key, label }) => (
+                    <th key={key} className="px-3 py-2 text-right font-bold first:text-left">{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  {PRIMARY_STATS.map(({ key }) => (
+                    <td key={key} className="px-3 py-3 text-right font-semibold tabular-nums first:text-left">
+                      {s[key] ?? '—'}
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div className="grid grid-cols-4 border-t bg-muted/20">
+            {SECONDARY_STATS.map(({ key, label }) => (
+              <div key={key} className="border-r px-3 py-3 text-center last:border-r-0">
+                <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{label}</div>
+                <div className="mt-0.5 text-sm font-semibold tabular-nums">{s[key] ?? '—'}</div>
+              </div>
+            ))}
           </div>
         </section>
 
-        <Separator />
-
-        <section>{open && player.espn_id && <GameLogTable espnId={String(player.espn_id)} />}</section>
+        {player.espn_id && <GameLogTable espnId={String(player.espn_id)} />}
       </div>
+    </div>
+  );
+}
+
+function SummaryStat({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="min-w-0 border-r last:border-r-0">
+      <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-0.5 truncate text-base font-bold tabular-nums">{value ?? '—'}</div>
     </div>
   );
 }
@@ -257,37 +287,33 @@ function GameLogTable({ espnId }: { espnId: string }) {
   const { data: rows, isLoading } = useGameLog(espnId, show);
 
   return (
-    <div>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-2 gap-1 px-2 [&_svg]:transition-transform"
+    <section className="overflow-hidden rounded-xl border bg-card">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 active:bg-muted/60"
         onClick={() => setShow((v) => !v)}
       >
-        <ChevronRight className={`size-4 ${show ? 'rotate-90' : ''}`} />
-        {show ? 'Hide game log' : 'Show game log'}
-      </Button>
+        <span className="text-xs font-bold uppercase tracking-wide">Game log</span>
+        <ChevronRight className={`size-4 text-muted-foreground transition-transform ${show ? 'rotate-90' : ''}`} />
+      </button>
       {show && (
         isLoading ? (
-          <div className="mt-2 space-y-1">
+          <div className="space-y-1 border-t p-3">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-6 w-full" />
+              <Skeleton key={i} className="h-8 w-full" />
             ))}
           </div>
         ) : !rows?.length ? (
-          <p className="mt-2 text-center text-xs text-muted-foreground">No games logged.</p>
+          <p className="border-t py-8 text-center text-xs text-muted-foreground">No games logged.</p>
         ) : (
-          // ponytail: max-h with native overflow — no ScrollArea for one table.
-          // The table scrolls horizontally too: nine stat columns squeezed into
-          // a phone's width was unreadable — give them their natural width instead.
-          <div className="mt-2 max-h-72 overflow-auto rounded-lg border">
-            <table className="w-full min-w-[30rem] text-xs sm:min-w-0">
+          <div className="max-h-80 overflow-auto border-t">
+            <table className="w-full min-w-[34rem] text-xs">
               <thead className="sticky top-0 bg-card shadow-[0_1px_0_0_var(--border)]">
-                <tr className="text-left uppercase tracking-wide text-muted-foreground">
+                <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
                   {LOG_COLS.map(({ key, label }) => (
                     <th
                       key={key}
-                      className={`whitespace-nowrap px-2.5 py-2 font-semibold ${key !== 'date' && key !== 'opponent' ? 'text-right' : ''}`}
+                      className={`whitespace-nowrap px-3 py-2 font-bold ${key !== 'date' && key !== 'opponent' ? 'text-right' : 'text-left'}`}
                     >
                       {label}
                     </th>
@@ -295,18 +321,17 @@ function GameLogTable({ espnId }: { espnId: string }) {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr key={r.gameId} className="border-t border-border/40 transition-colors hover:bg-muted/40">
-                    <td className="whitespace-nowrap px-2.5 py-1.5">{r.date.slice(5)}</td>
-                    <td className="whitespace-nowrap px-2.5 py-1.5 text-muted-foreground">
-                      {r.location}
-                      {r.opponent}{' '}
+                {rows.map((r, index) => (
+                  <tr key={r.gameId} className={`border-t border-border/40 ${index % 2 ? 'bg-muted/[0.18]' : ''}`}>
+                    <td className="whitespace-nowrap px-3 py-2">{r.date.slice(5)}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
+                      {r.location}{r.opponent}{' '}
                       <span className={r.result === 'W' ? 'font-semibold text-emerald-600 dark:text-emerald-400' : r.result === 'L' ? 'text-red-500 dark:text-red-400' : ''}>
                         {r.result}
                       </span>
                     </td>
                     {LOG_COLS.slice(2).map(({ key }) => (
-                      <td key={key} className="whitespace-nowrap px-2.5 py-1.5 text-right tabular-nums">{r[key]}</td>
+                      <td key={key} className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{r[key]}</td>
                     ))}
                   </tr>
                 ))}
@@ -315,6 +340,6 @@ function GameLogTable({ espnId }: { espnId: string }) {
           </div>
         )
       )}
-    </div>
+    </section>
   );
 }
