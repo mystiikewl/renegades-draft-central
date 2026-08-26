@@ -12,7 +12,7 @@ import { useLocation } from '@tanstack/react-router';
 import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { ArrowRightLeft, BarChart3, ClipboardList, Shield, UserCircle, Users, ListChecks } from 'lucide-react';
+import { ClipboardList, ListChecks, Settings, UserCircle, Users } from 'lucide-react';
 import { DraftPage } from '@/pages/DraftPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { OnboardingPage } from '@/pages/OnboardingPage';
@@ -23,9 +23,10 @@ import { RankingsPage } from '@/pages/RankingsPage';
 import { TeamBuilderPage } from '@/pages/TeamBuilderPage';
 import { TradeCenterPage } from '@/pages/TradeCenterPage';
 import { ProfilePage } from '@/pages/ProfilePage';
+import { MyTeamPage } from '@/pages/MyTeamPage';
+import { LeagueHubPage, MorePage, PlayersHubPage } from '@/pages/HubPages';
 import { useMobileViewportInsets } from '@/hooks/useMobileViewportInsets';
 
-/** Declarative auth guard — no navigate-in-effect, no blank frames. */
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
   if (loading) return <div className="flex min-h-screen items-center justify-center">Loading…</div>;
@@ -33,7 +34,6 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/** Profiles without a team must claim one before touching league pages. */
 function RequireTeam({ children }: { children: React.ReactNode }) {
   const { profile, profileLoading } = useAuth();
   if (profileLoading)
@@ -42,20 +42,21 @@ function RequireTeam({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+const primaryNav = [
+  { to: '/my-team', label: 'My Team', short: 'My Team', icon: UserCircle, matches: ['/my-team'] },
+  { to: '/', label: 'Draft', short: 'Draft', icon: ClipboardList, matches: ['/'] },
+  { to: '/players', label: 'Players', short: 'Players', icon: Users, matches: ['/players', '/pool', '/rankings'] },
+  { to: '/league', label: 'League', short: 'League', icon: ListChecks, matches: ['/league', '/rosters', '/trades'] },
+  { to: '/more', label: 'More', short: 'More', icon: Settings, matches: ['/more', '/profile', '/team-builder', '/admin'] },
+] as const;
+
 function RootLayout() {
   const { profile } = useAuth();
   const { pathname } = useLocation();
   const { browserBottom, keyboardOpen } = useMobileViewportInsets();
 
-  const navItems = [
-    { to: '/', label: 'Draft', short: 'Draft', icon: ClipboardList },
-    { to: '/pool', label: 'Player Pool', short: 'Pool', icon: Users },
-    { to: '/trades', label: 'Trades', short: 'Trades', icon: ArrowRightLeft },
-    { to: '/rankings', label: 'Rankings', short: 'Ranks', icon: BarChart3 },
-    { to: '/rosters', label: 'Rosters', short: 'Roster', icon: ListChecks },
-    ...(profile?.is_admin ? [{ to: '/admin', label: 'Admin', short: 'Admin', icon: Shield }] : []),
-  ];
-  const isActive = (to: string) => (to === '/' ? pathname === '/' : pathname.startsWith(to));
+  const isActive = (matches: readonly string[]) =>
+    matches.some((path) => (path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`)));
   const shellStyle = {
     '--browser-bottom': `${browserBottom}px`,
   } as CSSProperties;
@@ -69,21 +70,21 @@ function RootLayout() {
           : ''
       }`}
     >
-      <header className="border-b">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 p-4">
-          <div className="flex min-w-0 items-center gap-4 sm:gap-6">
-            <span className="shrink-0 font-bold">Renegades Draft Central</span>
+      <header className="border-b bg-background/95 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:py-4">
+          <div className="flex min-w-0 items-center gap-6">
+            <span className="shrink-0 font-bold tracking-tight">Renegades Draft Central</span>
             {profile?.team_id && (
-              <nav className="hidden min-w-0 gap-4 overflow-x-auto text-sm text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex">
-                {navItems.map((item) => {
-                  const active = isActive(item.to);
+              <nav className="hidden items-center gap-1 text-sm sm:flex">
+                {primaryNav.map((item) => {
+                  const active = isActive(item.matches);
                   return (
                     <Link
                       key={item.to}
                       to={item.to}
                       aria-current={active ? 'page' : undefined}
-                      className={`whitespace-nowrap transition-colors hover:text-foreground ${
-                        active ? 'font-medium text-foreground' : ''
+                      className={`rounded-lg px-3 py-2 font-medium transition-colors ${
+                        active ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
                       }`}
                     >
                       {item.label}
@@ -94,35 +95,30 @@ function RootLayout() {
             )}
           </div>
           {profile && (
-            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <span className="hidden md:inline">{profile.display_name ?? profile.email}</span>
-              {profile.is_admin && <span className="hidden text-primary md:inline">admin</span>}
-              <Link
-                to="/profile"
-                aria-label="Profile and settings"
-                aria-current={pathname === '/profile' ? 'page' : undefined}
-                className={`rounded-md p-2 transition-colors hover:bg-muted hover:text-foreground ${
-                  pathname === '/profile' ? 'bg-muted text-foreground' : ''
-                }`}
-              >
-                <UserCircle className="size-5" />
-              </Link>
-            </div>
+            <Link
+              to="/more"
+              aria-label="More, profile and settings"
+              className="hidden min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:flex"
+            >
+              <span className="max-w-44 truncate">{profile.display_name ?? profile.email}</span>
+              {profile.is_admin && <span className="text-[10px] font-bold uppercase tracking-wide text-primary">admin</span>}
+            </Link>
           )}
         </div>
       </header>
 
       {profile?.team_id && (
         <nav
+          aria-label="Primary navigation"
           aria-hidden={keyboardOpen || undefined}
-          className={`fixed inset-x-0 z-40 grid auto-cols-fr grid-flow-col border-t bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_-20px_hsl(var(--foreground))] backdrop-blur transition-[bottom,transform,opacity] duration-200 sm:hidden ${
+          className={`fixed inset-x-0 z-40 grid grid-cols-5 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_-20px_hsl(var(--foreground))] backdrop-blur transition-[bottom,transform,opacity] duration-200 sm:hidden ${
             keyboardOpen ? 'pointer-events-none translate-y-full opacity-0' : 'translate-y-0 opacity-100'
           }`}
           style={{ bottom: 'var(--browser-bottom)' }}
         >
-          {navItems.map((item) => {
+          {primaryNav.map((item) => {
             const Icon = item.icon;
-            const active = isActive(item.to);
+            const active = isActive(item.matches);
             return (
               <Link
                 key={item.to}
@@ -176,10 +172,46 @@ const indexRoute = createRoute({
   ),
 });
 
-const loginRoute = createRoute({
+const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: '/login', component: LoginPage });
+
+const myTeamRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/login',
-  component: LoginPage,
+  path: '/my-team',
+  component: () => (
+    <RequireAuth>
+      <RequireTeam><MyTeamPage /></RequireTeam>
+    </RequireAuth>
+  ),
+});
+
+const playersHubRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/players',
+  component: () => (
+    <RequireAuth>
+      <RequireTeam><PlayersHubPage /></RequireTeam>
+    </RequireAuth>
+  ),
+});
+
+const leagueHubRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/league',
+  component: () => (
+    <RequireAuth>
+      <RequireTeam><LeagueHubPage /></RequireTeam>
+    </RequireAuth>
+  ),
+});
+
+const moreRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/more',
+  component: () => (
+    <RequireAuth>
+      <RequireTeam><MorePage /></RequireTeam>
+    </RequireAuth>
+  ),
 });
 
 const adminRoute = createRoute({
@@ -188,9 +220,7 @@ const adminRoute = createRoute({
   component: () => (
     <RequireAuth>
       <RequireTeam>
-        <RequireAdmin>
-          <AdminPage />
-        </RequireAdmin>
+        <RequireAdmin><AdminPage /></RequireAdmin>
       </RequireTeam>
     </RequireAuth>
   ),
@@ -200,11 +230,7 @@ const rostersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/rosters',
   component: () => (
-    <RequireAuth>
-      <RequireTeam>
-        <RostersPage />
-      </RequireTeam>
-    </RequireAuth>
+    <RequireAuth><RequireTeam><RostersPage /></RequireTeam></RequireAuth>
   ),
 });
 
@@ -212,11 +238,7 @@ const poolRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/pool',
   component: () => (
-    <RequireAuth>
-      <RequireTeam>
-        <PlayerPoolPage />
-      </RequireTeam>
-    </RequireAuth>
+    <RequireAuth><RequireTeam><PlayerPoolPage /></RequireTeam></RequireAuth>
   ),
 });
 
@@ -224,11 +246,7 @@ const tradesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/trades',
   component: () => (
-    <RequireAuth>
-      <RequireTeam>
-        <TradeCenterPage />
-      </RequireTeam>
-    </RequireAuth>
+    <RequireAuth><RequireTeam><TradeCenterPage /></RequireTeam></RequireAuth>
   ),
 });
 
@@ -236,39 +254,31 @@ const rankingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/rankings',
   component: () => (
-    <RequireAuth>
-      <RequireTeam>
-        <RankingsPage />
-      </RequireTeam>
-    </RequireAuth>
+    <RequireAuth><RequireTeam><RankingsPage /></RequireTeam></RequireAuth>
   ),
 });
 
 const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/profile',
-  component: () => (
-    <RequireAuth>
-      <ProfilePage />
-    </RequireAuth>
-  ),
+  component: () => <RequireAuth><ProfilePage /></RequireAuth>,
 });
 
 const teamBuilderRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/team-builder',
   component: () => (
-    <RequireAuth>
-      <RequireTeam>
-        <TeamBuilderPage />
-      </RequireTeam>
-    </RequireAuth>
+    <RequireAuth><RequireTeam><TeamBuilderPage /></RequireTeam></RequireAuth>
   ),
 });
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
+  myTeamRoute,
+  playersHubRoute,
+  leagueHubRoute,
+  moreRoute,
   adminRoute,
   rostersRoute,
   poolRoute,
