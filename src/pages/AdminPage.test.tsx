@@ -11,6 +11,12 @@ const settings = {
 };
 const teams = [{ id: 'team-1', name: 'Alpha Team', owner_profile_id: 'owner-1' }];
 
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
+    <a href={to} className={className}>{children}</a>
+  ),
+}));
+
 vi.mock('@/api/queries', () => ({
   useActiveSeason: () => ({ data: season }),
   useDraftSettings: () => ({ data: settings }),
@@ -62,21 +68,36 @@ import { AdminPage } from './AdminPage';
 
 afterEach(cleanup);
 
-describe('AdminPage', () => {
-  it('groups commissioner workflows into a scannable control room', () => {
+describe('Admin workspace', () => {
+  it('uses the overview as a workflow launcher instead of rendering every control', () => {
     render(<AdminPage />);
 
-    expect(screen.getByRole('heading', { name: /commissioner control room/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /season setup/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /draft room/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /keeper operations/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /danger zone/i, level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /league administration/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Season/i })).toHaveAttribute('href', '/admin/season');
+    expect(screen.getByRole('link', { name: /Draft setup & control/i })).toHaveAttribute('href', '/admin/draft');
+    expect(screen.getByRole('link', { name: /Draft order/i })).toHaveAttribute('href', '/admin/order');
+    expect(screen.getByRole('link', { name: /Keepers/i })).toHaveAttribute('href', '/admin/keepers');
+    expect(screen.queryByText('Draft settings form')).not.toBeInTheDocument();
+    expect(screen.queryByText('Keeper manager')).not.toBeInTheDocument();
   });
 
-  it('keeps team colour controls out of the commissioner control room', () => {
-    render(<AdminPage />);
+  it('keeps draft lifecycle controls, settings and reset together', () => {
+    render(<AdminPage section="draft" />);
 
-    expect(screen.queryByRole('heading', { name: /team colours/i })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Alpha Team colour')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /draft setup & control/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Start \/ Resume/i })).toBeInTheDocument();
+    expect(screen.getByText('Draft settings form')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Reset draft/i })).toBeInTheDocument();
+    expect(screen.queryByText('Keeper manager')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/Season label/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps keeper operations self-contained', () => {
+    render(<AdminPage section="keepers" />);
+
+    expect(screen.getByRole('heading', { name: /keeper management/i })).toBeInTheDocument();
+    expect(screen.getByText('ESPN roster sync')).toBeInTheDocument();
+    expect(screen.getByText('Keeper manager')).toBeInTheDocument();
+    expect(screen.queryByText('Draft settings form')).not.toBeInTheDocument();
   });
 });
