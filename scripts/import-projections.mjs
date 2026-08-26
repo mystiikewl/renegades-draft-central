@@ -27,6 +27,23 @@ const STAT_KEYS = {
   21: 'three_point_percentage',
 };
 
+// ESPN fantasy slot ids -> our position tokens. 5/6 are combined G/F; 7+ are
+// UTIL/IR/bench slots with no position meaning.
+const SLOT_POSITIONS = { 0: 'PG', 1: 'SG', 2: 'SF', 3: 'PF', 4: 'C' };
+
+function slotsToPosition(eligibleSlots) {
+  const ids = (eligibleSlots ?? []).map(Number);
+  const positions = Object.entries(SLOT_POSITIONS)
+    .filter(([id]) => ids.includes(Number(id)))
+    .map(([, pos]) => pos);
+  if (!positions.length) {
+    if (ids.includes(5)) return 'PG,SG'; // listed only as G
+    if (ids.includes(6)) return 'SF,PF'; // listed only as F
+    return null;
+  }
+  return positions.join(',');
+}
+
 export async function importProjections({
   season = 2027,
   dryRun = false,
@@ -38,6 +55,7 @@ export async function importProjections({
 } = {}) {
   if (!espnS2 || !espnSwid) throw new Error('Missing ESPN_S2 / ESPN_SWID env vars.');
   if (!dryRun && !mgmtToken) throw new Error('Missing SUPABASE_ACCESS_TOKEN.');
+  const esc = (s) => String(s).replace(/'/g, "''");
 
   const applyQuery = async (query) => {
     const r = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
@@ -84,11 +102,15 @@ export async function importProjections({
     if (players.length < PAGE || fresh.length === 0) break;
   }
 
-  // Extract statSourceId=1 rows for the target ESPN seasonId.
+  // Extract statSourceId=1 rows for the target ESPN seasonId, plus the richer
+  // PG/SG/SF/PF/C eligibility from the same feed (roster bios only give G/F/C).
   const projections = new Map(); // espn_id -> stats
+  const positions = new Map(); // espn_id -> 'PG,SG,...'
   for (const w of allPlayers) {
     const p = w.player;
     if (!p?.id) continue;
+    const pos = slotsToPosition(p.eligibleSlots);
+    if (pos) positions.set(String(p.id), pos);
     const row = (p.stats ?? []).find((s) => s.statSourceId === 1 && s.seasonId === Number(season));
     if (!row || !row.stats || Object.keys(row.stats).length === 0) continue;
     // Prefer averageStats when present (per-game), fall back to totals row.
@@ -101,7 +123,27 @@ export async function importProjections({
     if (Object.keys(mapped).length > 0) projections.set(String(p.id), mapped);
   }
 
-  log(`ESPN players scanned: ${allPlayers.length}; with ${season} projections: ${projections.size}`);
+  log(`ESPN players scanned: ${allPlayers.length}; with ${season} projections: ${projections.size}; with positions: ${positions.size}`);
+
+  // Position backfill works even before ESPN publishes projections, so run it
+  // whenever we have mgmt access (also in dry-run? no — keep dry-run read-free).
+  if (!dryRun && positions.size > 0) {
+    let updated = 0;
+    const posIds = [...positions.keys()];
+    for (let i = 0; i < posIds.length; i += 200) {
+      const chunk = posIds.slice(i, i + 200);
+      const list = chunk.map((id) => `'${esc(id)}'`).join(',');
+      const rows = await applyQuery(
+        `update public.players set position = v.pos::text ` +
+          `from (values ${chunk.map((id) => `('${esc(id)}', '${esc(positions.get(id))}')`).join(',')}) as v(espn_id, pos) ` +
+          `where public.players.espn_id = v.espn_id and (public.players.position is distinct from v.pos::text) ` +
+          `returning id`,
+      );
+      updated += rows?.length ?? 0;
+    }
+    log(`Positions updated: ${updated} (of ${positions.size} eligible).`);
+  }
+
   if (projections.size === 0) {
     log('No projections published yet by ESPN. Re-run once fantasy basketball opens.');
     return { scanned: allPlayers.length, imported: 0 };
@@ -111,7 +153,6 @@ export async function importProjections({
     return { scanned: allPlayers.length, imported: projections.size };
   }
 
-  const esc = (s) => String(s).replace(/'/g, "''");
   const seasonLabel = `${season}-${String((Number(season) + 1) % 100).padStart(2, '0')}`;
   const seasonRows = await applyQuery(`select id from public.seasons where label = '${seasonLabel}'`);
   if (!seasonRows.length) throw new Error(`No seasons row for ${seasonLabel}.`);

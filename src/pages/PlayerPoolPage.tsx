@@ -61,11 +61,17 @@ export function PlayerPoolPage() {
     const q = search.trim().toLowerCase();
     let pool = players;
     if (position !== 'All') {
-      pool = pool.filter((p) =>
-        p.position === position ||
-        ((position === 'PG' || position === 'SG') && p.position === 'G') ||
-        ((position === 'SF' || position === 'PF') && p.position === 'F')
-      );
+      // positions are comma-joined sets ("PF,C"); legacy rows may still hold
+      // the coarse G/F/ALL buckets from the old roster-bio import
+      pool = pool.filter((p) => {
+        const tokens = (p.position ?? '').split(',').map((t) => t.trim());
+        return (
+          tokens.includes(position) ||
+          tokens.includes('ALL') ||
+          ((position === 'PG' || position === 'SG') && tokens.includes('G')) ||
+          ((position === 'SF' || position === 'PF') && tokens.includes('F'))
+        );
+      });
     }
     if (rookiesOnly) pool = pool.filter(isRookie);
     if (q) {

@@ -55,17 +55,19 @@ const supabase = SERVICE_KEY === 'MGMT'
 
 // Minimal supabase-like shim over the Management API for the ops we use.
 const mgmtFrom = (table) => ({});
-function mgmtClient(projectRef) {
+async function mgmtQuery(query) {
   const token = process.env.SUPABASE_ACCESS_TOKEN;
-  const q = async (query) => {
-    const r = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query }),
-    });
-    if (!r.ok) throw new Error(`mgmt query: ${r.status} ${(await r.text()).slice(0, 200)}`);
-    return r.json();
-  };
+  const projectRef = process.env.SUPABASE_PROJECT_REF ?? 'xruqdjonzxkzwsslzpdl';
+  const r = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
+  });
+  if (!r.ok) throw new Error(`mgmt query: ${r.status} ${(await r.text()).slice(0, 200)}`);
+  return r.json();
+}
+function mgmtClient(projectRef) {
+  const q = mgmtQuery;
   return {
     from(table) {
       const build = (clauses) => ({
@@ -303,6 +305,40 @@ async function main() {
     : seasonData;
   if (!season) throw new Error('season row missing after upsert');
   console.log(`Season: ${season.label} -> ${season.id} (${season.status})`);
+
+  // Anti-twin guard: before inserting, claim espn_ids on existing rows that
+  // match by normalized name but have espn_id null (2025-archive imports).
+  // Without this, "Alexandre Sarr" (archive) + "Alex Sarr" (ESPN) become two
+  // players. Only exact normalized-name matches — relatives sharing a last
+  // name must never merge.
+  const norm = (s) =>
+    String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  {
+    const { data: all } = await supabase.from('players').select('id, name, espn_id');
+    const unmatched = (all ?? []).filter((p) => p.espn_id == null);
+    if (unmatched.length) {
+      const byName = new Map(unmatched.map((p) => [norm(p.name), p]));
+      let claimed = 0;
+      for (const bio of players) {
+        const existing = byName.get(norm(bio.name));
+        if (!existing) continue;
+        if (SERVICE_KEY === 'MGMT') {
+          await mgmtQuery(
+            `update public.players set espn_id = '${String(bio.espn_id).replace(/'/g, "''")}' where id = '${existing.id}'`,
+          );
+        } else {
+          const { error: claimErr } = await supabase
+            .from('players')
+            .update({ espn_id: bio.espn_id })
+            .eq('id', existing.id);
+          if (claimErr) throw new Error(`claim espn_id for ${bio.name}: ${claimErr.message}`);
+        }
+        claimed++;
+        console.log(`  claimed espn_id ${bio.espn_id} for existing "${existing.name}" (was "${bio.name}")`);
+      }
+      console.log(`espn_id claims: ${claimed} (of ${unmatched.length} unmatched rows)`);
+    }
+  }
 
   // Upsert players by espn_id
   const { error: playerErr } = await supabase
