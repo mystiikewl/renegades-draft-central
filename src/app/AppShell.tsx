@@ -23,7 +23,7 @@ const primaryNav = [
     label: 'More',
     short: 'More',
     icon: Settings,
-    matches: ['/more', '/profile', '/team-builder', '/admin'],
+    matches: ['/more', '/profile', '/team-builder', '/practice-draft', '/admin'],
   },
 ] as const;
 
