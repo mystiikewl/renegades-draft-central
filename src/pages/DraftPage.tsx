@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { ArrowRight, Radio } from 'lucide-react';
-import { useActiveSeason, useDraftPicks, useDraftSettings, useTeams } from '@/api/queries';
+import { ArrowRight, Radio, SkipForward } from 'lucide-react';
+import { useActiveSeason, useDraftPicks, useDraftSettings, useRosters, useTeams } from '@/api/queries';
 import { useUndoLastPick } from '@/api/mutations';
+import { useSkipPick } from '@/api/draftExtras';
 import { useDraftRealtime } from '@/api/realtime';
 import { useCanPickNow } from '@/hooks/useCanPickNow';
 import { useAuth } from '@/auth/AuthContext';
@@ -45,8 +46,11 @@ export function DraftPage() {
   const { data: settings } = useDraftSettings(seasonId);
   const { data: picks, isLoading: picksLoading } = useDraftPicks(seasonId);
   const { data: teams } = useTeams();
+  const { data: rosters } = useRosters(seasonId);
   const undoPick = useUndoLastPick(seasonId ?? '');
+  const skipPick = useSkipPick(seasonId ?? '');
   const [undoConfirm, setUndoConfirm] = useState(false);
+  const [skipConfirm, setSkipConfirm] = useState(false);
   const queued = useOfflineQueue((s) => s.queue);
 
   const nextPick = useMemo(() => picks?.find((p) => !p.is_used) ?? null, [picks]);
@@ -60,6 +64,8 @@ export function DraftPage() {
   const isMyTurn = !!nextPick && !!profile?.team_id && nextPick.team_id === profile.team_id;
   const canPickNow = useCanPickNow(seasonId);
   const draftLive = settings?.status === 'running' || settings?.status === 'paused';
+  const myRosterCount = (rosters ?? []).filter((row) => row.team_id === profile?.team_id).length;
+  const rosterFull = !!settings && myRosterCount >= settings.roster_size;
   const canUndo =
     !!draftLive &&
     !!lastPick &&
@@ -109,15 +115,30 @@ export function DraftPage() {
                 </div>
               </div>
               {isMyTurn && (
-                <Button asChild disabled={!canPickNow} className="hidden shrink-0 transition-transform active:scale-[0.98] sm:inline-flex">
-                  <Link to="/pool">Player Pool <ArrowRight className="size-4" /></Link>
-                </Button>
+                <div className="hidden shrink-0 items-center gap-2 sm:flex">
+                  <Button variant="outline" disabled={settings?.status !== 'running'} onClick={() => setSkipConfirm(true)}>
+                    <SkipForward className="mr-2 size-4" /> Skip pick
+                  </Button>
+                  <Button asChild disabled={!canPickNow || rosterFull} className="transition-transform active:scale-[0.98]">
+                    <Link to="/pool">Player Pool <ArrowRight className="size-4" /></Link>
+                  </Button>
+                </div>
               )}
             </div>
             {isMyTurn && (
-              <Button asChild disabled={!canPickNow} className="mt-4 w-full transition-transform active:scale-[0.98] sm:hidden">
-                <Link to="/pool" className="justify-center">Open Player Pool <ArrowRight className="size-4" /></Link>
-              </Button>
+              <div className="mt-4 grid grid-cols-[auto_1fr] gap-2 sm:hidden">
+                <Button variant="outline" disabled={settings?.status !== 'running'} onClick={() => setSkipConfirm(true)}>
+                  <SkipForward className="mr-1.5 size-4" /> Skip
+                </Button>
+                <Button asChild disabled={!canPickNow || rosterFull} className="transition-transform active:scale-[0.98]">
+                  <Link to="/pool" className="justify-center">Open Player Pool <ArrowRight className="size-4" /></Link>
+                </Button>
+              </div>
+            )}
+            {isMyTurn && rosterFull && (
+              <p className="mt-3 rounded-lg border border-primary/20 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+                Your roster is at its {settings?.roster_size}-player limit. You can trade/drop a player or skip this pick.
+              </p>
             )}
           </div>
 
@@ -125,16 +146,18 @@ export function DraftPage() {
             <div className="flex min-h-12 items-center gap-3 border-t px-4 py-2.5 text-sm sm:px-5">
               {lastPick && (
                 <>
-                  <PlayerHeadshot
-                    espnId={lastPick.players?.espn_id ?? null}
-                    name={lastPick.players?.name ?? ''}
-                    size={30}
-                    variant="bare"
-                  />
+                  {!lastPick.is_skipped && (
+                    <PlayerHeadshot
+                      espnId={lastPick.players?.espn_id ?? null}
+                      name={lastPick.players?.name ?? ''}
+                      size={30}
+                      variant="bare"
+                    />
+                  )}
                   <div className="min-w-0 flex-1">
-                    <div className="line-clamp-1 font-semibold">{lastPick.players?.name ?? '—'}</div>
+                    <div className="line-clamp-1 font-semibold">{lastPick.is_skipped ? 'Skipped pick' : (lastPick.players?.name ?? '—')}</div>
                     <div className="line-clamp-1 text-[11px] text-muted-foreground">
-                      Last pick · {lastPick.team?.name ?? teamName(lastPick.team_id)} · #{lastPick.pick_number}
+                      Last action · {lastPick.team?.name ?? teamName(lastPick.team_id)} · #{lastPick.pick_number}
                     </div>
                   </div>
                 </>
@@ -147,7 +170,7 @@ export function DraftPage() {
                   onClick={() => setUndoConfirm(true)}
                   disabled={undoPick.isPending || !picks?.some((p) => p.is_used)}
                 >
-                  Undo last pick
+                  Undo last action
                 </Button>
               )}
             </div>
@@ -164,12 +187,32 @@ export function DraftPage() {
 
       <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} teamColor={getTeamColour} />
 
+      <Dialog open={skipConfirm} onOpenChange={setSkipConfirm}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Skip pick #{nextPick?.pick_number}?</DialogTitle>
+            <DialogDescription>
+              No player will be added to your roster and the draft will move to the next slot. The latest action can still be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSkipConfirm(false)}>Keep pick</Button>
+            <Button
+              disabled={skipPick.isPending || settings?.status !== 'running'}
+              onClick={() => skipPick.mutate(undefined, { onSettled: () => setSkipConfirm(false) })}
+            >
+              {skipPick.isPending ? 'Skipping…' : 'Skip pick'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={undoConfirm} onOpenChange={setUndoConfirm}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Undo last pick?</DialogTitle>
+            <DialogTitle>Undo last action?</DialogTitle>
             <DialogDescription>
-              The most recent pick will be removed and that team goes back on the clock.
+              The most recent pick or skip will be removed and that team goes back on the clock.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -181,7 +224,7 @@ export function DraftPage() {
               disabled={undoPick.isPending}
               onClick={() => undoPick.mutate(undefined, { onSettled: () => setUndoConfirm(false) })}
             >
-              {undoPick.isPending ? 'Undoing…' : 'Undo pick'}
+              {undoPick.isPending ? 'Undoing…' : 'Undo action'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -250,6 +293,7 @@ export function DraftBoard({
                       key={p.id}
                       data-on-clock={onClock || undefined}
                       data-team-color={pickTeamColor}
+                      data-skipped={p.is_skipped || undefined}
                       style={
                         pickTeamColor
                           ? {
@@ -280,18 +324,25 @@ export function DraftBoard({
                       </div>
 
                       {p.is_used ? (
-                        <div className="mt-2 flex min-w-0 flex-1 items-center gap-2">
-                          <PlayerHeadshot
-                            espnId={p.players?.espn_id ?? null}
-                            name={p.players?.name ?? ''}
-                            size={36}
-                            variant="bare"
-                          />
-                          <div className="min-w-0">
-                            <div className="line-clamp-2 font-bold leading-tight">{p.players?.name ?? '—'}</div>
+                        p.is_skipped ? (
+                          <div className="mt-auto min-w-0">
+                            <div className="font-bold tracking-wide text-muted-foreground">SKIPPED</div>
                             <div className="mt-1 line-clamp-1 text-[10px] text-muted-foreground">{teamName(p.team_id)}</div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="mt-2 flex min-w-0 flex-1 items-center gap-2">
+                            <PlayerHeadshot
+                              espnId={p.players?.espn_id ?? null}
+                              name={p.players?.name ?? ''}
+                              size={36}
+                              variant="bare"
+                            />
+                            <div className="min-w-0">
+                              <div className="line-clamp-2 font-bold leading-tight">{p.players?.name ?? '—'}</div>
+                              <div className="mt-1 line-clamp-1 text-[10px] text-muted-foreground">{teamName(p.team_id)}</div>
+                            </div>
+                          </div>
+                        )
                       ) : (
                         <div className="mt-auto min-w-0">
                           <div className={`line-clamp-2 font-semibold leading-tight ${onClock ? 'text-primary' : ''}`}>
