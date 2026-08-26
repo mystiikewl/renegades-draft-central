@@ -151,7 +151,7 @@ begin
   v_rounds := v_settings.roster_size - coalesce(v_settings.keeper_limit, 0);
   v_total := v_rounds * v_settings.league_size;
 
-  insert into public.draft_picks (season_id, round, pick_number, original_team_id, current_team_id)
+  insert into public.draft_picks (season_id, round, pick_number, original_team_id, team_id)
   select p_season_id,
          r,
          (r - 1) * v_settings.league_size + slot,

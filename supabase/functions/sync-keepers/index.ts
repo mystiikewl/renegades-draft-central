@@ -3,46 +3,67 @@
 // Mirrors rosters (incl. keeper flags) from the live ESPN league into
 // public.rosters — server-side port of scripts/import-league.mjs.
 //
-// Required function env vars (set via `supabase secrets set`):
-//   ESPN_S2               espn_s2 cookie from a logged-in espn.com session
-//   ESPN_SWID             SWID cookie from the same session
-//   SUPABASE_ACCESS_TOKEN personal access token (Management API write path)
-//   SUPABASE_PROJECT_REF  optional, defaults to xruqdjonzxkzwsslzpdl
+// Keeper safety: rows already marked acquisition='keeper' are never touched
+// (ESPN cannot overwrite or move them), and once draft_settings
+// .keepers_finalized_at is set the roster mirror goes read-only so a sync
+// can never resurrect non-keepers into the pool after Finalize Keepers.
 //
-// DEPLOYMENT PENDING: not yet deployed. Deploy with:
-//   supabase functions deploy sync-keepers
+// Env vars: ESPN_S2, ESPN_SWID set via `supabase secrets set`.
+// SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are injected into every
+// Edge Function by the platform — no PAT required.
 //
-// POST { "season": 2026 } -> { teams_updated, roster_upserted, players_resolved, players_skipped }
-// @ts-check
+// POST { "season": 2026 } -> { teams_updated, roster_upserted, keepers_protected, rosters_skipped_finalized, players_resolved, players_skipped }
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
-const PROJECT_REF_DEFAULT = 'xruqdjonzxkzwsslzpdl';
 const ACQ = { DRAFT: 'draft', KEEPER: 'keeper', TRADE: 'trade', ADD: 'trade', WAIVER: 'trade' };
 
-const esc = (s) => String(s).replace(/'/g, "''");
+const json = (body, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-async function mgmtQuery(token, projectRef, query) {
-  const r = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query }),
+async function rest(path, init = {}) {
+  const url = Deno.env.get('SUPABASE_URL');
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const r = await fetch(`${url}/rest/v1/${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${key}`,
+      apikey: key,
+      'Content-Type': 'application/json',
+      ...(init.headers ?? {}),
+    },
   });
-  if (!r.ok) throw new Error(`query failed: ${r.status} ${(await r.text()).slice(0, 200)}`);
-  return r.json();
+  if (!r.ok) throw new Error(`postgrest ${path}: ${r.status} ${(await r.text()).slice(0, 300)}`);
+  const text = await r.text();
+  return text ? JSON.parse(text) : null;
+}
+
+/** Verify caller JWT and require profiles.is_admin. */
+async function requireAdmin(req) {
+  const auth = req.headers.get('Authorization') ?? '';
+  const token = auth.replace(/^Bearer\s+/i, '');
+  if (!token) return false;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (!payload.sub) return false;
+    // ponytail: string compare on uuids is safe here; ids are server-generated
+    const rows = await rest(`profiles?id=eq.${encodeURIComponent(payload.sub)}&select=is_admin`);
+    return Array.isArray(rows) && rows.length === 1 && rows[0].is_admin === true;
+  } catch {
+    return false;
+  }
 }
 
 Deno.serve(async (req) => {
-  if (req.method !== 'POST') return new Response('method not allowed', { status: 405 });
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405);
+
+  if (!(await requireAdmin(req))) {
+    return json({ error: 'Forbidden: admin only' }, 403);
+  }
 
   const ESPN_S2 = Deno.env.get('ESPN_S2');
   const ESPN_SWID = Deno.env.get('ESPN_SWID');
-  const token = Deno.env.get('SUPABASE_ACCESS_TOKEN');
-  const projectRef = Deno.env.get('SUPABASE_PROJECT_REF') ?? PROJECT_REF_DEFAULT;
-  if (!ESPN_S2 || !ESPN_SWID || !token) {
-    return new Response(
-      JSON.stringify({ error: 'Missing env vars. Set ESPN_S2, ESPN_SWID and SUPABASE_ACCESS_TOKEN via `supabase secrets set`.' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } },
-    );
+  if (!ESPN_S2 || !ESPN_SWID) {
+    return json({ error: 'Missing env vars. Set ESPN_S2 and ESPN_SWID via `supabase secrets set`.' }, 500);
   }
 
   let season = 2026;
@@ -65,7 +86,7 @@ Deno.serve(async (req) => {
     const league = await res.json();
 
     const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const dbTeams = await mgmtQuery(token, projectRef, 'select id, name, espn_team_id from public.teams');
+    const dbTeams = await rest('teams?select=id,name,espn_team_id');
 
     // Match ESPN teams to DB rows by linked id > normalized name; never insert.
     const plan = [];
@@ -82,19 +103,24 @@ Deno.serve(async (req) => {
     }
 
     for (const { et, db } of plan) {
-      await mgmtQuery(
-        token,
-        projectRef,
-        `update public.teams set espn_team_id=${et.id}, name='${esc(et.name)}' where id='${db.id}'`,
-      );
+      await rest(`teams?id=eq.${db.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ espn_team_id: et.id, name: et.name }),
+      });
     }
 
     // Roster mirror
     const seasonLabel = `${season}-${String((season + 1) % 100).padStart(2, '0')}`;
-    const seasons = await mgmtQuery(token, projectRef, `select id from public.seasons where label = '${seasonLabel}'`);
-    if (!seasons.length) throw new Error(`No seasons row for ${seasonLabel}.`);
+    const seasons = await rest(`seasons?label=eq.${seasonLabel}&select=id`);
+    if (!seasons?.length) throw new Error(`No seasons row for ${seasonLabel}.`);
+    const seasonId = seasons[0].id;
 
-    const teamRows = await mgmtQuery(token, projectRef, 'select id, espn_team_id from public.teams where espn_team_id is not null');
+    const keeperRows = await rest(`rosters?season_id=eq.${seasonId}&acquisition=eq.keeper&select=player_id`);
+    const keeperSet = new Set((keeperRows ?? []).map((r) => r.player_id));
+    const settingsRows = await rest(`draft_settings?season_id=eq.${seasonId}&select=keepers_finalized_at`);
+    const keepersFinalized = !!settingsRows?.[0]?.keepers_finalized_at;
+
+    const teamRows = await rest('teams?espn_team_id=not.is.null&select=id,espn_team_id');
     const teamByEspn = new Map(teamRows.map((t) => [t.espn_team_id, t.id]));
 
     const rosterRows = [];
@@ -117,8 +143,8 @@ Deno.serve(async (req) => {
     let playersResolved = 0;
     const espnIds = [...new Set(rosterRows.map((r) => r.player_espn_id))];
     for (let i = 0; i < espnIds.length; i += 200) {
-      const list = espnIds.slice(i, i + 200).map((id) => `'${id}'`).join(',');
-      const players = await mgmtQuery(token, projectRef, `select id, espn_id from public.players where espn_id in (${list})`);
+      const list = `(${espnIds.slice(i, i + 200).map((id) => `"${id}"`).join(',')})`;
+      const players = await rest(`players?espn_id=in.${list}&select=id,espn_id`);
       for (const p of players ?? []) {
         for (const r of rosterRows.filter((r) => r.player_espn_id === p.espn_id)) {
           r.player_id = p.id;
@@ -128,38 +154,35 @@ Deno.serve(async (req) => {
     }
     const rows = rosterRows.filter((r) => r.player_id);
     const playersSkipped = rosterRows.length - rows.length;
+    const keepersProtected = rows.filter((r) => keeperSet.has(r.player_id)).length;
+    const writable = keepersFinalized ? [] : rows.filter((r) => !keeperSet.has(r.player_id));
 
-    for (let i = 0; i < rows.length; i += 100) {
-      const values = rows
-        .slice(i, i + 100)
-        .map(
-          (r) =>
-            `('${seasons[0].id}', '${r.team_id}', '${r.player_id}', '${r.acquisition}', ` +
-            `${r.acquired_at ? `'${r.acquired_at}'` : 'default'})`,
-        )
-        .join(',\n  ');
-      await mgmtQuery(
-        token,
-        projectRef,
-        `insert into public.rosters (season_id, team_id, player_id, acquisition, acquired_at) values ${values} ` +
-          `on conflict (season_id, player_id) do update set team_id = excluded.team_id, acquisition = excluded.acquisition, ` +
-          `acquired_at = coalesce(excluded.acquired_at, public.rosters.acquired_at)`,
-      );
+    let rosterUpserted = 0;
+    for (let i = 0; i < writable.length; i += 100) {
+      const batch = writable.slice(i, i + 100).map((r) => ({
+        season_id: seasonId,
+        team_id: r.team_id,
+        player_id: r.player_id,
+        acquisition: r.acquisition,
+        ...(r.acquired_at ? { acquired_at: r.acquired_at } : {}),
+      }));
+      await rest('rosters?on_conflict=season_id,player_id', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates' },
+        body: JSON.stringify(batch),
+      });
+      rosterUpserted += batch.length;
     }
 
-    return new Response(
-      JSON.stringify({
-        teams_updated: plan.length,
-        roster_upserted: rows.length,
-        players_resolved: playersResolved,
-        players_skipped: playersSkipped,
-      }),
-      { headers: { 'Content-Type': 'application/json' } },
-    );
-  } catch (err) {
-    return new Response(JSON.stringify({ error: String(err.message ?? err) }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
+    return json({
+      teams_updated: plan.length,
+      roster_upserted: rosterUpserted,
+      keepers_protected: keepersProtected,
+      rosters_skipped_finalized: keepersFinalized ? rows.length : 0,
+      players_resolved: playersResolved,
+      players_skipped: playersSkipped,
     });
+  } catch (err) {
+    return json({ error: String(err.message ?? err) }, 500);
   }
 });
