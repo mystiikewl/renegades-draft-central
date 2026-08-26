@@ -26,11 +26,12 @@ export function buildPracticeBoard(settings: DraftSettings, sourcePicks: DraftPi
   }
 
   const order = settings.draft_order ?? [];
-  if (order.length === 0 || settings.roster_size <= 0) return [];
+  const rounds = Math.max(0, settings.roster_size - settings.keeper_limit);
+  if (order.length === 0 || rounds === 0) return [];
 
   const picks: DraftPick[] = [];
   let pickNumber = 1;
-  for (let round = 1; round <= settings.roster_size; round += 1) {
+  for (let round = 1; round <= rounds; round += 1) {
     const roundOrder = settings.draft_type === 'snake' && round % 2 === 0
       ? [...order].reverse()
       : order;
