@@ -12,11 +12,13 @@ import { useLocation } from '@tanstack/react-router';
 import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { TradeAnnouncementBanner } from '@/components/trades/TradeAnnouncementBanner';
 import { ClipboardList, ListChecks, Settings, UserCircle, Users } from 'lucide-react';
 import { DraftPage } from '@/pages/DraftPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { OnboardingPage } from '@/pages/OnboardingPage';
 import { AdminPage } from '@/pages/AdminPage';
+import { AdminTradeOverridesPage } from '@/pages/AdminTradeOverridesPage';
 import { RostersPage } from '@/pages/RostersPage';
 import { PlayerPoolPage } from '@/pages/PlayerPoolPage';
 import { RankingsPage } from '@/pages/RankingsPage';
@@ -143,6 +145,7 @@ function RootLayout() {
         </nav>
       )}
 
+      {profile?.team_id && <TradeAnnouncementBanner />}
       <Outlet />
       <Toaster />
     </div>
@@ -211,6 +214,11 @@ const adminSeasonRoute = createRoute({ getParentRoute: () => rootRoute, path: '/
 const adminDraftRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/draft', component: () => <AdminRoute section="draft" /> });
 const adminOrderRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/order', component: () => <AdminRoute section="order" /> });
 const adminKeepersRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/keepers', component: () => <AdminRoute section="keepers" /> });
+const adminTradesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/trades',
+  component: () => <RequireAuth><RequireTeam><RequireAdmin><AdminTradeOverridesPage /></RequireAdmin></RequireTeam></RequireAuth>,
+});
 
 const rostersRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -260,6 +268,7 @@ const routeTree = rootRoute.addChildren([
   adminDraftRoute,
   adminOrderRoute,
   adminKeepersRoute,
+  adminTradesRoute,
   rostersRoute,
   poolRoute,
   tradesRoute,
