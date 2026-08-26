@@ -11,7 +11,7 @@ const settings: DraftSettings = {
   id: 'settings-1',
   season_id: 'season-1',
   league_size: 3,
-  roster_size: 2,
+  roster_size: 4,
   keeper_limit: 2,
   draft_type: 'snake',
   status: 'pre_draft',
@@ -44,7 +44,7 @@ function player(id: string, name: string): PlayerWithStats {
 }
 
 describe('practice draft engine', () => {
-  it('generates a local snake board from configured order when no real board exists', () => {
+  it('generates the same keeper-adjusted snake rounds as draft finalization', () => {
     const board = buildPracticeBoard(settings, []);
 
     expect(board).toHaveLength(6);
