@@ -10,6 +10,7 @@ import { LoginPage } from '@/pages/LoginPage';
 import { MyTeamPage } from '@/pages/MyTeamPage';
 import { PlayerPoolPage } from '@/pages/PlayerPoolPage';
 import { PowerRankingsPage } from '@/pages/PowerRankingsPage';
+import { PracticeDraftPage } from '@/pages/PracticeDraftPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { RankingsPage } from '@/pages/RankingsPage';
 import { RostersPage } from '@/pages/RostersPage';
@@ -148,6 +149,18 @@ const poolRoute = createRoute({
   ),
 });
 
+const practiceDraftRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/practice-draft',
+  component: () => (
+    <LeagueRoute>
+      <ErrorBoundary label="practice draft">
+        <PracticeDraftPage />
+      </ErrorBoundary>
+    </LeagueRoute>
+  ),
+});
+
 const tradesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/trades',
@@ -213,6 +226,7 @@ const routeTree = rootRoute.addChildren([
   adminTradesRoute,
   rostersRoute,
   poolRoute,
+  practiceDraftRoute,
   tradesRoute,
   rankingsRoute,
   powerRankingsRoute,
