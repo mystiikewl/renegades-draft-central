@@ -16,7 +16,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
+import { CalendarPlus, ClipboardList, GripVertical, Settings2, ShieldAlert, Trophy, UsersRound } from 'lucide-react';
 import { useActiveSeason, useDraftPicks, useDraftSettings, useRosters, useTeams } from '@/api/queries';
 import {
   useCreateSeason,
@@ -62,36 +62,134 @@ export function AdminPage() {
   const [newSeasonLabel, setNewSeasonLabel] = useState('');
 
   const picksUsed = useMemo(() => (picks ?? []).some((p) => p.is_used), [picks]);
+  const statusLabel = settings?.status.replace('_', ' ') ?? 'Not configured';
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Admin</h1>
-        <p className="text-sm text-muted-foreground">
-          {season ? `Managing ${season.label}` : 'No active season'}
-        </p>
+    <div className="mx-auto max-w-6xl space-y-6 p-4 pb-[max(5rem,env(safe-area-inset-bottom))] md:p-6">
+      <header className="rounded-xl border bg-card px-4 py-5 shadow-sm sm:px-6">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Commissioner</p>
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Commissioner control room</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Set up the season, manage the draft, and keep league data in order.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <Badge variant="outline" className="bg-background px-2.5 py-1 font-medium">
+              {season?.label ?? 'No active season'}
+            </Badge>
+            <Badge variant="secondary" className="capitalize">
+              {statusLabel}
+            </Badge>
+          </div>
+        </div>
+      </header>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <ControlRoomSection
+          title="Season setup"
+          description="Create a new season and set the rules before the draft starts."
+          icon={CalendarPlus}
+        >
+          <CreateSeasonCard
+            onCreate={(label) => createSeason.mutate(label)}
+            pending={createSeason.isPending}
+            label={newSeasonLabel}
+            setLabel={setNewSeasonLabel}
+          />
+        </ControlRoomSection>
+
+        <ControlRoomSection
+          title="Draft room"
+          description="Set the draft state and prepare the league for the next pick."
+          icon={ClipboardList}
+        >
+          {seasonId && settings ? (
+            <div className="space-y-4">
+              <DraftStatusCard seasonId={seasonId} status={settings.status} />
+              <DraftSettingsCard seasonId={seasonId} settings={settings} />
+            </div>
+          ) : seasonId ? (
+            <Skeleton className="h-40 w-full" />
+          ) : (
+            <EmptyControlRoomState message="Create a season to configure the draft room." />
+          )}
+        </ControlRoomSection>
+
+        {seasonId && settings && (
+          <ControlRoomSection
+            title="Draft order"
+            description="Set the team order before any picks have been made."
+            icon={Settings2}
+            className="xl:col-span-2"
+          >
+            <DraftOrderCard seasonId={seasonId} locked={picksUsed} />
+          </ControlRoomSection>
+        )}
+
+        <ControlRoomSection
+          title="Keeper operations"
+          description="Sync league data, manage keepers, then lock in the next draft."
+          icon={UsersRound}
+        >
+          {seasonId && settings ? (
+            <div className="space-y-4">
+              <SyncEspnKeepersCard />
+              <AdminKeepersCard seasonId={seasonId} keeperLimit={settings.keeper_limit} />
+            </div>
+          ) : (
+            <EmptyControlRoomState message="Create a season to manage keepers." />
+          )}
+        </ControlRoomSection>
+
+        <ControlRoomSection
+          title="Danger zone"
+          description="Resetting the draft cannot be undone. Use this only when you need to start over."
+          icon={ShieldAlert}
+          tone="danger"
+        >
+          {seasonId ? <DangerZoneCard seasonId={seasonId} /> : <EmptyControlRoomState message="There is no active draft to reset." />}
+        </ControlRoomSection>
       </div>
-
-      <CreateSeasonCard
-        onCreate={(label) => createSeason.mutate(label)}
-        pending={createSeason.isPending}
-        label={newSeasonLabel}
-        setLabel={setNewSeasonLabel}
-      />
-
-      {seasonId && settings && (
-        <>
-          <DraftOrderCard seasonId={seasonId} locked={picksUsed} />
-          <DraftSettingsCard seasonId={seasonId} settings={settings} />
-          <DraftStatusCard seasonId={seasonId} status={settings.status} />
-          <SyncEspnKeepersCard />
-          <AdminKeepersCard seasonId={seasonId} keeperLimit={settings.keeper_limit} />
-          <DangerZoneCard seasonId={seasonId} />
-        </>
-      )}
-      {seasonId && !settings && <Skeleton className="h-40 w-full" />}
     </div>
   );
+}
+
+function ControlRoomSection({
+  title,
+  description,
+  icon: Icon,
+  tone = 'default',
+  className,
+  children,
+}: {
+  title: string;
+  description: string;
+  icon: typeof Trophy;
+  tone?: 'default' | 'danger';
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const headingId = `${title.toLowerCase().replaceAll(' ', '-')}-heading`;
+  return (
+    <section aria-labelledby={headingId} className={`space-y-3 ${className ?? ''}`}>
+      <div className="flex items-start gap-3 px-1">
+        <div className={`rounded-lg p-2 ${tone === 'danger' ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
+          <Icon className="size-4" />
+        </div>
+        <div>
+          <h2 id={headingId} className="font-semibold">{title}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function EmptyControlRoomState({ message }: { message: string }) {
+  return <div className="rounded-lg border border-dashed px-4 py-8 text-sm text-muted-foreground">{message}</div>;
 }
 
 function CreateSeasonCard({
