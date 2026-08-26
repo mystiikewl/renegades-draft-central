@@ -1,0 +1,352 @@
+[
+  {
+    "id": "6c4dc99f-7768-4c4f-b4ba-acba87cb6565",
+    "name": "F Dem Kids",
+    "owner_email": "ataha91@gmail.com",
+    "created_at": "2025-08-16T02:14:55.327954+00:00",
+    "updated_at": "2025-08-17T09:38:59.136852+00:00"
+  },
+  {
+    "id": "03635ceb-1eb0-4e5f-9288-600d60f9b22c",
+    "name": "Mamba Mentality",
+    "owner_email": "michael.erickson07@gmail.com",
+    "created_at": "2025-08-17T00:08:03.696646+00:00",
+    "updated_at": "2025-08-18T08:27:00.123101+00:00"
+  },
+  {
+    "id": "867e3a6f-0e9b-464e-92a3-ba782e4b65c5",
+    "name": "Fresh Prince of Dentown",
+    "owner_email": "dkell1999@gmail.com",
+    "created_at": "2025-08-17T00:06:35.411747+00:00",
+    "updated_at": "2025-08-19T10:24:05.935508+00:00"
+  },
+  {
+    "id": "46fbbb6d-d322-4feb-aa83-87648b522166",
+    "name": "Stroking Threes Smoking Trees",
+    "owner_email": "jcogdale@hotmail.com",
+    "created_at": "2025-08-17T00:08:23.143247+00:00",
+    "updated_at": "2025-09-12T11:49:34.877152+00:00"
+  },
+  {
+    "id": "aef7838a-7709-4a2e-953b-830804d925b7",
+    "name": "Innocent until proven Giddey",
+    "owner_email": "lachie.angus@hotmail.com",
+    "created_at": "2025-08-17T00:09:18.878597+00:00",
+    "updated_at": "2025-09-13T02:36:53.100146+00:00"
+  },
+  {
+    "id": "49b28fb6-4442-453b-b3b3-d2c3b7218063",
+    "name": "Fart Rainbows TheDoncicStory",
+    "owner_email": "sfhofenk@gmail.com",
+    "created_at": "2025-08-17T00:07:26.737934+00:00",
+    "updated_at": "2025-09-16T11:13:07.800838+00:00"
+  },
+  {
+    "id": "98892852-2960-4940-8e0b-5951d054ca47",
+    "name": "Affco Meat Workers",
+    "owner_email": "adam.william.mclean@gmail.com",
+    "created_at": "2025-08-17T00:07:43.818613+00:00",
+    "updated_at": "2025-09-16T18:05:46.941688+00:00"
+  },
+  {
+    "id": "9d010cd0-d6c2-46db-aff6-d01968e2a6b1",
+    "name": "Kawhi of the Tiger",
+    "owner_email": "reecewilliambrown@gmail.com",
+    "created_at": "2025-08-17T00:08:45.850141+00:00",
+    "updated_at": "2025-09-16T21:00:44.612392+00:00"
+  },
+  {
+    "id": "f2943c99-c52f-412a-9d87-1e4d945ab3ed",
+    "name": "Building Bridges",
+    "owner_email": "danbrooks33@icloud.com",
+    "created_at": "2025-08-16T11:32:00.36443+00:00",
+    "updated_at": "2025-09-16T21:37:34.610266+00:00"
+  },
+  {
+    "id": "cba9a091-ce3b-4ea5-9380-9a8927f061a9",
+    "name": "Flash in the Pan",
+    "owner_email": "dominic0411@hotmail.com",
+    "created_at": "2025-08-17T00:09:03.677829+00:00",
+    "updated_at": "2025-09-23T10:49:18.311648+00:00"
+  },
+  {
+    "id": "c6a4d3bd-1c58-4233-b9c2-22a55a8f687f",
+    "name": "Los Angeles Lakers",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "603516fc-755d-4b47-8b71-afa301fd56a3",
+    "name": "Golden State Warriors",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "9433c4f0-cc7b-4b66-bdfe-b0069bb039b0",
+    "name": "Boston Celtics",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "f8e5d801-cea8-4cfb-9919-1bd3aabe6f85",
+    "name": "Miami Heat",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "a407d635-c18e-4e7b-a490-f4f9a84478ef",
+    "name": "Milwaukee Bucks",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "27d020bf-6201-4835-8d93-b3294118f0a7",
+    "name": "Phoenix Suns",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "63eb4340-d571-4a6f-b700-e80ee176d688",
+    "name": "Dallas Mavericks",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "5102ecdf-959d-4565-8092-3b6f85e9b979",
+    "name": "Denver Nuggets",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "7d103a0f-84dd-4ce8-b022-5420ba13fbbf",
+    "name": "Philadelphia 76ers",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "efc330a7-4b93-41d8-ab21-23464b3fa969",
+    "name": "Brooklyn Nets",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "7e7e26ce-d676-41d4-a690-0ed198f10540",
+    "name": "Los Angeles Clippers",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "07b734a7-6d96-48f7-8a9f-c1e11d3995a5",
+    "name": "Chicago Bulls",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "69ac93d3-6c41-4f6f-9369-9a99653ed16b",
+    "name": "Toronto Raptors",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "fc5a7d37-6e44-4aa3-8dd2-3861b5b48cda",
+    "name": "Utah Jazz",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "4211e97f-37a7-4f4f-ba58-37afe31bd15a",
+    "name": "Portland Trail Blazers",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "1f9b8895-1f79-4f09-b449-4f582de3ddd7",
+    "name": "Oklahoma City Thunder",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "5061571a-0ebc-4c2d-b023-2fe47cc2fdd7",
+    "name": "Minnesota Timberwolves",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "43213d6e-d2f1-4bf8-bcd6-16aab580ce38",
+    "name": "New Orleans Pelicans",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "47e215f7-7a82-4811-bf96-5a0eab09ed06",
+    "name": "New York Knicks",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "ed8ac05c-9311-4fc7-9d38-606a0c5c9aeb",
+    "name": "Atlanta Hawks",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:41:33.278412+00:00",
+    "updated_at": "2025-09-29T07:41:33.278412+00:00"
+  },
+  {
+    "id": "46629d78-1aa5-41ec-b1be-235d0413d453",
+    "name": "Fantasy All-Stars",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "62d26865-3701-4834-b818-e0c097d0376f",
+    "name": "Dream Team",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "50561e1d-f141-423c-9ff2-d8e7f7680638",
+    "name": "Ballers United",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "b01ece54-3964-4cc2-8261-286fae506537",
+    "name": "Slam Dunk Squad",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "5ead143d-e23b-4cdb-afb8-c5e365079915",
+    "name": "Court Kings",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "4f518c50-7e28-4042-8180-54e1c58d4b14",
+    "name": "Rebound Raiders",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "45d2d39a-0d22-46c4-84c6-88879f55d2f0",
+    "name": "Assist Masters",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "db06e344-7bc1-451c-a0bd-ee54c479fd58",
+    "name": "Three-Point Titans",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "c51cd07e-654f-481a-a24d-06ac29caf371",
+    "name": "Defense Legends",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "118d9776-4b1c-4259-a048-232523c025e8",
+    "name": "Scoring Machines",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "de80e08d-de8b-4f5a-90bf-4b28e3d050f0",
+    "name": "Rookie Revolution",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "9afff368-2f1f-44bb-8a52-901cf43b2758",
+    "name": "Veteran Valor",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "70ce7981-a70e-4408-81dd-c9b03342a60e",
+    "name": "Fast Break Force",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "82a08d19-7bd3-4457-a2a2-7e37db8c16cc",
+    "name": "Full Court Press",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "cc81e18d-a7df-4ea0-8fb6-369f9a308917",
+    "name": "Paint Protectors",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "d15eddd6-f24e-438c-b017-a21a4e102cd7",
+    "name": "Perimeter Predators",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "bfde7065-4dca-4919-b977-01c3f52ab6ba",
+    "name": "Bench Bosses",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "6bb8e4d5-dffe-44fa-8ec9-8f30e701754f",
+    "name": "Starting Five",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "4023155c-d663-43e7-9c95-71c75537d3b7",
+    "name": "Rotation Nation",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  },
+  {
+    "id": "77982b60-3b3f-4466-baa2-7f89dc084e7e",
+    "name": "Trade Wizards",
+    "owner_email": null,
+    "created_at": "2025-09-29T07:42:55.721883+00:00",
+    "updated_at": "2025-09-29T07:42:55.721883+00:00"
+  }
+]

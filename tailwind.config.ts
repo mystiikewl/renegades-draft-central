@@ -20,8 +20,7 @@ export default {
 		},
 		extend: {
 			fontFamily: {
-				montserrat: ['Montserrat', 'sans-serif'],
-				poppins: ['Poppins', 'sans-serif'],
+				sans: ['Inter Variable', 'ui-sans-serif', 'system-ui', 'sans-serif'],
 			},
 			colors: {
 				border: 'hsl(var(--border))',
@@ -100,13 +99,10 @@ export default {
 				},
 				'pick-highlight': {
 					'0%': {
-						'box-shadow': '0 0 0 0 hsl(var(--draft-active) / 0.7)'
-					},
-					'70%': {
-						'box-shadow': '0 0 0 10px hsl(var(--draft-active) / 0)'
+						'background-color': 'hsl(var(--draft-picked) / 0.35)'
 					},
 					'100%': {
-						'box-shadow': '0 0 0 0 hsl(var(--draft-active) / 0)'
+						'background-color': 'transparent'
 					}
 				},
 				'court-slide': {

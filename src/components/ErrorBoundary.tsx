@@ -1,49 +1,47 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { logError } from '../utils/logging'; // Import the logging utility
+import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
 
 interface Props {
-  children?: ReactNode;
+  children: ReactNode;
+  /** Context label shown in the recovery UI, e.g. "draft board". */
+  label?: string;
 }
 
 interface State {
-  hasError: boolean;
+  error: Error | null;
 }
 
-class ErrorBoundary extends Component<Props, State> {
-  public state: State = {
-    hasError: false
-  };
+/** Catches render crashes so a broken page shows a recovery UI, not a white screen. */
+export class ErrorBoundary extends Component<Props, State> {
+  state: State = { error: null };
 
-  public static getDerivedStateFromError(_: Error): State {
-    // Update state so the next render will show the fallback UI.
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error): State {
+    return { error };
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    logError(error, errorInfo); // Use the logging utility
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[ErrorBoundary]', this.props.label ?? '', error, info.componentStack);
   }
 
-  public render() {
-    if (this.state.hasError) {
-      // You can render any custom fallback UI
-      return (
-        <div className="flex flex-col items-center justify-center h-screen text-center">
-          <h1 className="text-4xl font-bold text-red-600 mb-4">Oops! Something went wrong.</h1>
-          <p className="text-lg text-gray-700 mb-8">
-            We're sorry, but an unexpected error occurred. Please try refreshing the page.
-          </p>
-          <button
-            className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            onClick={() => window.location.reload()}
-          >
-            Refresh Page
-          </button>
+  private reset = () => this.setState({ error: null });
+
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8 text-center">
+        <h2 className="text-lg font-semibold">
+          Something went wrong{this.props.label ? ` loading the ${this.props.label}` : ''}.
+        </h2>
+        <p className="max-w-md text-sm text-muted-foreground">
+          {this.state.error.message || 'An unexpected error occurred.'}
+        </p>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={this.reset}>
+            Try again
+          </Button>
+          <Button onClick={() => window.location.reload()}>Reload page</Button>
         </div>
-      );
-    }
-
-    return this.props.children;
+      </div>
+    );
   }
 }
-
-export default ErrorBoundary;
