@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { ArrowRight, ArrowRightLeft, ClipboardList, Users, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { useActiveSeason, useDraftPicks, useRosters, useTeams, useTrades } from '@/api/queries';
+import { useDraftRealtime } from '@/api/realtime';
 import type { RosterEntry } from '@/api/types';
 import { Badge } from '@/components/ui/badge';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
@@ -20,6 +21,7 @@ export function MyTeamPage() {
   const { profile } = useAuth();
   const { data: season } = useActiveSeason();
   const seasonId = season?.id;
+  useDraftRealtime(seasonId);
   const { data: teams } = useTeams();
   const { data: rosters, isLoading: rosterLoading } = useRosters(seasonId);
   const { data: picks, isLoading: picksLoading } = useDraftPicks(seasonId);
