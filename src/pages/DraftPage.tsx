@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { RealtimeBadge } from '@/components/draft/RealtimeBadge';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
+import { getTeamColour } from '@/lib/teamColours';
 
 function DraftStatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -56,7 +57,6 @@ export function DraftPage() {
   }, [picks]);
 
   const teamName = (id: string) => teams?.find((t) => t.id === id)?.name ?? '—';
-  const teamColor = (id: string) => teams?.find((t) => t.id === id)?.team_color;
   const isMyTurn = !!nextPick && !!profile?.team_id && nextPick.team_id === profile.team_id;
   const canPickNow = useCanPickNow(seasonId);
   const draftLive = settings?.status === 'running' || settings?.status === 'paused';
@@ -162,7 +162,7 @@ export function DraftPage() {
         </p>
       )}
 
-      <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} teamColor={teamColor} />
+      <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} teamColor={getTeamColour} />
 
       <Dialog open={undoConfirm} onOpenChange={setUndoConfirm}>
         <DialogContent className="sm:max-w-sm">

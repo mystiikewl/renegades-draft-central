@@ -23,7 +23,6 @@ vi.mock('@/api/mutations', () => ({
   useCreateSeason: () => ({ mutate: vi.fn(), isPending: false }),
   useFinalizeKeepers: () => ({ mutate: vi.fn(), isPending: false }),
   useResetDraft: () => ({ mutate: vi.fn(), isPending: false }),
-  useSetTeamColor: () => ({ mutate: vi.fn(), isPending: false }),
   useSetDraftOrder: () => ({ mutate: vi.fn(), isPending: false }),
   useSetDraftStatus: () => ({ mutate: vi.fn(), isPending: false }),
 }));
@@ -74,10 +73,10 @@ describe('AdminPage', () => {
     expect(screen.getByRole('heading', { name: /danger zone/i, level: 2 })).toBeInTheDocument();
   });
 
-  it('gives the commissioner a saved colour control for each team', () => {
+  it('keeps team colour controls out of the commissioner control room', () => {
     render(<AdminPage />);
 
-    expect(screen.getByRole('heading', { name: /team colours/i })).toBeInTheDocument();
-    expect(screen.getByLabelText('Alpha Team colour')).toHaveAttribute('type', 'color');
+    expect(screen.queryByRole('heading', { name: /team colours/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Alpha Team colour')).not.toBeInTheDocument();
   });
 });
