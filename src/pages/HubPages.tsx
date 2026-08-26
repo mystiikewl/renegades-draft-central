@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 
-type HubPath = '/pool' | '/rankings' | '/rosters' | '/trades' | '/profile' | '/team-builder' | '/admin';
+type HubPath = '/pool' | '/rankings' | '/rosters' | '/trades' | '/profile' | '/team-builder' | '/admin' | '/admin/trades';
 type HubAction = {
   to: HubPath;
   icon: LucideIcon;
@@ -76,12 +76,20 @@ export function MorePage() {
   ];
 
   if (profile?.is_admin) {
-    actions.push({
-      to: '/admin',
-      icon: Shield,
-      title: 'Admin',
-      detail: 'Season, draft order and commissioner controls.',
-    });
+    actions.push(
+      {
+        to: '/admin/trades',
+        icon: ArrowRightLeft,
+        title: 'Trade overrides',
+        detail: 'Apply, audit and correct member trades before the draft is complete.',
+      },
+      {
+        to: '/admin',
+        icon: Shield,
+        title: 'Admin',
+        detail: 'Season, draft order and commissioner controls.',
+      },
+    );
   }
 
   return <HubPage eyebrow="More" title="Tools & settings" actions={actions} />;
