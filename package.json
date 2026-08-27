@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "import-players": "node scripts/import-players.js",
+    "import-players": "node --env-file=.env scripts/import-players.js",
     "sync-keepers": "node --env-file=.env scripts/sync-espn-keepers.mjs",
     "test": "vitest",
     "test:ui": "vitest --ui",
