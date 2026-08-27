@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ArrowRight, Radio, SkipForward } from 'lucide-react';
-import { useActiveSeason, useDraftPicks, useDraftSettings, useRosters, useTeams } from '@/api/queries';
-import { useSkipPickForSlot, useUndoDraftActionForSlot } from '@/api/draftTurnActions';
+import { useActiveSeason, useDraftPicks, useDraftSettings, usePlayerPool, useRosters, useTeams } from '@/api/queries';
+import { useMakePickForSlot, useSkipPickForSlot, useUndoDraftActionForSlot } from '@/api/draftTurnActions';
 import { useDraftRealtime } from '@/api/realtime';
 import { useCanPickNow } from '@/hooks/useCanPickNow';
 import { useAuth } from '@/auth/AuthContext';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useOfflineQueue } from '@/api/offlineQueue';
-import type { DraftPick } from '@/api/types';
+import type { DraftPick, PlayerWithStats } from '@/api/types';
 import {
   Dialog,
   DialogContent,
@@ -20,9 +20,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { DraftPlayerList } from '@/components/draft/DraftPlayerList';
 import { RealtimeBadge } from '@/components/draft/RealtimeBadge';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
+import { PlayerStatsDialog } from '@/components/player/PlayerStatsDialog';
 import { getTeamColour } from '@/lib/teamColours';
+import { statColumnValue } from '@/lib/stats';
 
 function DraftStatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -35,7 +38,6 @@ function DraftStatusBadge({ status }: { status: string }) {
   return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
 }
 
-/** Draft-room overview. Player selection itself lives in /pool. */
 export function DraftPage() {
   const { profile } = useAuth();
   const { data: season } = useActiveSeason();
@@ -46,11 +48,15 @@ export function DraftPage() {
   const { data: picks, isLoading: picksLoading } = useDraftPicks(seasonId);
   const { data: teams } = useTeams();
   const { data: rosters } = useRosters(seasonId);
+  const { data: availablePlayers, isLoading: playersLoading } = usePlayerPool(seasonId);
+  const makePick = useMakePickForSlot(seasonId ?? '');
   const undoAction = useUndoDraftActionForSlot(seasonId ?? '');
   const skipPick = useSkipPickForSlot(seasonId ?? '');
   const [undoConfirm, setUndoConfirm] = useState(false);
   const [skipConfirm, setSkipConfirm] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerWithStats | null>(null);
   const queued = useOfflineQueue((s) => s.queue);
+  const queuedIds = useMemo(() => new Set(queued.map((item) => item.playerId)), [queued]);
 
   const nextPick = useMemo(() => picks?.find((p) => !p.is_used) ?? null, [picks]);
   const lastPick = useMemo(() => {
@@ -64,6 +70,14 @@ export function DraftPage() {
     return picks.find((pick) => !pick.is_used && pick.pick_number >= nextPick.pick_number && pick.team_id === profile.team_id) ?? null;
   }, [picks, nextPick, profile?.team_id]);
 
+  const rankedAvailable = useMemo(
+    () => [...(availablePlayers ?? [])].sort((a, b) => {
+      const points = statColumnValue(b, 'pts', 'averages') - statColumnValue(a, 'pts', 'averages');
+      return points || a.name.localeCompare(b.name);
+    }),
+    [availablePlayers],
+  );
+
   const teamName = (id: string) => teams?.find((t) => t.id === id)?.name ?? '—';
   const isMyTurn = !!nextPick && !!profile?.team_id && nextPick.team_id === profile.team_id;
   const canPickNow = useCanPickNow(seasonId);
@@ -76,6 +90,7 @@ export function DraftPage() {
     !!lastPick &&
     (!!profile?.is_admin || (!!profile?.team_id && profile.team_id === lastPick.team_id));
   const picksUntilMine = nextPick && myNextPick ? Math.max(0, myNextPick.pick_number - nextPick.pick_number) : null;
+  const canDraftSelected = !!selectedPlayer && !!nextPick && isMyTurn && canPickNow && !rosterFull && !queuedIds.has(selectedPlayer.id);
 
   if (!season) {
     return (
@@ -103,7 +118,7 @@ export function DraftPage() {
       </div>
 
       {nextPick && draftVisible ? (
-        <section className={`overflow-hidden border-y bg-card sm:rounded-2xl sm:border ${isMyTurn ? 'sm:border-primary/60' : ''}`}>
+        <section className={`overflow-hidden border-y bg-card sm:rounded-2xl sm:border ${isMyTurn ? 'border-primary/50 bg-primary/[0.03]' : ''}`}>
           <div className={`relative px-4 py-4 sm:px-5 ${isMyTurn ? 'bg-primary/[0.06]' : 'bg-muted/25'}`}>
             {isMyTurn && <div aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-primary" />}
             <div className="flex items-center gap-3">
@@ -117,7 +132,7 @@ export function DraftPage() {
                 </div>
                 <div className="mt-1 line-clamp-2 text-lg font-bold leading-tight">{teamName(nextPick.team_id)}</div>
                 <div className={`mt-1 text-xs font-medium ${isMyTurn ? 'text-primary' : 'text-muted-foreground'}`}>
-                  {isMyTurn ? (draftRunning ? 'YOUR PICK' : 'YOUR PICK · WAITING FOR RESUME') : `Round ${nextPick.round}`}
+                  {isMyTurn ? (draftRunning ? 'YOUR PICK · CHOOSE BELOW' : 'YOUR PICK · WAITING FOR RESUME') : `Round ${nextPick.round}`}
                 </div>
               </div>
               {isMyTurn && (
@@ -125,8 +140,8 @@ export function DraftPage() {
                   <Button variant="outline" disabled={!draftRunning} onClick={() => setSkipConfirm(true)}>
                     <SkipForward className="mr-2 size-4" /> Skip pick
                   </Button>
-                  <Button asChild disabled={!canPickNow || rosterFull} className="transition-transform active:scale-[0.98]">
-                    <Link to="/pool">Player Pool <ArrowRight className="size-4" /></Link>
+                  <Button asChild variant="outline">
+                    <Link to="/pool">Full Player Pool <ArrowRight className="size-4" /></Link>
                   </Button>
                 </div>
               )}
@@ -137,8 +152,8 @@ export function DraftPage() {
                 <Button variant="outline" disabled={!draftRunning} onClick={() => setSkipConfirm(true)}>
                   <SkipForward className="mr-1.5 size-4" /> Skip
                 </Button>
-                <Button asChild disabled={!canPickNow || rosterFull} className="transition-transform active:scale-[0.98]">
-                  <Link to="/pool" className="justify-center">Open Player Pool <ArrowRight className="size-4" /></Link>
+                <Button asChild variant="outline">
+                  <Link to="/pool" className="justify-center">Full Pool <ArrowRight className="size-4" /></Link>
                 </Button>
               </div>
             )}
@@ -205,7 +220,46 @@ export function DraftPage() {
         </p>
       )}
 
-      <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} teamColor={getTeamColour} />
+      {isMyTurn && draftVisible && (
+        playersLoading ? (
+          <Skeleton className="mx-4 h-96 w-[calc(100%-2rem)] sm:mx-0 sm:w-full" />
+        ) : (
+          <DraftPlayerList
+            players={rankedAvailable}
+            title={draftRunning ? 'Make your pick' : 'Available players'}
+            subtitle={draftRunning ? `${rankedAvailable.length} available players · select one to review and confirm` : 'Keep scouting while the draft is paused'}
+            actionLabel="Review"
+            disabled={!draftRunning || rosterFull}
+            disabledLabel={rosterFull ? 'Roster full' : 'Paused'}
+            onSelect={setSelectedPlayer}
+          />
+        )
+      )}
+
+      <div className={isMyTurn && draftVisible ? 'pt-1' : ''}>
+        <DraftBoard picks={picks ?? []} picksLoading={picksLoading} teamName={teamName} teamColor={getTeamColour} />
+      </div>
+
+      <PlayerStatsDialog
+        player={selectedPlayer}
+        open={selectedPlayer !== null}
+        onOpenChange={(open) => !open && setSelectedPlayer(null)}
+        canPick={canDraftSelected}
+        picking={makePick.isPending}
+        pickNumber={nextPick?.pick_number}
+        onPick={() =>
+          selectedPlayer && nextPick &&
+          makePick.mutate(
+            {
+              pickId: nextPick.id,
+              pickNumber: nextPick.pick_number,
+              playerId: selectedPlayer.id,
+              playerName: selectedPlayer.name,
+            },
+            { onSettled: () => setSelectedPlayer(null) },
+          )
+        }
+      />
 
       <Dialog open={skipConfirm} onOpenChange={setSkipConfirm}>
         <DialogContent className="sm:max-w-sm">
@@ -239,9 +293,7 @@ export function DraftPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setUndoConfirm(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setUndoConfirm(false)}>Cancel</Button>
             <Button
               className="transition-transform active:scale-[0.98]"
               disabled={undoAction.isPending || !lastPick}
@@ -320,27 +372,14 @@ export function DraftBoard({
                       data-on-clock={onClock || undefined}
                       data-team-color={pickTeamColor}
                       data-skipped={p.is_skipped || undefined}
-                      style={
-                        pickTeamColor
-                          ? {
-                              backgroundColor: `${pickTeamColor}1F`,
-                              borderTopColor: pickTeamColor,
-                              borderTopWidth: '2px',
-                            }
-                          : undefined
-                      }
+                      style={pickTeamColor ? { backgroundColor: `${pickTeamColor}1F`, borderTopColor: pickTeamColor, borderTopWidth: '2px' } : undefined}
                       className={`relative flex h-[6.75rem] w-36 shrink-0 flex-col border-r p-2.5 text-xs sm:h-28 sm:w-40 ${
-                        onClock
-                          ? 'bg-primary/[0.07] ring-2 ring-inset ring-primary'
-                          : p.is_used
-                          ? 'bg-card'
-                          : 'bg-muted/[0.16]'
+                        onClock ? 'bg-primary/[0.07] ring-2 ring-inset ring-primary' : p.is_used ? 'bg-card' : 'bg-muted/[0.16]'
                       }`}
                     >
                       {onClock && (
                         <span className="absolute right-2 top-2 flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide text-primary">
-                          <span className="size-1.5 animate-pulse rounded-full bg-primary" />
-                          Live
+                          <span className="size-1.5 animate-pulse rounded-full bg-primary" /> Live
                         </span>
                       )}
 
@@ -357,12 +396,7 @@ export function DraftBoard({
                           </div>
                         ) : (
                           <div className="mt-2 flex min-w-0 flex-1 items-center gap-2">
-                            <PlayerHeadshot
-                              espnId={p.players?.espn_id ?? null}
-                              name={p.players?.name ?? ''}
-                              size={36}
-                              variant="bare"
-                            />
+                            <PlayerHeadshot espnId={p.players?.espn_id ?? null} name={p.players?.name ?? ''} size={36} variant="bare" />
                             <div className="min-w-0">
                               <div className="line-clamp-2 font-bold leading-tight">{p.players?.name ?? '—'}</div>
                               <div className="mt-1 line-clamp-1 text-[10px] text-muted-foreground">{teamName(p.team_id)}</div>
@@ -371,9 +405,7 @@ export function DraftBoard({
                         )
                       ) : (
                         <div className="mt-auto min-w-0">
-                          <div className={`line-clamp-2 font-semibold leading-tight ${onClock ? 'text-primary' : ''}`}>
-                            {teamName(p.team_id)}
-                          </div>
+                          <div className={`line-clamp-2 font-semibold leading-tight ${onClock ? 'text-primary' : ''}`}>{teamName(p.team_id)}</div>
                           <div className="mt-1 text-[10px] text-muted-foreground">{onClock ? 'On the clock' : 'Upcoming'}</div>
                         </div>
                       )}

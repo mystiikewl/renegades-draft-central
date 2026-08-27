@@ -3,9 +3,11 @@ import type { CSSProperties } from 'react';
 import { Bot, ClipboardList, ListChecks, Settings, UserCircle, Users } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { DraftTurnBanner } from '@/components/draft/DraftTurnBanner';
+import { PracticeDraftSessionController } from '@/components/draft/PracticeDraftSessionController';
 import { TradeAnnouncementBanner } from '@/components/trades/TradeAnnouncementBanner';
 import { Toaster } from '@/components/ui/sonner';
 import { useMobileViewportInsets } from '@/hooks/useMobileViewportInsets';
+import { usePracticeDraftSession } from '@/stores/practiceDraftSession';
 
 const primaryNav = [
   { to: '/my-team', label: 'My Team', short: 'My Team', icon: UserCircle, matches: ['/my-team'] },
@@ -34,6 +36,7 @@ export function AppShell() {
   const { browserBottom, keyboardOpen } = useMobileViewportInsets();
   const hasLeagueShell = Boolean(profile?.team_id);
   const inPracticeDraft = pathname === '/practice-draft';
+  const practiceActive = usePracticeDraftSession((state) => state.active);
 
   const isActive = (matches: readonly string[]) =>
     matches.some((path) =>
@@ -84,7 +87,7 @@ export function AppShell() {
                   className="flex shrink-0 items-center gap-1.5 rounded-lg border bg-card px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:px-3 sm:text-sm"
                 >
                   <Bot className="size-4" />
-                  Practice
+                  {practiceActive ? 'Practice Active' : 'Practice'}
                 </Link>
               )}
               {profile && (
@@ -144,7 +147,8 @@ export function AppShell() {
         </nav>
       )}
 
-      {profile?.team_id && !inPracticeDraft && <DraftTurnBanner />}
+      {profile?.team_id && <PracticeDraftSessionController />}
+      {profile?.team_id && !inPracticeDraft && !practiceActive && <DraftTurnBanner />}
       {profile?.team_id && !inPracticeDraft && <TradeAnnouncementBanner />}
       <Outlet />
       <Toaster />
