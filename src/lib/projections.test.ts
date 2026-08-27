@@ -114,6 +114,19 @@ describe('zScores', () => {
     expect(scores.get('high-volume-good')).toBeGreaterThan(scores.get('low-volume-good') ?? 0);
     expect(scores.get('high-volume-poor')).toBeLessThan(0);
   });
+
+  it('keeps missing percentage data neutral instead of treating it as 0%', () => {
+    const missing = {
+      ...P('missing', 0, 0, 0, 82),
+      player_seasons: [{ season_id: 's1', stats: { games_played: 82 } }],
+    };
+    const shooters = [
+      P('good', 0, 0, 0.55, 82, { field_goals_made: 11, field_goals_attempted: 20 }),
+      P('poor', 0, 0, 0.45, 82, { field_goals_made: 9, field_goals_attempted: 20 }),
+      missing,
+    ];
+    expect(zScores(shooters, 'fgPct').get('missing')).toBeCloseTo(0);
+  });
 });
 
 describe('impact', () => {

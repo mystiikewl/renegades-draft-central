@@ -19,6 +19,8 @@ interface Props {
   onPick: (player: PlayerWithStats) => void;
 }
 
+const PERCENTAGE_CATEGORIES = new Set<CategoryImpact['cat']>(['fgPct', 'ftPct', 'tpPct']);
+
 const CAT_LABEL: Record<CategoryImpact['cat'], string> = {
   fgm: 'FGM', fgPct: 'FG%', ftPct: 'FT%', tp: '3PM', tpPct: '3P%', reb: 'REB', ast: 'AST',
   stl: 'STL', blk: 'BLK', to: 'TO', dd: 'DD', td: 'TD', pts: 'PTS',
@@ -31,8 +33,20 @@ function isHelpful(item: CategoryImpact) {
 function fitScore(impact: CategoryImpact[]): number {
   return impact.reduce((score, item) => {
     if (item.delta === 0) return score;
-    if (item.flipsVsBaseline && isHelpful(item)) return score + 2;
-    return score + (isHelpful(item) ? 1 : -1);
+
+    const directedDelta = INVERTED_CATEGORIES.has(item.cat)
+      ? -item.delta
+      : item.delta;
+    const gapBefore = INVERTED_CATEGORIES.has(item.cat)
+      ? item.before - item.baseline
+      : item.baseline - item.before;
+    const needWeight = gapBefore > 0 ? 1.5 : 0.35;
+    const scale = PERCENTAGE_CATEGORIES.has(item.cat)
+      ? 0.01
+      : Math.max(Math.abs(item.baseline) * 0.05, 1);
+    const normalized = Math.max(-2, Math.min(2, directedDelta / scale));
+    const flipBonus = item.flipsVsBaseline && directedDelta > 0 ? 1 : 0;
+    return score + normalized * needWeight + flipBonus;
   }, 0);
 }
 
@@ -45,7 +59,7 @@ function FitSummary({ impact }: { impact: CategoryImpact[] }) {
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
       <Badge variant="outline" className="px-1.5 py-0.5 font-mono">
-        {score > 0 ? '+' : ''}{score} fit
+        {score > 0 ? '+' : ''}{score.toFixed(1)} fit
       </Badge>
       {flips.slice(0, 2).map((item) => (
         <span key={item.cat} className="rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary">

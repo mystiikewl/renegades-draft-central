@@ -170,8 +170,12 @@ export function zScores(
     : 0;
   const values = pool.map((player) => {
     if (!PERCENTAGE_CATEGORIES.has(cat)) return playerValue(player, cat, basis);
-    // Percentage fantasy value depends on both efficiency and shot volume.
-    return (playerValue(player, cat, basis) - poolPct) * percentageVolume(player, cat, basis);
+    const value = playerValue(player, cat, basis);
+    // Missing percentage data should be neutral rather than treated as a
+    // catastrophic 0% shooter. When data exists, fantasy value depends on both
+    // efficiency and shot volume.
+    if (value <= 0) return 0;
+    return (value - poolPct) * percentageVolume(player, cat, basis);
   });
 
   const count = values.length;
@@ -196,6 +200,7 @@ export interface CategoryImpact {
   cat: Category;
   before: number;
   after: number;
+  baseline: number;
   delta: number;
   /** true if adding the candidate moves this category across the baseline. */
   flipsVsBaseline: boolean;
@@ -219,8 +224,11 @@ export function impact(
       cat,
       before,
       after,
+      baseline: base[cat],
       delta: after - before,
-      flipsVsBaseline: beforeGap * afterGap < 0,
+      flipsVsBaseline:
+        (beforeGap < 0 && afterGap >= 0) ||
+        (beforeGap > 0 && afterGap <= 0),
     };
   });
 }
