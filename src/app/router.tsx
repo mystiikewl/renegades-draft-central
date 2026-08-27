@@ -8,6 +8,7 @@ import { DraftPage } from '@/pages/DraftPage';
 import { LeagueHubPage, MorePage } from '@/pages/HubPages';
 import { LoginPage } from '@/pages/LoginPage';
 import { MyTeamPage } from '@/pages/MyTeamPage';
+import { PlayerLabPage } from '@/pages/PlayerLabPage';
 import { PlayerPoolPage } from '@/pages/PlayerPoolPage';
 import { PowerRankingsPage } from '@/pages/PowerRankingsPage';
 import { ProfilePage } from '@/pages/ProfilePage';
@@ -148,6 +149,18 @@ const poolRoute = createRoute({
   ),
 });
 
+const playerLabRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/player-lab',
+  component: () => (
+    <LeagueRoute>
+      <ErrorBoundary label="player lab">
+        <PlayerLabPage />
+      </ErrorBoundary>
+    </LeagueRoute>
+  ),
+});
+
 const tradesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/trades',
@@ -213,6 +226,7 @@ const routeTree = rootRoute.addChildren([
   adminTradesRoute,
   rostersRoute,
   poolRoute,
+  playerLabRoute,
   tradesRoute,
   rankingsRoute,
   powerRankingsRoute,
