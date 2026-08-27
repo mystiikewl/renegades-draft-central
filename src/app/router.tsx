@@ -4,6 +4,7 @@ import { AdminRouteGuard, LeagueRoute, RequireAuth } from '@/app/RouteGuards';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AdminPage } from '@/pages/AdminPage';
 import { AdminTradeOverridesPage } from '@/pages/AdminTradeOverridesPage';
+import { AnalysisPage } from '@/pages/AnalysisPage';
 import { DraftPage } from '@/pages/DraftPage';
 import { LeagueHubPage, MorePage } from '@/pages/HubPages';
 import { LoginPage } from '@/pages/LoginPage';
@@ -150,6 +151,18 @@ const poolRoute = createRoute({
   ),
 });
 
+const analysisRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/analysis',
+  component: () => (
+    <LeagueRoute>
+      <ErrorBoundary label="draft intelligence">
+        <AnalysisPage />
+      </ErrorBoundary>
+    </LeagueRoute>
+  ),
+});
+
 const playerLabRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/player-lab',
@@ -239,6 +252,7 @@ const routeTree = rootRoute.addChildren([
   adminTradesRoute,
   rostersRoute,
   poolRoute,
+  analysisRoute,
   playerLabRoute,
   practiceDraftRoute,
   tradesRoute,

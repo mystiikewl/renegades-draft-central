@@ -9,6 +9,7 @@ import {
   categoryTotals,
   INVERTED_CATEGORIES,
   LEAGUE_CATEGORIES,
+  PERCENTAGE_CATEGORIES,
   type Category,
 } from '@/lib/projections';
 import type { PlayerWithStats } from '@/api/types';
@@ -28,6 +29,12 @@ interface TeamRow {
   rank: number;
 }
 
+function formatTotal(cat: Category, value: number): string {
+  return PERCENTAGE_CATEGORIES.has(cat)
+    ? value.toFixed(3)
+    : Math.round(value).toLocaleString();
+}
+
 export function PowerRankingsPage() {
   const { data: season } = useActiveSeason();
   const seasonId = season?.id;
@@ -38,8 +45,6 @@ export function PowerRankingsPage() {
 
   const rows = useMemo<TeamRow[]>(() => {
     if (!teams || !rosters) return [];
-    // ponytail: rosters carry player_seasons stats via useRosters; players not
-    // linked to a rostered entry are skipped.
     const byTeam = new Map<string, PlayerWithStats[]>();
     for (const entry of rosters) {
       if (!entry.player_id || !entry.players) continue;
@@ -57,29 +62,27 @@ export function PowerRankingsPage() {
       byTeam.set(entry.team_id, list);
     }
 
-    const cats = LEAGUE_CATEGORIES;
     const scored: TeamRow[] = teams.map((team) => {
       const players = byTeam.get(team.id) ?? [];
       return {
         teamId: team.id,
         name: team.name,
-        totals: categoryTotals(players, cats),
+        totals: categoryTotals(players, LEAGUE_CATEGORIES),
         points: {} as Record<Category, number>,
         totalPoints: 0,
         rank: 0,
       };
     });
 
-    // Rank each category: best value gets highest points (inverted cats reversed).
-    const n = Math.max(scored.length, 1);
-    for (const cat of cats) {
+    const teamCount = Math.max(scored.length, 1);
+    for (const cat of LEAGUE_CATEGORIES) {
       const sorted = [...scored].sort((a, b) =>
         INVERTED_CATEGORIES.has(cat)
           ? a.totals[cat] - b.totals[cat]
           : b.totals[cat] - a.totals[cat],
       );
-      sorted.forEach((row, i) => {
-        row.points[cat] = n - i;
+      sorted.forEach((row, index) => {
+        row.points[cat] = teamCount - index;
       });
     }
     for (const row of scored) {
@@ -87,8 +90,8 @@ export function PowerRankingsPage() {
     }
     [...scored]
       .sort((a, b) => b.totalPoints - a.totalPoints)
-      .forEach((row, i) => {
-        row.rank = i + 1;
+      .forEach((row, index) => {
+        row.rank = index + 1;
       });
     return scored.sort((a, b) => b.totalPoints - a.totalPoints);
   }, [teams, rosters]);
@@ -109,9 +112,9 @@ export function PowerRankingsPage() {
     <div className="mx-auto max-w-7xl space-y-4 px-4 py-4 md:p-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Power Rankings</h1>
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">League Forecast</h1>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Category standings points across all {rows.length} teams — higher is stronger.
+            Projected 13-category standings points across all {rows.length} teams — higher is stronger.
           </p>
         </div>
         <Link
@@ -125,7 +128,7 @@ export function PowerRankingsPage() {
       {mine && leader && (
         <section className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border bg-card p-4">
-            <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Your rank</div>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Your projected rank</div>
             <div className="mt-1 text-2xl font-black">
               #{mine.rank}
               <span className="text-sm font-medium text-muted-foreground"> / {rows.length}</span>
@@ -170,7 +173,7 @@ export function PowerRankingsPage() {
                 <td className="px-3 py-2 text-right font-black">{row.totalPoints}</td>
                 {LEAGUE_CATEGORIES.map((cat) => (
                   <td key={cat} className={`px-2 py-2 text-right ${row.points[cat] >= rows.length - 1 ? 'font-bold text-primary' : row.points[cat] <= 2 ? 'text-muted-foreground' : ''}`}>
-                    {Math.round(row.totals[cat]).toLocaleString()}
+                    {formatTotal(cat, row.totals[cat])}
                   </td>
                 ))}
               </tr>
@@ -181,7 +184,7 @@ export function PowerRankingsPage() {
 
       {settings && (
         <p className="text-[11px] text-muted-foreground">
-          Totals are season projections per roster ({settings.roster_size} spots); percentage categories are games-weighted averages.
+          Totals are season projections per roster ({settings.roster_size} spots); shooting percentages are attempt-volume weighted rather than divided across teams.
         </p>
       )}
     </div>

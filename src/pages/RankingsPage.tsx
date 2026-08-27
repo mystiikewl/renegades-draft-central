@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, SlidersHorizontal } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
+import { ArrowRight, Search, SlidersHorizontal } from 'lucide-react';
 import { usePlayerPool, useActiveSeason } from '@/api/queries';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { rememberFocusedPlayer } from '@/lib/analysisNavigation';
+import { STRATEGY_PRESETS, type StrategyKey } from '@/lib/draftIntelligence';
 import { isRookie } from '@/lib/stats';
 import { zScores, LEAGUE_CATEGORIES, type Basis, type Category } from '@/lib/projections';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
@@ -38,6 +41,15 @@ function loadBasis(seasonId?: string): Basis {
   }
 }
 
+function loadPreset(seasonId?: string): StrategyKey | null {
+  try {
+    const raw = seasonId ? localStorage.getItem(`rankings:${seasonId}:preset`) : null;
+    return STRATEGY_PRESETS.some((preset) => preset.key === raw) ? raw as StrategyKey : null;
+  } catch {
+    return null;
+  }
+}
+
 const chip = (active: boolean) =>
   `shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold transition-all active:scale-[0.98] ${
     active
@@ -54,11 +66,13 @@ export function RankingsPage() {
   const [basis, setBasis] = useState<Basis>('totals');
   const [rookiesOnly, setRookiesOnly] = useState(false);
   const [showWeights, setShowWeights] = useState(false);
+  const [activePreset, setActivePreset] = useState<StrategyKey | null>('balanced');
 
   useEffect(() => {
     if (!season?.id) return;
     setWeights(loadWeights(season.id));
     setBasis(loadBasis(season.id));
+    setActivePreset(loadPreset(season.id));
   }, [season?.id]);
 
   const zByCat = useMemo(() => {
@@ -70,37 +84,52 @@ export function RankingsPage() {
 
   const rows = useMemo(() => {
     if (!players) return [];
-    const q = search.trim().toLowerCase();
-    const wSum = CATS.reduce((s, c) => s + weights[c], 0);
-    let pool = q
-      ? players.filter(
-          (p) =>
-            p.name.toLowerCase().includes(q) ||
-            (p.nba_team ?? '').toLowerCase().includes(q),
+    const query = search.trim().toLowerCase();
+    const weightSum = CATS.reduce((sum, cat) => sum + weights[cat], 0);
+    let pool = query
+      ? players.filter((player) =>
+          player.name.toLowerCase().includes(query) ||
+          (player.nba_team ?? '').toLowerCase().includes(query),
         )
       : players;
     if (rookiesOnly) pool = pool.filter(isRookie);
-    const scored = pool.map((p) => {
-      const zs = {} as Record<Cat, number>;
-      for (const c of CATS) zs[c] = zByCat[c]?.get(p.id) ?? 0;
-      const composite =
-        wSum > 0 ? CATS.reduce((s, c) => s + zs[c] * weights[c], 0) / wSum : 0;
-      return { player: p, zs, composite };
+    const scored = pool.map((player) => {
+      const categoryScores = {} as Record<Cat, number>;
+      for (const cat of CATS) categoryScores[cat] = zByCat[cat]?.get(player.id) ?? 0;
+      const composite = weightSum > 0
+        ? CATS.reduce((sum, cat) => sum + categoryScores[cat] * weights[cat], 0) / weightSum
+        : 0;
+      return { player, zs: categoryScores, composite };
     });
     return scored.sort((a, b) =>
       sortKey === 'composite' ? b.composite - a.composite : b.zs[sortKey] - a.zs[sortKey],
     );
   }, [players, search, rookiesOnly, weights, sortKey, zByCat]);
 
-  const setWeight = (cat: Cat, v: number) => {
-    const next = { ...weights, [cat]: v };
+  const setWeight = (cat: Cat, value: number) => {
+    const next = { ...weights, [cat]: value };
     setWeights(next);
-    if (season?.id) localStorage.setItem(`rankings:${season.id}`, JSON.stringify(next));
+    setActivePreset(null);
+    if (season?.id) {
+      localStorage.setItem(`rankings:${season.id}`, JSON.stringify(next));
+      localStorage.removeItem(`rankings:${season.id}:preset`);
+    }
   };
 
-  const changeBasis = (b: Basis) => {
-    setBasis(b);
-    if (season?.id) localStorage.setItem(`rankings:${season.id}:basis`, b);
+  const applyPreset = (key: StrategyKey) => {
+    const preset = STRATEGY_PRESETS.find((item) => item.key === key);
+    if (!preset) return;
+    setWeights(preset.weights);
+    setActivePreset(key);
+    if (season?.id) {
+      localStorage.setItem(`rankings:${season.id}`, JSON.stringify(preset.weights));
+      localStorage.setItem(`rankings:${season.id}:preset`, key);
+    }
+  };
+
+  const changeBasis = (nextBasis: Basis) => {
+    setBasis(nextBasis);
+    if (season?.id) localStorage.setItem(`rankings:${season.id}:basis`, nextBasis);
   };
 
   const sortLabel = sortKey === 'composite' ? 'Score' : LABELS[sortKey];
@@ -108,8 +137,16 @@ export function RankingsPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-3 px-0 py-3 sm:px-4 md:space-y-4 md:p-6">
       <div className="flex items-center justify-between gap-3 px-4 sm:px-0">
-        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Rankings</h1>
-        <Badge variant="outline" className="font-mono text-[10px]">{basis === 'totals' ? 'TOTAL' : 'AVG'}</Badge>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Rankings</h1>
+          <p className="mt-0.5 text-xs text-muted-foreground">Build a board from a strategy preset, then customise individual categories.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="font-mono text-[10px]">{basis === 'totals' ? 'TOTAL' : 'AVG'}</Badge>
+          <Link to="/analysis" className="hidden items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold hover:bg-muted sm:flex">
+            Decision Board <ArrowRight className="size-3.5" />
+          </Link>
+        </div>
       </div>
 
       <div className="border-y bg-card/70 py-3 sm:rounded-xl sm:border">
@@ -119,14 +156,14 @@ export function RankingsPage() {
             <Input
               placeholder="Search players or teams"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
               className="h-10 rounded-full bg-muted/60 pl-9"
             />
           </div>
           <button
             type="button"
             aria-expanded={showWeights}
-            onClick={() => setShowWeights((v) => !v)}
+            onClick={() => setShowWeights((value) => !value)}
             className={`flex size-10 shrink-0 items-center justify-center rounded-full border transition-colors active:scale-[0.98] ${
               showWeights ? 'border-foreground bg-foreground text-background' : 'bg-card text-muted-foreground hover:text-foreground'
             }`}
@@ -138,23 +175,50 @@ export function RankingsPage() {
 
         <div className="mt-3 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-3">
           <div className="flex w-max items-center gap-2">
-            <button onClick={() => setRookiesOnly((v) => !v)} aria-pressed={rookiesOnly} className={chip(rookiesOnly)}>
+            <button onClick={() => setRookiesOnly((value) => !value)} aria-pressed={rookiesOnly} className={chip(rookiesOnly)}>
               Rookies
             </button>
             <div className="flex overflow-hidden rounded-full border bg-background">
-              {(['totals', 'averages'] as const).map((b) => (
+              {(['totals', 'averages'] as const).map((value) => (
                 <button
-                  key={b}
-                  onClick={() => changeBasis(b)}
-                  aria-pressed={basis === b}
+                  key={value}
+                  onClick={() => changeBasis(value)}
+                  aria-pressed={basis === value}
                   className={`px-3.5 py-2 text-xs font-semibold transition-colors active:scale-[0.98] ${
-                    basis === b ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'
+                    basis === value ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  {b === 'totals' ? 'Totals' : 'Avg'}
+                  {value === 'totals' ? 'Totals' : 'Avg'}
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+
+        <div className="mt-3 overflow-x-auto border-t px-4 pt-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-3">
+          <div className="flex w-max gap-2">
+            {STRATEGY_PRESETS.map((preset) => (
+              <button
+                key={preset.key}
+                type="button"
+                onClick={() => applyPreset(preset.key)}
+                aria-pressed={activePreset === preset.key}
+                className={chip(activePreset === preset.key)}
+                title={preset.detail}
+              >
+                {preset.shortLabel}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-3 overflow-x-auto border-t px-4 pt-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-3">
+          <div className="flex w-max items-center gap-1.5">
+            <span className="mr-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Sort</span>
+            <button onClick={() => setSortKey('composite')} className={chip(sortKey === 'composite')}>Score</button>
+            {CATS.map((cat) => (
+              <button key={cat} onClick={() => setSortKey(cat)} className={chip(sortKey === cat)}>{LABELS[cat]}</button>
+            ))}
           </div>
         </div>
 
@@ -173,7 +237,7 @@ export function RankingsPage() {
                     max={5}
                     step={1}
                     value={weights[cat]}
-                    onChange={(e) => setWeight(cat, Number(e.target.value))}
+                    onChange={(event) => setWeight(cat, Number(event.target.value))}
                     className="w-full accent-primary"
                   />
                 </label>
@@ -193,55 +257,95 @@ export function RankingsPage() {
 
         {isLoading ? (
           <div className="space-y-1 p-3">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full" />
-            ))}
+            {Array.from({ length: 12 }).map((_, index) => <Skeleton key={index} className="h-14 w-full" />)}
           </div>
         ) : rows.length === 0 ? (
           <p className="py-12 text-center text-sm text-muted-foreground">No players found.</p>
         ) : (
-          <div className="max-h-[calc(100dvh-15rem)] overflow-auto sm:max-h-[72vh]">
-            <table className="w-full min-w-[48rem] border-collapse text-sm sm:min-w-[64rem]">
-              <thead className="sticky top-0 z-30 bg-card shadow-[0_1px_0_0_var(--border)]">
-                <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  <th className="sticky left-0 z-40 w-[15rem] bg-card px-3 py-2 text-left font-bold sm:w-[19rem] sm:px-4">Player</th>
-                  <th className="min-w-[4.5rem] px-2 py-2 text-right font-bold">
-                    <button onClick={() => setSortKey('composite')} className={sortKey === 'composite' ? 'text-primary' : ''}>Score</button>
-                  </th>
-                  {CATS.map((cat) => (
-                    <th key={cat} className="min-w-[3.7rem] px-2 py-2 text-right font-bold">
-                      <button onClick={() => setSortKey(cat)} className={sortKey === cat ? 'text-primary' : ''}>{LABELS[cat]}</button>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr key={r.player.id} className={`border-b border-border/50 transition-colors hover:bg-muted/50 ${i % 2 ? 'bg-muted/[0.18]' : ''}`}>
-                    <td className={`sticky left-0 z-20 px-3 py-2 shadow-[6px_0_12px_-12px_hsl(var(--foreground))] sm:px-4 ${i % 2 ? 'bg-muted/[0.18]' : 'bg-card'} hover:bg-muted/50`}>
-                      <div className="flex items-center gap-3">
-                        <span className="w-6 shrink-0 text-right font-mono text-xs font-bold tabular-nums text-muted-foreground">{i + 1}</span>
-                        <PlayerHeadshot espnId={r.player.espn_id} name={r.player.name} size={38} variant="bare" />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex min-w-0 items-center gap-1.5">
-                            <span className="line-clamp-1 font-semibold leading-tight">{r.player.name}</span>
-                            {isRookie(r.player) && (
-                              <Badge variant="outline" className="shrink-0 border-primary/40 px-1 py-0 text-[9px] text-primary">R</Badge>
-                            )}
-                          </div>
-                          <div className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{r.player.nba_team ?? 'FA'} · {r.player.position ?? '—'}</div>
-                        </div>
+          <>
+            <div className="divide-y sm:hidden">
+              {rows.map((row, index) => {
+                const strengths = CATS
+                  .map((cat) => ({ cat, score: row.zs[cat] }))
+                  .sort((a, b) => b.score - a.score)
+                  .slice(0, 3);
+                return (
+                  <Link
+                    key={row.player.id}
+                    to="/player-lab"
+                    onClick={() => rememberFocusedPlayer(row.player.id)}
+                    className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+                  >
+                    <span className="w-6 shrink-0 pt-2 text-right font-mono text-xs font-bold text-muted-foreground">{index + 1}</span>
+                    <PlayerHeadshot espnId={row.player.espn_id} name={row.player.name} size={44} variant="bare" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate font-semibold">{row.player.name}</span>
+                        {isRookie(row.player) && <Badge variant="outline" className="border-primary/40 px-1 py-0 text-[9px] text-primary">R</Badge>}
                       </div>
-                    </td>
-                    <td className={`whitespace-nowrap px-2 py-3 text-right font-bold tabular-nums ${sortKey === 'composite' ? 'text-primary' : ''}`}>{r.composite.toFixed(2)}</td>
-                    {CATS.map((c) => (
-                      <td key={c} className={`whitespace-nowrap px-2 py-3 text-right text-xs tabular-nums ${sortKey === c ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>{r.zs[c].toFixed(2)}</td>
+                      <div className="mt-0.5 text-[11px] text-muted-foreground">{row.player.nba_team ?? 'FA'} · {row.player.position ?? '—'}</div>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {strengths.map(({ cat, score }) => (
+                          <Badge key={cat} variant="secondary" className="text-[9px]">{LABELS[cat]} {score > 0 ? '+' : ''}{score.toFixed(1)}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-mono text-lg font-black">{row.composite.toFixed(2)}</div>
+                      <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">score</div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            <div className="hidden max-h-[72vh] overflow-auto sm:block">
+              <table className="w-full min-w-[64rem] border-collapse text-sm">
+                <thead className="sticky top-0 z-30 bg-card shadow-[0_1px_0_0_var(--border)]">
+                  <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <th className="sticky left-0 z-40 w-[19rem] bg-card px-4 py-2 text-left font-bold">Player</th>
+                    <th className="min-w-[4.5rem] px-2 py-2 text-right font-bold">
+                      <button onClick={() => setSortKey('composite')} className={sortKey === 'composite' ? 'text-primary' : ''}>Score</button>
+                    </th>
+                    {CATS.map((cat) => (
+                      <th key={cat} className="min-w-[3.7rem] px-2 py-2 text-right font-bold">
+                        <button onClick={() => setSortKey(cat)} className={sortKey === cat ? 'text-primary' : ''}>{LABELS[cat]}</button>
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {rows.map((row, index) => (
+                    <tr key={row.player.id} className={`border-b border-border/50 transition-colors hover:bg-muted/50 ${index % 2 ? 'bg-muted/[0.18]' : ''}`}>
+                      <td className={`sticky left-0 z-20 px-4 py-2 shadow-[6px_0_12px_-12px_hsl(var(--foreground))] ${index % 2 ? 'bg-muted/[0.18]' : 'bg-card'} hover:bg-muted/50`}>
+                        <Link
+                          to="/player-lab"
+                          onClick={() => rememberFocusedPlayer(row.player.id)}
+                          className="flex items-center gap-3"
+                        >
+                          <span className="w-6 shrink-0 text-right font-mono text-xs font-bold tabular-nums text-muted-foreground">{index + 1}</span>
+                          <PlayerHeadshot espnId={row.player.espn_id} name={row.player.name} size={38} variant="bare" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex min-w-0 items-center gap-1.5">
+                              <span className="line-clamp-1 font-semibold leading-tight">{row.player.name}</span>
+                              {isRookie(row.player) && (
+                                <Badge variant="outline" className="shrink-0 border-primary/40 px-1 py-0 text-[9px] text-primary">R</Badge>
+                              )}
+                            </div>
+                            <div className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{row.player.nba_team ?? 'FA'} · {row.player.position ?? '—'}</div>
+                          </div>
+                        </Link>
+                      </td>
+                      <td className={`whitespace-nowrap px-2 py-3 text-right font-bold tabular-nums ${sortKey === 'composite' ? 'text-primary' : ''}`}>{row.composite.toFixed(2)}</td>
+                      {CATS.map((cat) => (
+                        <td key={cat} className={`whitespace-nowrap px-2 py-3 text-right text-xs tabular-nums ${sortKey === cat ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>{row.zs[cat].toFixed(2)}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </section>
     </div>
