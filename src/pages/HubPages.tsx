@@ -4,6 +4,7 @@ import {
   ArrowRightLeft,
   BarChart3,
   ListChecks,
+  Radar,
   Shield,
   Sparkles,
   TrendingUp,
@@ -15,6 +16,7 @@ import { PageHeader, PageShell } from '@/components/layout/PageLayout';
 
 type HubPath =
   | '/pool'
+  | '/player-lab'
   | '/rankings'
   | '/power-rankings'
   | '/rosters'
@@ -51,6 +53,12 @@ const leagueActions: HubAction[] = [
     detail: 'Category-weighted rankings and fantasy value comparisons across the player pool.',
   },
   {
+    to: '/player-lab',
+    icon: Radar,
+    title: 'Player Lab',
+    detail: 'Visualise player shape, compare category profiles and find similar fantasy players.',
+  },
+  {
     to: '/power-rankings',
     icon: TrendingUp,
     title: 'Power Rankings',
@@ -82,6 +90,12 @@ export function MorePage() {
       icon: Sparkles,
       title: 'Team Builder',
       detail: 'Experiment with roster construction outside the live league roster.',
+    },
+    {
+      to: '/player-lab',
+      icon: Radar,
+      title: 'Player Lab',
+      detail: 'Scout player shapes, compare profiles and discover statistical matches.',
     },
   ];
 
