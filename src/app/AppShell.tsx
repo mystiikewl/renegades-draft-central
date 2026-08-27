@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation } from '@tanstack/react-router';
 import type { CSSProperties } from 'react';
-import { ClipboardList, ListChecks, Settings, UserCircle, Users } from 'lucide-react';
+import { Bot, ClipboardList, ListChecks, Settings, UserCircle, Users } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { DraftTurnBanner } from '@/components/draft/DraftTurnBanner';
 import { TradeAnnouncementBanner } from '@/components/trades/TradeAnnouncementBanner';
@@ -23,7 +23,7 @@ const primaryNav = [
     label: 'More',
     short: 'More',
     icon: Settings,
-    matches: ['/more', '/profile', '/team-builder', '/admin'],
+    matches: ['/more', '/profile', '/team-builder', '/practice-draft', '/admin'],
   },
 ] as const;
 
@@ -33,6 +33,7 @@ export function AppShell() {
   const { pathname } = useLocation();
   const { browserBottom, keyboardOpen } = useMobileViewportInsets();
   const hasLeagueShell = Boolean(profile?.team_id);
+  const inPracticeDraft = pathname === '/practice-draft';
 
   const isActive = (matches: readonly string[]) =>
     matches.some((path) =>
@@ -76,18 +77,29 @@ export function AppShell() {
                 })}
               </nav>
             </div>
-            {profile && (
-              <Link
-                to="/more"
-                aria-label="More, profile and settings"
-                className="hidden min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:flex"
-              >
-                <span className="max-w-44 truncate">{profile.display_name ?? profile.email}</span>
-                {profile.is_admin && (
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-primary">admin</span>
-                )}
-              </Link>
-            )}
+            <div className="flex min-w-0 items-center gap-2">
+              {pathname === '/' && (
+                <Link
+                  to="/practice-draft"
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg border bg-card px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:px-3 sm:text-sm"
+                >
+                  <Bot className="size-4" />
+                  Practice
+                </Link>
+              )}
+              {profile && (
+                <Link
+                  to="/more"
+                  aria-label="More, profile and settings"
+                  className="hidden min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:flex"
+                >
+                  <span className="max-w-44 truncate">{profile.display_name ?? profile.email}</span>
+                  {profile.is_admin && (
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-primary">admin</span>
+                  )}
+                </Link>
+              )}
+            </div>
           </div>
         </header>
       )}
@@ -132,8 +144,8 @@ export function AppShell() {
         </nav>
       )}
 
-      {profile?.team_id && <DraftTurnBanner />}
-      {profile?.team_id && <TradeAnnouncementBanner />}
+      {profile?.team_id && !inPracticeDraft && <DraftTurnBanner />}
+      {profile?.team_id && !inPracticeDraft && <TradeAnnouncementBanner />}
       <Outlet />
       <Toaster />
     </div>

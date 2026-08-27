@@ -3,6 +3,7 @@ import {
   ArrowRight,
   ArrowRightLeft,
   BarChart3,
+  Bot,
   ListChecks,
   Radar,
   Shield,
@@ -23,6 +24,7 @@ type HubPath =
   | '/trades'
   | '/profile'
   | '/team-builder'
+  | '/practice-draft'
   | '/admin'
   | '/admin/trades';
 
@@ -84,6 +86,12 @@ export function MorePage() {
       icon: UserCircle,
       title: 'Profile',
       detail: 'Account details and sign out.',
+    },
+    {
+      to: '/practice-draft',
+      icon: Bot,
+      title: 'Practice Draft',
+      detail: 'Run a private mock draft against CPU teams. Nothing is saved to the live league.',
     },
     {
       to: '/team-builder',

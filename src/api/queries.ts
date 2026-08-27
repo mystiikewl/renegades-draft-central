@@ -24,6 +24,7 @@ export const qk = {
   draftSettings: (seasonId: string) => ['draft-settings', seasonId] as const,
   draftPicks: (seasonId: string) => ['draft-picks', seasonId] as const,
   playerPool: (seasonId: string) => ['player-pool', seasonId] as const,
+  practiceDraftPool: (seasonId: string) => ['practice-draft-pool', seasonId] as const,
   rosters: (seasonId: string) => ['rosters', seasonId] as const,
   trades: (seasonId: string) => ['trades', seasonId] as const,
 };
@@ -138,6 +139,41 @@ export function usePlayerPool(seasonId: string | undefined) {
         return { ...p, player_seasons: best ? [best as PlayerWithStats['player_seasons'][number]] : [] };
       });
       return withPreferredStats.filter((p) => !rostered.has(p.id));
+    },
+  });
+}
+
+/**
+ * Practice starts from a clean pre-draft universe. Keepers stay protected, but
+ * live draft/trade roster changes do not remove players from a user's private
+ * simulation. This hook is deliberately read-only.
+ */
+export function usePracticeDraftPool(seasonId: string | undefined) {
+  return useQuery({
+    queryKey: qk.practiceDraftPool(seasonId ?? 'none'),
+    enabled: !!seasonId,
+    queryFn: async () => {
+      const [playersRes, keepersRes] = await Promise.all([
+        supabase
+          .from('players')
+          .select('*, player_seasons(season_id, stats, seasons(label))')
+          .not('espn_id', 'is', null)
+          .order('name'),
+        supabase
+          .from('rosters')
+          .select('player_id')
+          .eq('season_id', seasonId)
+          .eq('acquisition', 'keeper'),
+      ]);
+      if (playersRes.error) throw playersRes.error;
+      if (keepersRes.error) throw keepersRes.error;
+
+      const kept = new Set(keepersRes.data.map((r) => r.player_id));
+      const withPreferredStats = (playersRes.data as PlayerWithStats[]).map((p) => {
+        const best = pickStatsSeason(p.player_seasons ?? [], seasonId!);
+        return { ...p, player_seasons: best ? [best as PlayerWithStats['player_seasons'][number]] : [] };
+      });
+      return withPreferredStats.filter((p) => !kept.has(p.id));
     },
   });
 }

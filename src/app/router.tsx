@@ -11,6 +11,7 @@ import { MyTeamPage } from '@/pages/MyTeamPage';
 import { PlayerLabPage } from '@/pages/PlayerLabPage';
 import { PlayerPoolPage } from '@/pages/PlayerPoolPage';
 import { PowerRankingsPage } from '@/pages/PowerRankingsPage';
+import { PracticeDraftPage } from '@/pages/PracticeDraftPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { RankingsPage } from '@/pages/RankingsPage';
 import { RostersPage } from '@/pages/RostersPage';
@@ -161,6 +162,18 @@ const playerLabRoute = createRoute({
   ),
 });
 
+const practiceDraftRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/practice-draft',
+  component: () => (
+    <LeagueRoute>
+      <ErrorBoundary label="practice draft">
+        <PracticeDraftPage />
+      </ErrorBoundary>
+    </LeagueRoute>
+  ),
+});
+
 const tradesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/trades',
@@ -227,6 +240,7 @@ const routeTree = rootRoute.addChildren([
   rostersRoute,
   poolRoute,
   playerLabRoute,
+  practiceDraftRoute,
   tradesRoute,
   rankingsRoute,
   powerRankingsRoute,
