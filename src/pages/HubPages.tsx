@@ -2,12 +2,10 @@ import { Link } from '@tanstack/react-router';
 import {
   ArrowRight,
   ArrowRightLeft,
-  BarChart3,
   Bot,
+  BrainCircuit,
   ListChecks,
-  Radar,
   Shield,
-  Sparkles,
   TrendingUp,
   UserCircle,
   type LucideIcon,
@@ -16,14 +14,11 @@ import { useAuth } from '@/auth/AuthContext';
 import { PageHeader, PageShell } from '@/components/layout/PageLayout';
 
 type HubPath =
-  | '/pool'
-  | '/player-lab'
-  | '/rankings'
+  | '/analysis'
   | '/power-rankings'
   | '/rosters'
   | '/trades'
   | '/profile'
-  | '/team-builder'
   | '/practice-draft'
   | '/admin'
   | '/admin/trades';
@@ -33,9 +28,17 @@ type HubAction = {
   icon: LucideIcon;
   title: string;
   detail: string;
+  featured?: boolean;
 };
 
 const leagueActions: HubAction[] = [
+  {
+    to: '/analysis',
+    icon: BrainCircuit,
+    title: 'Draft Intelligence',
+    detail: 'Start with one decision board, then move between rankings, Player Lab, Team Builder and league forecasts without losing the analysis workflow.',
+    featured: true,
+  },
   {
     to: '/rosters',
     icon: ListChecks,
@@ -49,28 +52,10 @@ const leagueActions: HubAction[] = [
     detail: 'Build offers, respond to proposals and review the league trade ledger.',
   },
   {
-    to: '/rankings',
-    icon: BarChart3,
-    title: 'Rankings',
-    detail: 'Category-weighted rankings and fantasy value comparisons across the player pool.',
-  },
-  {
-    to: '/player-lab',
-    icon: Radar,
-    title: 'Player Lab',
-    detail: 'Visualise player shape, compare category profiles and find similar fantasy players.',
-  },
-  {
     to: '/power-rankings',
     icon: TrendingUp,
-    title: 'Power Rankings',
-    detail: 'See how your roster stacks up against every team, category by category.',
-  },
-  {
-    to: '/team-builder',
-    icon: Sparkles,
-    title: 'Team Builder',
-    detail: 'Experiment with roster construction outside the live league roster.',
+    title: 'League Forecast',
+    detail: 'Compare projected category standings and identify where teams are separating.',
   },
 ];
 
@@ -92,18 +77,6 @@ export function MorePage() {
       icon: Bot,
       title: 'Practice Draft',
       detail: 'Run a private mock draft against CPU teams. Nothing is saved to the live league.',
-    },
-    {
-      to: '/team-builder',
-      icon: Sparkles,
-      title: 'Team Builder',
-      detail: 'Experiment with roster construction outside the live league roster.',
-    },
-    {
-      to: '/player-lab',
-      icon: Radar,
-      title: 'Player Lab',
-      detail: 'Scout player shapes, compare profiles and discover statistical matches.',
     },
   ];
 
@@ -137,18 +110,20 @@ function HubPage({ eyebrow, title, actions }: { eyebrow: string; title: string; 
       />
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {actions.map(({ to, icon: Icon, title: actionTitle, detail }) => (
+        {actions.map(({ to, icon: Icon, title: actionTitle, detail, featured }) => (
           <Link
             key={to}
             to={to}
-            className="group flex min-h-36 flex-col justify-between rounded-2xl border bg-card p-4 transition-all hover:bg-muted/40 active:scale-[0.99]"
+            className={`group flex min-h-36 flex-col justify-between rounded-2xl border p-4 transition-all hover:bg-muted/40 active:scale-[0.99] ${
+              featured ? 'bg-primary/5 sm:col-span-2' : 'bg-card'
+            }`}
           >
             <div>
-              <div className="flex size-10 items-center justify-center rounded-xl bg-muted text-foreground">
+              <div className={`flex size-10 items-center justify-center rounded-xl ${featured ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>
                 <Icon className="size-5" />
               </div>
               <h2 className="mt-4 font-bold">{actionTitle}</h2>
-              <p className="mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">{detail}</p>
+              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">{detail}</p>
             </div>
             <ArrowRight className="mt-4 size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
           </Link>

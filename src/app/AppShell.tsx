@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation } from '@tanstack/react-router';
 import type { CSSProperties } from 'react';
 import { Bot, ClipboardList, ListChecks, Settings, UserCircle, Users } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
+import { AnalysisNav } from '@/components/analysis/AnalysisNav';
 import { DraftTurnBanner } from '@/components/draft/DraftTurnBanner';
 import { PracticeDraftSessionController } from '@/components/draft/PracticeDraftSessionController';
 import { TradeAnnouncementBanner } from '@/components/trades/TradeAnnouncementBanner';
@@ -18,14 +19,23 @@ const primaryNav = [
     label: 'League',
     short: 'League',
     icon: ListChecks,
-    matches: ['/league', '/rosters', '/trades', '/rankings', '/power-rankings'],
+    matches: [
+      '/league',
+      '/rosters',
+      '/trades',
+      '/analysis',
+      '/rankings',
+      '/player-lab',
+      '/team-builder',
+      '/power-rankings',
+    ],
   },
   {
     to: '/more',
     label: 'More',
     short: 'More',
     icon: Settings,
-    matches: ['/more', '/profile', '/team-builder', '/practice-draft', '/admin'],
+    matches: ['/more', '/profile', '/practice-draft', '/admin'],
   },
 ] as const;
 
@@ -106,6 +116,8 @@ export function AppShell() {
           </div>
         </header>
       )}
+
+      {hasLeagueShell && <AnalysisNav />}
 
       {hasLeagueShell && (
         <nav

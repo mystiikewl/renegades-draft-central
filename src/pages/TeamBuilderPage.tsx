@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Save, Settings2, Trash2, X } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
+import { ChevronDown, Radar, Save, Settings2, Trash2, X } from 'lucide-react';
 import { useActiveSeason, useDraftSettings, usePlayerPool, useRosters } from '@/api/queries';
 import { useAuth } from '@/auth/AuthContext';
 import { SlotPickerDialog } from '@/components/team-builder/SlotPickerDialog';
@@ -7,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { clearFocusedPlayer, readFocusedPlayer, rememberFocusedPlayer } from '@/lib/analysisNavigation';
 import {
   baseline,
   categoryTotals,
@@ -58,6 +60,7 @@ export function TeamBuilderPage() {
   const [savedBuilds, setSavedBuilds] = useState<SavedBuild[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [focusedId, setFocusedId] = useState<string | null>(() => readFocusedPlayer());
   const buildsKey = seasonId ? `tbuilder:${seasonId}:builds` : null;
 
   useEffect(() => setRounds(liveRounds), [liveRounds]);
@@ -92,6 +95,7 @@ export function TeamBuilderPage() {
   }, [rosters, profile?.team_id, seasonId]);
 
   const byId = useMemo(() => indexById(pool ?? [], [...rosteredById.values()]), [pool, rosteredById]);
+  const focusedCandidate = focusedId ? byId.get(focusedId) ?? null : null;
 
   useEffect(() => {
     if (picks !== null || !rosters || liveRounds < 1) return;
@@ -125,15 +129,14 @@ export function TeamBuilderPage() {
   }, [base, cats, completion]);
 
   const balance = useMemo(
-    () =>
-      cats.map((cat) => {
-        const target = paceBase[cat] ?? 0;
-        const value = totals[cat] ?? 0;
-        const rawDiff = value - target;
-        const healthy = INVERTED_CATEGORIES.has(cat) ? rawDiff <= 0 : rawDiff >= 0;
-        const magnitude = Math.abs(rawDiff) / Math.max(Math.abs(target), 1);
-        return { cat, value, target, rawDiff, healthy, magnitude };
-      }),
+    () => cats.map((cat) => {
+      const target = paceBase[cat] ?? 0;
+      const value = totals[cat] ?? 0;
+      const rawDiff = value - target;
+      const healthy = INVERTED_CATEGORIES.has(cat) ? rawDiff <= 0 : rawDiff >= 0;
+      const magnitude = Math.abs(rawDiff) / Math.max(Math.abs(target), 1);
+      return { cat, value, target, rawDiff, healthy, magnitude };
+    }),
     [cats, paceBase, totals],
   );
 
@@ -188,6 +191,24 @@ export function TeamBuilderPage() {
     setSavedBuilds(next);
   }
 
+  function addFocusedCandidate() {
+    if (!focusedCandidate) return;
+    setPicks((previous) => {
+      const current = [...(previous ?? Array<string | null>(rounds).fill(null))];
+      if (current.includes(focusedCandidate.id)) return current;
+      const openSlot = current.findIndex((value) => value === null);
+      if (openSlot < 0) return current;
+      current[openSlot] = focusedCandidate.id;
+      return current;
+    });
+    rememberFocusedPlayer(focusedCandidate.id);
+  }
+
+  function dismissFocusedCandidate() {
+    setFocusedId(null);
+    clearFocusedPlayer();
+  }
+
   if (poolLoading) {
     return (
       <div className="mx-auto max-w-7xl space-y-3 px-4 py-4 md:p-6">
@@ -198,12 +219,15 @@ export function TeamBuilderPage() {
     );
   }
 
+  const focusedAlreadyAdded = focusedCandidate ? (picks ?? []).includes(focusedCandidate.id) : false;
+  const hasOpenSlot = (picks ?? []).some((value) => value === null);
+
   return (
     <div className="mx-auto max-w-7xl space-y-3 px-0 py-3 sm:px-4 md:space-y-4 md:p-6">
       <header className="flex items-start justify-between gap-3 px-4 sm:px-0">
         <div>
           <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Team Builder</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">{teamPlayers.length}/{rounds} slots filled</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{teamPlayers.length}/{rounds} slots filled · test a complete build before committing to the pick.</p>
         </div>
         <button
           type="button"
@@ -217,6 +241,32 @@ export function TeamBuilderPage() {
           <span className="sr-only">Builder settings</span>
         </button>
       </header>
+
+      {focusedCandidate && !focusedAlreadyAdded && (
+        <section className="mx-4 flex flex-wrap items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-3 sm:mx-0">
+          <PlayerHeadshot espnId={focusedCandidate.espn_id} name={focusedCandidate.name} size={46} variant="bare" />
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-primary">Continue analysis</div>
+            <div className="truncate font-bold">{focusedCandidate.name}</div>
+            <div className="text-xs text-muted-foreground">{focusedCandidate.nba_team ?? 'FA'} · {focusedCandidate.position ?? '—'}</div>
+          </div>
+          <div className="flex w-full gap-2 sm:w-auto">
+            <Link
+              to="/player-lab"
+              onClick={() => rememberFocusedPlayer(focusedCandidate.id)}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl border bg-background px-3 py-2 text-xs font-semibold hover:bg-muted sm:flex-none"
+            >
+              <Radar className="size-3.5" /> Profile
+            </Link>
+            <Button size="sm" onClick={addFocusedCandidate} disabled={!hasOpenSlot} className="flex-1 sm:flex-none">
+              Add to next slot
+            </Button>
+            <button type="button" onClick={dismissFocusedCandidate} aria-label="Dismiss focused player" className="rounded-xl border bg-background p-2 text-muted-foreground hover:text-foreground">
+              <X className="size-4" />
+            </button>
+          </div>
+        </section>
+      )}
 
       {showSettings && (
         <section className="border-y bg-card px-4 py-4 sm:rounded-2xl sm:border">

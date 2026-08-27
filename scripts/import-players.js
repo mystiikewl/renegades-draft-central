@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * NBA Player Data Import Script
- * 
- * This script reads the NBA player CSV data and imports it into the Supabase players table.
- * It handles data validation, field mapping, and error handling for the import process.
+ * Legacy CSV player importer.
+ *
+ * Requires a Supabase service-role key from the local environment. Never put a
+ * service-role key in source control; it bypasses row-level security.
  */
-
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
@@ -15,12 +14,17 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Supabase configuration
-const SUPABASE_URL = "https://xruqdjonzxkzwsslzpdl.supabase.co";
-const SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhydXFkam9uenhrendzc2x6cGRsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTMwMDk5MiwiZXhwIjoyMDcwODc2OTkyfQ.QK-J3x5kLFmcAOIAPq5b22FmPp2rVs0-8Qspi5nG_Dw";
+const supabaseUrl = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Initialize Supabase client with service role key
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+if (!supabaseUrl || !serviceRoleKey) {
+  console.error(
+    'Missing Supabase credentials. Set VITE_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY in .env.',
+  );
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: {
     persistSession: false,
     autoRefreshToken: false,
@@ -28,338 +32,154 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   },
 });
 
-/**
- * Parse CSV data into JavaScript objects
- * @param {string} csvContent - Raw CSV content
- * @returns {Array} Array of player objects
- */
-function parseCSV(csvContent) {
-  const lines = csvContent.trim().split('\n');
-  const headers = lines[0].split(',');
-  const players = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const values = parseCSVLine(lines[i]);
-    if (values.length === headers.length) {
-      const player = {};
-      headers.forEach((header, index) => {
-        player[header.trim()] = values[index].trim();
-      });
-      players.push(player);
-    }
-  }
-
-  return players;
-}
-
-/**
- * Parse a single CSV line, handling commas within quoted values
- * @param {string} line - CSV line to parse
- * @returns {Array} Array of values
- */
 function parseCSVLine(line) {
   const values = [];
   let current = '';
   let inQuotes = false;
 
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (character === '"') {
+      if (inQuotes && line[index + 1] === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (character === ',' && !inQuotes) {
       values.push(current);
       current = '';
     } else {
-      current += char;
+      current += character;
     }
   }
-  
   values.push(current);
   return values;
 }
 
-/**
- * Convert CSV player data to Supabase schema format
- * @param {Object} csvPlayer - Player data from CSV
- * @returns {Object} Player data formatted for Supabase
- */
-function mapPlayerToSupabaseSchema(csvPlayer) {
+function parseCSV(content) {
+  const lines = content.replace(/\r\n/g, '\n').trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = parseCSVLine(lines[0]).map((header) => header.trim());
+
+  return lines.slice(1).flatMap((line) => {
+    const values = parseCSVLine(line);
+    if (values.length !== headers.length) return [];
+    return [Object.fromEntries(headers.map((header, index) => [header, values[index].trim()]))];
+  });
+}
+
+function integerOrNull(value) {
+  if (!value || value.trim() === '') return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function numberOrNull(value) {
+  if (!value || value.trim() === '') return null;
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function mapPlayer(row) {
   return {
-    rank: parseIntOrNull(csvPlayer.Rank),
-    name: csvPlayer.Player || '',
-    position: csvPlayer.Position || '',
-    age: parseFloatOrNull(csvPlayer.Age),
-    nba_team: csvPlayer.Team || '',
-    games_played: parseIntOrNull(csvPlayer.GP),
-    minutes_per_game: parseFloatOrNull(csvPlayer.MPG),
-    field_goals_made: parseFloatOrNull(csvPlayer.FGM),
-    field_goal_percentage: parseFloatOrNull(csvPlayer['FG%']),
-    free_throw_percentage: parseFloatOrNull(csvPlayer['FT%']),
-    three_pointers_made: parseFloatOrNull(csvPlayer['3PM']),
-    three_point_percentage: parseFloatOrNull(csvPlayer['3P%']),
-    points: parseFloatOrNull(csvPlayer.PTS),
-    total_rebounds: parseFloatOrNull(csvPlayer.TREB),
-    assists: parseFloatOrNull(csvPlayer.AST),
-    steals: parseFloatOrNull(csvPlayer.STL),
-    blocks: parseFloatOrNull(csvPlayer.BLK),
-    turnovers: parseFloatOrNull(csvPlayer.TO),
-    is_rookie: parseIntOrNull(csvPlayer.Rookie) === 1,
+    rank: integerOrNull(row.Rank),
+    name: row.Player || '',
+    position: row.Position || '',
+    age: numberOrNull(row.Age),
+    nba_team: row.Team || '',
+    games_played: integerOrNull(row.GP),
+    minutes_per_game: numberOrNull(row.MPG),
+    field_goals_made: numberOrNull(row.FGM),
+    field_goal_percentage: numberOrNull(row['FG%']),
+    free_throw_percentage: numberOrNull(row['FT%']),
+    three_pointers_made: numberOrNull(row['3PM']),
+    three_point_percentage: numberOrNull(row['3P%']),
+    points: numberOrNull(row.PTS),
+    total_rebounds: numberOrNull(row.TREB),
+    assists: numberOrNull(row.AST),
+    steals: numberOrNull(row.STL),
+    blocks: numberOrNull(row.BLK),
+    turnovers: numberOrNull(row.TO),
+    is_rookie: integerOrNull(row.Rookie) === 1,
     is_drafted: false,
-    is_keeper: false
+    is_keeper: false,
   };
 }
 
-/**
- * Parse integer value or return null
- * @param {string} value - String value to parse
- * @returns {number|null} Parsed integer or null
- */
-function parseIntOrNull(value) {
-  if (!value || value.trim() === '') return null;
-  const parsed = parseInt(value, 10);
-  return isNaN(parsed) ? null : parsed;
-}
-
-/**
- * Parse float value or return null
- * @param {string} value - String value to parse
- * @returns {number|null} Parsed float or null
- */
-function parseFloatOrNull(value) {
-  if (!value || value.trim() === '') return null;
-  const parsed = parseFloat(value);
-  return isNaN(parsed) ? null : parsed;
-}
-
-/**
- * Validate player data before insertion
- * @param {Object} player - Player data to validate
- * @returns {Object} Validation result with isValid and errors
- */
 function validatePlayer(player) {
   const errors = [];
+  if (!player.name.trim()) errors.push('player name is required');
+  if (!player.position.trim()) errors.push('position is required');
+  if (!player.nba_team.trim()) errors.push('NBA team is required');
+  if (player.age !== null && (player.age < 18 || player.age > 50)) errors.push('age must be between 18 and 50');
 
-  // Required fields validation
-  if (!player.name || player.name.trim() === '') {
-    errors.push('Player name is required');
+  for (const [label, value] of [
+    ['FG%', player.field_goal_percentage],
+    ['FT%', player.free_throw_percentage],
+    ['3P%', player.three_point_percentage],
+  ]) {
+    if (value !== null && (value < 0 || value > 1)) errors.push(`${label} must be between 0 and 1`);
   }
-
-  if (!player.position || player.position.trim() === '') {
-    errors.push('Player position is required');
-  }
-
-  if (!player.nba_team || player.nba_team.trim() === '') {
-    errors.push('NBA team is required');
-  }
-
-  // Data type validation
-  if (player.age !== null && (player.age < 18 || player.age > 50)) {
-    errors.push('Player age must be between 18 and 50');
-  }
-
-  if (player.field_goal_percentage !== null && (player.field_goal_percentage < 0 || player.field_goal_percentage > 1)) {
-    errors.push('Field goal percentage must be between 0 and 1');
-  }
-
-  if (player.free_throw_percentage !== null && (player.free_throw_percentage < 0 || player.free_throw_percentage > 1)) {
-    errors.push('Free throw percentage must be between 0 and 1');
-  }
-
-  if (player.three_point_percentage !== null && (player.three_point_percentage < 0 || player.three_point_percentage > 1)) {
-    errors.push('Three point percentage must be between 0 and 1');
-  }
-
-  return {
-    isValid: errors.length === 0,
-    errors
-  };
+  return errors;
 }
 
-/**
- * Import players to Supabase in batches
- * @param {Array} players - Array of player objects
- * @param {number} batchSize - Number of players to insert per batch
- */
-async function importPlayersInBatches(players, batchSize = 50) {
-  console.log(`Starting import of ${players.length} players in batches of ${batchSize}...`);
-  
-  let successCount = 0;
-  let errorCount = 0;
-  const errors = [];
-
-  for (let i = 0; i < players.length; i += batchSize) {
-    const batch = players.slice(i, i + batchSize);
-    console.log(`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(players.length / batchSize)} (${batch.length} players)...`);
-
-    try {
-      const { data, error } = await supabase
-        .from('players')
-        .insert(batch)
-        .select();
-
-      if (error) {
-        console.error(`Batch ${Math.floor(i / batchSize) + 1} failed:`, error);
-        errors.push({
-          batch: Math.floor(i / batchSize) + 1,
-          error: error.message,
-          players: batch.map(p => p.name)
-        });
-        errorCount += batch.length;
-      } else {
-        console.log(`Batch ${Math.floor(i / batchSize) + 1} completed successfully (${data.length} players inserted)`);
-        successCount += data.length;
-      }
-    } catch (err) {
-      console.error(`Unexpected error in batch ${Math.floor(i / batchSize) + 1}:`, err);
-      errors.push({
-        batch: Math.floor(i / batchSize) + 1,
-        error: err.message,
-        players: batch.map(p => p.name)
-      });
-      errorCount += batch.length;
-    }
-
-    // Add a small delay between batches to avoid rate limiting
-    if (i + batchSize < players.length) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-  }
-
-  return {
-    successCount,
-    errorCount,
-    errors
-  };
-}
-
-/**
- * Clear existing player data from the database
- */
 async function clearExistingPlayers() {
-  console.log('Clearing existing player data...');
-  
-  try {
-    const { error } = await supabase
-      .from('players')
-      .delete()
-      .gte('id', '00000000-0000-0000-0000-000000000000');
-
-    if (error) {
-      console.error('Error clearing existing players:', error);
-      return false;
-    }
-
-    console.log('Existing player data cleared successfully');
-    return true;
-  } catch (err) {
-    console.error('Unexpected error clearing players:', err);
-    return false;
-  }
+  const { error } = await supabase
+    .from('players')
+    .delete()
+    .gte('id', '00000000-0000-0000-0000-000000000000');
+  if (error) throw error;
 }
 
-/**
- * Main import function
- */
+async function importBatches(players, batchSize = 50) {
+  let imported = 0;
+  for (let index = 0; index < players.length; index += batchSize) {
+    const batch = players.slice(index, index + batchSize);
+    const { data, error } = await supabase.from('players').insert(batch).select();
+    if (error) throw new Error(`Batch ${Math.floor(index / batchSize) + 1}: ${error.message}`);
+    imported += data?.length ?? batch.length;
+  }
+  return imported;
+}
+
 async function main() {
-  try {
-    console.log('NBA Player Data Import Script');
-    console.log('============================');
+  const csvPath = process.argv[2]
+    ? path.resolve(process.argv[2])
+    : path.resolve(__dirname, '../nba_player_stats.csv');
 
-    // No authentication needed with service role key
-    console.log('Using Supabase Service Role Key for direct access.');
-
-    // Find the CSV file
-    const csvPath = path.join(__dirname, '../../nba_player_stats.csv');
-    
-    if (!fs.existsSync(csvPath)) {
-      console.error(`CSV file not found at: ${csvPath}`);
-      console.error('Please ensure the nba_player_stats.csv file exists in the project root');
-      process.exit(1);
-    }
-
-    console.log(`Reading CSV file: ${csvPath}`);
-    const csvContent = fs.readFileSync(csvPath, 'utf-8');
-    
-    // Parse CSV data
-    console.log('Parsing CSV data...');
-    const csvPlayers = parseCSV(csvContent);
-    console.log(`Parsed ${csvPlayers.length} players from CSV`);
-
-    // Convert to Supabase format and validate
-    console.log('Converting and validating player data...');
-    const validPlayers = [];
-    const invalidPlayers = [];
-
-    for (const csvPlayer of csvPlayers) {
-      const player = mapPlayerToSupabaseSchema(csvPlayer);
-      const validation = validatePlayer(player);
-
-      if (validation.isValid) {
-        validPlayers.push(player);
-      } else {
-        invalidPlayers.push({
-          player: csvPlayer.Player || 'Unknown',
-          errors: validation.errors
-        });
-      }
-    }
-
-    console.log(`Valid players: ${validPlayers.length}`);
-    console.log(`Invalid players: ${invalidPlayers.length}`);
-
-    if (invalidPlayers.length > 0) {
-      console.log('\nInvalid players found:');
-      invalidPlayers.forEach(({ player, errors }) => {
-        console.log(`- ${player}: ${errors.join(', ')}`);
-      });
-    }
-
-    if (validPlayers.length === 0) {
-      console.error('No valid players to import');
-      process.exit(1);
-    }
-
-    // Clear existing data
-    const clearSuccess = await clearExistingPlayers();
-    if (!clearSuccess) {
-      console.error('Failed to clear existing player data');
-      process.exit(1);
-    }
-
-    // Import players
-    const result = await importPlayersInBatches(validPlayers);
-
-    // Report results
-    console.log('\nImport Results:');
-    console.log('==============');
-    console.log(`Successfully imported: ${result.successCount} players`);
-    console.log(`Failed to import: ${result.errorCount} players`);
-
-    if (result.errors.length > 0) {
-      console.log('\nErrors encountered:');
-      result.errors.forEach(({ batch, error, players }) => {
-        console.log(`Batch ${batch}: ${error}`);
-        console.log(`  Players: ${players.join(', ')}`);
-      });
-    }
-
-    if (result.successCount > 0) {
-      console.log('\n✅ Player data import completed successfully!');
-    } else {
-      console.log('\n❌ Player data import failed');
-      process.exit(1);
-    }
-
-  } catch (error) {
-    console.error('Fatal error during import:', error);
-    process.exit(1);
+  if (!fs.existsSync(csvPath)) {
+    throw new Error(`CSV file not found: ${csvPath}`);
   }
+
+  const rows = parseCSV(fs.readFileSync(csvPath, 'utf8'));
+  const validPlayers = [];
+  const invalidPlayers = [];
+
+  for (const row of rows) {
+    const mapped = mapPlayer(row);
+    const errors = validatePlayer(mapped);
+    if (errors.length) invalidPlayers.push({ name: mapped.name || 'Unknown', errors });
+    else validPlayers.push(mapped);
+  }
+
+  if (invalidPlayers.length) {
+    console.warn(`Skipping ${invalidPlayers.length} invalid rows:`);
+    for (const invalid of invalidPlayers) console.warn(`- ${invalid.name}: ${invalid.errors.join(', ')}`);
+  }
+  if (!validPlayers.length) throw new Error('No valid players to import.');
+
+  console.log(`Replacing players with ${validPlayers.length} validated CSV rows...`);
+  await clearExistingPlayers();
+  const imported = await importBatches(validPlayers);
+  console.log(`Imported ${imported} players.`);
 }
 
-// Run the import if this script is executed directly
 if (process.argv[1] && process.argv[1].endsWith('import-players.js')) {
-  main();
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  });
 }
 
 export { main as importPlayers };

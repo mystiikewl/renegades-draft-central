@@ -19,6 +19,8 @@ interface Props {
   onPick: (player: PlayerWithStats) => void;
 }
 
+const PERCENTAGE_CATEGORIES = new Set<CategoryImpact['cat']>(['fgPct', 'ftPct', 'tpPct']);
+
 const CAT_LABEL: Record<CategoryImpact['cat'], string> = {
   fgm: 'FGM', fgPct: 'FG%', ftPct: 'FT%', tp: '3PM', tpPct: '3P%', reb: 'REB', ast: 'AST',
   stl: 'STL', blk: 'BLK', to: 'TO', dd: 'DD', td: 'TD', pts: 'PTS',
@@ -28,16 +30,36 @@ function isHelpful(item: CategoryImpact) {
   return INVERTED_CATEGORIES.has(item.cat) ? item.delta < 0 : item.delta > 0;
 }
 
+function fitScore(impact: CategoryImpact[]): number {
+  return impact.reduce((score, item) => {
+    if (item.delta === 0) return score;
+
+    const directedDelta = INVERTED_CATEGORIES.has(item.cat)
+      ? -item.delta
+      : item.delta;
+    const gapBefore = INVERTED_CATEGORIES.has(item.cat)
+      ? item.before - item.baseline
+      : item.baseline - item.before;
+    const needWeight = gapBefore > 0 ? 1.5 : 0.35;
+    const scale = PERCENTAGE_CATEGORIES.has(item.cat)
+      ? 0.01
+      : Math.max(Math.abs(item.baseline) * 0.05, 1);
+    const normalized = Math.max(-2, Math.min(2, directedDelta / scale));
+    const flipBonus = item.flipsVsBaseline && directedDelta > 0 ? 1 : 0;
+    return score + normalized * needWeight + flipBonus;
+  }, 0);
+}
+
 function FitSummary({ impact }: { impact: CategoryImpact[] }) {
   const helpful = impact.filter(isHelpful);
   const risks = impact.filter((item) => item.delta !== 0 && !isHelpful(item));
   const flips = impact.filter((item) => item.flipsVsBaseline && isHelpful(item));
-  const score = helpful.length - risks.length;
+  const score = fitScore(impact);
 
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
       <Badge variant="outline" className="px-1.5 py-0.5 font-mono">
-        {score > 0 ? '+' : ''}{score} fit
+        {score > 0 ? '+' : ''}{score.toFixed(1)} fit
       </Badge>
       {flips.slice(0, 2).map((item) => (
         <span key={item.cat} className="rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary">
@@ -63,16 +85,18 @@ export function SlotPickerDialog({ open, onOpenChange, pool, current, impactFor,
   const isMobile = useIsMobile();
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return pool.slice(0, 40);
+    const query = search.trim().toLowerCase();
     return pool
-      .filter((p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.nba_team ?? '').toLowerCase().includes(q) ||
-        (p.position ?? '').toLowerCase().includes(q),
+      .filter((player) =>
+        !query ||
+        player.name.toLowerCase().includes(query) ||
+        (player.nba_team ?? '').toLowerCase().includes(query) ||
+        (player.position ?? '').toLowerCase().includes(query),
       )
+      .map((player) => ({ player, impact: impactFor?.(player) ?? [] }))
+      .sort((a, b) => fitScore(b.impact) - fitScore(a.impact) || a.player.name.localeCompare(b.player.name))
       .slice(0, 40);
-  }, [pool, search]);
+  }, [pool, search, impactFor]);
 
   const body = (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -83,39 +107,41 @@ export function SlotPickerDialog({ open, onOpenChange, pool, current, impactFor,
             autoFocus={!isMobile}
             placeholder="Search name, team or position"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
             className="rounded-full bg-muted/60 pl-9"
           />
         </div>
+        {!search && impactFor && (
+          <p className="mt-2 px-1 text-[10px] text-muted-foreground">Players are ordered by projected fit for this build and slot.</p>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto border-t sm:max-h-[32rem] sm:rounded-xl sm:border">
         {filtered.length === 0 ? (
           <p className="p-8 text-center text-sm text-muted-foreground">No players found.</p>
         ) : (
-          filtered.map((p, index) => {
-            const s = parseStats(p.player_seasons[0]?.stats);
-            const imp = impactFor?.(p) ?? [];
+          filtered.map(({ player, impact }, index) => {
+            const stats = parseStats(player.player_seasons[0]?.stats);
             return (
               <button
-                key={p.id}
+                key={player.id}
                 onClick={() => {
-                  onPick(p);
+                  onPick(player);
                   onOpenChange(false);
                 }}
-                disabled={current?.id === p.id}
+                disabled={current?.id === player.id}
                 className={`flex w-full items-center gap-3 border-b px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-muted/50 active:bg-muted disabled:opacity-50 ${index % 2 ? 'bg-muted/[0.12]' : ''}`}
               >
-                <PlayerHeadshot espnId={p.espn_id} name={p.name} size={42} variant="bare" />
+                <PlayerHeadshot espnId={player.espn_id} name={player.name} size={42} variant="bare" />
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className="line-clamp-1 font-semibold leading-tight">{p.name}</span>
-                    {current?.id === p.id && <Badge variant="secondary" className="shrink-0 text-[9px]">Current</Badge>}
+                    <span className="line-clamp-1 font-semibold leading-tight">{player.name}</span>
+                    {current?.id === player.id && <Badge variant="secondary" className="shrink-0 text-[9px]">Current</Badge>}
                   </div>
                   <div className="mt-0.5 text-[11px] text-muted-foreground">
-                    {p.nba_team ?? 'FA'} · {p.position ?? '—'} · {s.pts ?? '—'} PTS · {s.reb ?? '—'} REB · {s.ast ?? '—'} AST
+                    {player.nba_team ?? 'FA'} · {player.position ?? '—'} · {stats.pts ?? '—'} PTS · {stats.reb ?? '—'} REB · {stats.ast ?? '—'} AST
                   </div>
-                  {imp.length > 0 && <FitSummary impact={imp} />}
+                  {impact.length > 0 && <FitSummary impact={impact} />}
                 </div>
               </button>
             );
