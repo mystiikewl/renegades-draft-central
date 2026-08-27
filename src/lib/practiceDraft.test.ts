@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { DraftPick, DraftSettings, PlayerWithStats } from '@/api/types';
 import {
+  CPU_STRATEGIES,
+  assignCpuStrategies,
   availablePracticePlayers,
   buildPracticeBoard,
+  buildPracticeOrder,
+  chooseCpuPracticePlayer,
   makePracticePick,
   skipPracticePick,
 } from './practiceDraft';
@@ -19,12 +23,17 @@ const settings: DraftSettings = {
   updated_at: '2026-08-27T00:00:00Z',
 };
 
-function player(id: string, name: string): PlayerWithStats {
+function player(
+  id: string,
+  name: string,
+  position = 'PG',
+  overrides: Record<string, number> = {},
+): PlayerWithStats {
   return {
     id,
     espn_id: id,
     name,
-    position: 'PG',
+    position,
     nba_team: 'BOS',
     image_url: null,
     created_at: '2026-08-27T00:00:00Z',
@@ -32,12 +41,20 @@ function player(id: string, name: string): PlayerWithStats {
       season_id: 'season-1',
       stats: {
         games_played: 70,
-        points: 20,
+        field_goals_made: 7,
+        field_goal_percentage: 0.48,
+        free_throw_percentage: 0.8,
+        three_pointers_made: 2,
+        three_point_percentage: 0.36,
         total_rebounds: 5,
         assists: 5,
         steals: 1,
         blocks: 1,
         turnovers: 2,
+        double_doubles: 2,
+        triple_doubles: 0,
+        points: 20,
+        ...overrides,
       },
     }],
   };
@@ -55,7 +72,39 @@ describe('practice draft engine', () => {
     expect(board.every((pick) => !pick.is_used && pick.player_id === null)).toBe(true);
   });
 
-  it('clones real slot ownership but strips every live draft result', () => {
+  it('puts the user in their chosen draft slot while randomising the CPU seats', () => {
+    const order = buildPracticeOrder(
+      ['team-a', 'team-b', 'team-c', 'team-d'],
+      'team-a',
+      3,
+      () => 0,
+    );
+
+    expect(order).toHaveLength(4);
+    expect(order[2]).toBe('team-a');
+    expect(new Set(order)).toEqual(new Set(['team-a', 'team-b', 'team-c', 'team-d']));
+  });
+
+  it('uses the selected practice order instead of the live league order', () => {
+    const board = buildPracticeBoard(settings, [], ['team-c', 'team-a', 'team-b']);
+
+    expect(board.slice(0, 3).map((pick) => pick.team_id)).toEqual(['team-c', 'team-a', 'team-b']);
+    expect(board.slice(3).map((pick) => pick.team_id)).toEqual(['team-b', 'team-a', 'team-c']);
+  });
+
+  it('assigns CPU strategies without assigning one to the human manager', () => {
+    const strategies = assignCpuStrategies(
+      ['team-a', 'team-b', 'team-c'],
+      'team-a',
+      () => 0.25,
+    );
+
+    expect(strategies['team-a']).toBeUndefined();
+    expect(CPU_STRATEGIES.map((item) => item.key)).toContain(strategies['team-b']);
+    expect(CPU_STRATEGIES.map((item) => item.key)).toContain(strategies['team-c']);
+  });
+
+  it('clones real slot ownership but strips every live draft result in legacy mode', () => {
     const livePick: DraftPick = {
       id: 'live-1',
       season_id: 'season-1',
@@ -104,5 +153,31 @@ describe('practice draft engine', () => {
     expect(skipped[1].is_used).toBe(true);
     expect(skipped[1].is_skipped).toBe(true);
     expect(skipped[1].player_id).toBeNull();
+  });
+
+  it('lets a big-heavy CPU favour a strong interior profile', () => {
+    const guard = player('guard', 'Guard Star', 'PG', {
+      points: 27,
+      assists: 9,
+      three_pointers_made: 4,
+      blocks: 0.2,
+      total_rebounds: 3,
+      field_goal_percentage: 0.43,
+    });
+    const big = player('big', 'Big Star', 'C', {
+      points: 20,
+      assists: 2,
+      three_pointers_made: 0.2,
+      blocks: 3,
+      total_rebounds: 13,
+      field_goal_percentage: 0.64,
+      double_doubles: 50,
+    });
+    const neutral = player('neutral', 'Neutral Wing', 'SF');
+    const pool = [guard, big, neutral];
+
+    const pick = chooseCpuPracticePlayer(pool, pool, [], 'big-heavy');
+
+    expect(pick?.id).toBe('big');
   });
 });
