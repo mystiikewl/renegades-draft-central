@@ -11,6 +11,12 @@ Known-wonky right now: 18 tests fail across 5 files because their
 `vi.mock('@/api/queries')` blocks predate `usePracticeDraftPool` (and friends)
 — the app code is fine, the mocks are stale.
 
+Offseason tooling note: ESPN's site-roster feed (what `import-nba.mjs` reads)
+lags trades/signings. After offseason news, dry-run
+`node --env-file=.env scripts/sync-player-teams.mjs` to diff every player
+against ESPN's core athlete API + fantasy feed, and add `--apply` to write.
+Fantasy-flagged "FA" players in its output are in-transit — watch those.
+
 ## P1 — Fix next
 
 ### 1. Repair the 18 stale-mock test failures
