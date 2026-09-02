@@ -1,60 +1,82 @@
 # Renegades Draft Central
 
-Web app for a private group of friends to run an **offline NBA ESPN Dynasty Draft** (snake draft, keepers, live draft board). Built for the 2025 season; this branch (`feature/draft-central-work`) is a **complete rebuild targeting the 2026 season**. The 2025 code is the reference for domain logic — expect significant rework of UX and architecture.
+Web app for a private NBA ESPN dynasty league (ESPN league ID **201**):
+offline snake draft with keepers, run from laptops/phones in one room.
+The 2026 rebuild is complete and lives on `main` — server-authoritative draft
+logic, season-aware schema, practice simulator, analytics. The 2025 app was
+deleted (`docs/history/` keeps its handoff docs; season data lives archived in
+Supabase as `2025-26` — never mutate it).
 
 ## Commands
 
-- `npm run dev` — Vite dev server
+- `npm run dev` — Vite dev server (port 8080)
 - `npm run build` / `npm run build:dev` — production / development build
-- `npm run lint` — ESLint
-- `npm run test` — Vitest (watch); `npm run test:run` for CI; `test:coverage` for coverage
-- `npm run import-players` — run `scripts/import-players.js` to seed player data into Supabase
+- `npm run lint` — ESLint (`npx eslint src` is the app-only view)
+- `npm run test` — Vitest watch; `npm run test:run` for CI; `test:coverage`
+- `npm run import-players` / `npm run sync-keepers` — Supabase data scripts
+- `npm run test:e2e:trade` — end-to-end trade/draft integrity against the DB
 
 ## Stack
 
-- **Vite + React 18 + TypeScript** (SWC), originally generated via Lovable
-- **Tailwind CSS 3** + **shadcn/ui** (Radix primitives) + lucide/react-icons
-- **React Router v6** (`src/App.tsx` holds routes), **TanStack Query v5**, react-hook-form + zod
-- **Supabase** — Postgres, Auth, Realtime, Edge Functions
-  - Client: `src/integrations/supabase/client.ts`
-  - Migrations: `supabase/migrations/` (~36 files — RLS-heavy; players/keepers/draft_picks/draft_settings/teams/profiles)
-  - Edge functions: `supabase/functions/` (`invite-user`, `admin-actions`, `_shared`)
+- **Vite + React 18 + TypeScript** (SWC), originally scaffolded via Lovable
+- **Tailwind CSS 3** + **shadcn/ui** (Radix) + lucide icons
+- **TanStack Router** (`src/app/router.tsx`) + **TanStack Query v5**
+- **Supabase** — Postgres, Auth, Realtime (`src/api/realtime.ts`), Edge
+  Functions (`supabase/functions/`)
+- **zustand** — offline pick queue (`src/api/offlineQueue.ts`), practice
+  draft session (`src/stores/practiceDraftSession.ts`)
 - **Netlify** deployment (`netlify.toml`)
 
 ## Structure
 
 ```
 src/
-  components/       # Feature-grouped: admin/, draft/, player-pool/, league-analysis/, etc.
-  pages/            # Route targets: Draft, Admin, Team, Onboarding, LeagueAnalysis, admin/*
-  hooks/            # Data hooks incl. realtime (useRealTimeDraftPicks, useTeamPresence, etc.)
-  integrations/supabase/  # client, schema, services, types (modular per-table types)
-  contexts/         # AuthContext, OnboardingContext
-  services/         # draftTabService
-  lib/, types/, config/, data/
+  api/         # ALL data access: queries.ts, mutations.ts, realtime.ts,
+               # offlineQueue.ts, trades/draft helpers, hand view types
+  app/         # router.tsx, AppShell, route guards (league/admin)
+  auth/        # AuthContext
+  components/  # feature-grouped: draft/, admin/, analysis/, keepers/,
+               # player/, team-builder/, trades/, layout/, ui/ (shadcn)
+  pages/       # route targets (Draft, PlayerPool, PracticeDraft, Admin, …)
+  hooks/       # shared hooks (incl. use-mobile)
+  lib/         # domain logic: draftIntelligence, projections, stats,
+               # practiceDraft engine, teamColours
+  stores/      # zustand stores
+  test/        # vitest setup
+supabase/
+  migrations/  # season-aware schema; RLS: reads allowed, writes via RPC only
+  functions/   # sync-keepers etc.
+scripts/       # import/SQL/sim tooling (reads .env; db-query.mjs runs SQL —
+               # `supabase db push` does NOT work on this org)
 ```
 
-## Domain model (key tables)
+## Architecture rules
 
-- `profiles` — users, with `is_admin` flag and onboarding state
-- `teams` — league teams (claimable by users via `claim_team` function)
-- `players` / `player_seasons` — NBA player pool with per-season stats
-- `draft_picks` — the draft board; deletable per RLS policy
-- `draft_settings` — draft config (order, timing, status)
-- `keepers` — keeper assignments per team/season, RLS-restricted
+- Draft state changes go through `SECURITY DEFINER` RPCs only: `make_pick`,
+  `undo_last_pick`, `set_draft_order`, `set_draft_status`, `trade_pick`,
+  `swap_picks`, `assign_keeper`/`remove_keeper`, `reset_draft`,
+  `finalize_keepers`, `claim_team`, `create_season`. RPC params are
+  `p_`-prefixed. Never write draft tables from the client or scripts.
+- Reads flow through `src/api/queries.ts` (TanStack Query); realtime
+  subscriptions invalidate query keys — don't patch caches by hand.
+- Practice drafts are client-side only (`src/lib/practiceDraft.ts` +
+  `practiceDraftSession` store) and never touch draft RPCs.
+- Tests are colocated `*.test.tsx` (Vitest + RTL, jsdom); Supabase is always
+  vi.mocked — unit tests never hit the DB. E2E scripts (scripts/e2e-*) do,
+  against throwaway seasons only.
+- 2025-26 season is ARCHIVED with real history: no resets, no mutations.
 
-## Conventions
+## Env
 
-- Components use shadcn/ui primitives; Tailwind for styling
-- Data fetching via Supabase client + TanStack Query; realtime via Supabase subscriptions in `useRealTime*` hooks
-- Tests colocated as `*.test.tsx` next to components/hooks (Vitest + React Testing Library, jsdom)
-- Feature folders include a `shared/` subfolder for cross-cutting UI (ErrorBoundary, LoadingSkeleton, MobileTable)
-- Known tech debt: `DraftTabs.tsx` vs `DraftTabs-refactored.tsx` (see `DraftTabs-Refactoring-Plan.md`), ESLint warnings outstanding, mock data in `src/data/mockData.ts`
+`.env` (gitignored; see `.env.example`): `VITE_SUPABASE_URL`,
+`VITE_SUPABASE_ANON_KEY` for the app; `SUPABASE_ACCESS_TOKEN` (Management
+API) and ESPN cookies (`ESPN_S2`, `ESPN_SWID` — rotate periodically) for
+scripts. Never commit `.env`; never expose service-role keys to Vite.
 
-## Rebuild context (2026)
+## Current docs
 
-**Read [`docs/AUDIT-2026-rebuild-baseline.md`](docs/AUDIT-2026-rebuild-baseline.md) first** — full audit of the 2025 codebase: critical security findings (leaked service-role key, unauthenticated edge functions, permissive RLS), missing season modeling, dead code, and the rebuild pillars.
-
-- Prior season's data lives in Supabase; the rebuild must handle a new season reset (fresh player import, keeper carry-over, new draft settings) without destroying 2025 history
-- Player import pipeline: `scripts/import-players.js` + `AutoPlayerImport` component
-- Admin surfaces: draft order, pick trading, rollback, keepers, team/user management (`src/components/admin/`, `src/pages/admin/`)
+- `docs/BACKLOG.md` — prioritized remaining work (start here)
+- `docs/SPEC-draft-intelligence.md`, `docs/SPEC-analysis-suite.md` — specs
+- `docs/AUDIT-2026-rebuild-baseline.md` — the 2025 audit behind the rebuild
+- `docs/history/` — phase handoffs from the rebuild (historical)
+- `docs/THEME-2026.md` — design tokens/theme

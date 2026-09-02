@@ -1,123 +1,78 @@
-# Welcome to your Lovable project
+# Renegades Draft Central
 
-## Project info
+Web app for a private NBA ESPN dynasty league (ESPN league ID **201**): live
+draft board with server-authoritative picks, keeper management, a practice
+draft simulator with CPU teams, and a league analytics suite. Built for the
+2026-27 season; 2025-26 data is archived and read-only.
 
-**URL**: https://lovable.dev/projects/48e0680f-4f94-426d-9c66-7df916907973
+## Stack
 
-## Documentation
+- **Vite + React 18 + TypeScript** (SWC)
+- **Tailwind CSS 3** + **shadcn/ui** (Radix primitives), lucide icons
+- **TanStack Router** (`src/app/router.tsx`) + **TanStack Query v5**
+- **Supabase** — Postgres, Auth, Realtime, Edge Functions
+- **zustand** — offline pick queue + practice draft session state
+- **Vitest** + React Testing Library; deployed on **Netlify**
 
-Additional project documentation can be found in the [`/documentation`](../documentation) directory, including:
+### Architecture in one paragraph
 
-- Product Requirements Document
-- Code quality analysis and issue tracking
-- Technical documentation for various components
-- Known issues and troubleshooting guides
-- **Production Readiness Plan and Summary**
+Every draft mutation (picks, undo, trades, keepers, draft order/status) is a
+`SECURITY DEFINER` Postgres RPC — the client never writes draft tables
+directly, so rules like turn order hold even if the UI lies. All reads go
+through `src/api/`, cached by TanStack Query and kept fresh by a single
+realtime channel per season that invalidates query keys. Picks made while
+offline are queued client-side and flushed on reconnect. See
+[`docs/AUDIT-2026-rebuild-baseline.md`](docs/AUDIT-2026-rebuild-baseline.md)
+for why the app is built this way.
 
-## Recent Improvements
-
-### Supabase Types Refactoring
-
-The monolithic Supabase types file has been refactored into a modular structure for better maintainability:
-- Separate files for each database table type
-- Separate files for each RPC function type
-- Backward compatibility maintained
-
-### Production Readiness Enhancements
-
-Recent work has focused on preparing the application for production deployment:
-
-1. **Code Quality Improvements**
-   - Fixed all critical ESLint errors
-   - Resolved useEffect and useCallback dependency warnings
-   - Reduced ESLint issues from 3 errors/11 warnings to 1 error/8 warnings
-
-2. **Testing Framework Implementation**
-   - Set up Vitest with React Testing Library
-   - Created 13 passing tests covering critical user flows (expanded from initial 8)
-   - Added test scripts for development and CI/CD
-
-3. **CI/CD Pipeline**
-   - Implemented GitHub Actions workflow for automated testing
-   - Configured ESLint, testing, and build verification in CI pipeline
-
-4. **Security Enhancements**
-   - Implemented proper environment variable management
-   - Replaced hardcoded credentials with environment variables
-   - Added validation for required configuration
-
-5. **Documentation**
-   - Created comprehensive user guide
-   - Developed API documentation for Supabase integration
-   - Wrote admin/developer guide with deployment and maintenance procedures
-   - Documented security enhancements
-
-For detailed information about these improvements, see the documentation in the [`/documentation`](../documentation) directory.
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/48e0680f-4f94-426d-9c66-7df916907973) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Getting started
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
 npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+cp .env.example .env   # fill in values (see below)
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Environment variables (`.env`, gitignored):
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+| Variable | Used by | Notes |
+| --- | --- | --- |
+| `VITE_SUPABASE_URL` | app | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | app | anon key (RLS applies) |
+| `SUPABASE_ACCESS_TOKEN` | scripts only | management API, for import/SQL scripts |
 
-**Use GitHub Codespaces**
+## Commands
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Vite dev server on port 8080 |
+| `npm run build` | Production build to `dist/` |
+| `npm run lint` | ESLint |
+| `npm run test` / `npm run test:run` | Vitest watch / CI run |
+| `npm run import-players` | Seed player data into Supabase |
+| `npm run sync-keepers` | Sync ESPN keepers (edge function or local script) |
+| `npm run test:e2e:trade` | End-to-end trade/draft integrity check against the DB |
 
-## What technologies are used for this project?
+Other one-off scripts live in `scripts/` (imports, dedupe, SQL runner, draft
+simulation). Never run draft mutations against the archived 2025-26 season.
 
-This project is built with:
+## Project docs
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- [`docs/BACKLOG.md`](docs/BACKLOG.md) — prioritized remaining work
+- [`docs/SPEC-draft-intelligence.md`](docs/SPEC-draft-intelligence.md),
+  [`docs/SPEC-analysis-suite.md`](docs/SPEC-analysis-suite.md) — feature specs
+- [`docs/AUDIT-2026-rebuild-baseline.md`](docs/AUDIT-2026-rebuild-baseline.md)
+  — the 2025 audit that motivated the rebuild
+- [`docs/history/`](docs/history/) — phase handoffs and overnight logs from
+  the rebuild (historical)
 
-## How can I deploy this project?
+## Deployment
 
-Simply open [Lovable](https://lovable.dev/projects/48e0680f-4f94-426d-9c66-7df916907973) and click on Share -> Publish.
+Netlify (`netlify.toml`): build command `npm run build`, publish `dist/`.
+The site needs `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` set in the
+Netlify environment. SPA fallback (`/* → /index.html`) is configured.
 
-## Can I connect a custom domain to my Lovable project?
+## Origin
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Originally scaffolded via Lovable; fully rebuilt in-repo for 2026. Lovable is
+no longer part of the workflow.
