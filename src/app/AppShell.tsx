@@ -70,6 +70,11 @@ export function AppShell() {
         <header className="border-b bg-background/95 backdrop-blur">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:py-4">
             <div className="flex min-w-0 items-center gap-6">
+              {/* ponytail: brand mark keeps the header left side from being empty on mobile (nav hides below sm) */}
+              <Link to="/" className="flex items-center gap-2 text-sm font-black uppercase tracking-tight sm:hidden">
+                <ClipboardList className="size-4 text-primary" />
+                RDC
+              </Link>
               <nav className="hidden items-center gap-1 text-sm sm:flex">
                 {primaryNav.map((item) => {
                   const active = isActive(item.matches);

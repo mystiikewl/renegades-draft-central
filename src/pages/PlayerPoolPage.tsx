@@ -261,13 +261,13 @@ export function PlayerPoolPage() {
           <p className="py-12 text-center text-sm text-muted-foreground">No players found.</p>
         ) : (
           <div className="max-h-[calc(100dvh-17rem)] overflow-auto sm:max-h-[68vh]">
-            <table className="w-full min-w-[46rem] border-collapse text-sm sm:min-w-[60rem]">
+            <table className="w-full min-w-[26rem] border-collapse text-sm sm:min-w-[60rem]">
               <thead className="sticky top-0 z-30 bg-card shadow-[0_1px_0_0_var(--border)]">
                 <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
                   <th className="sticky left-0 z-40 w-[13rem] bg-card px-3 py-2 text-left font-bold sm:w-[17rem] sm:px-4">Players</th>
                   {STAT_COLUMNS.map((c) => (
-                    <th key={c.key} className="min-w-[3.4rem] px-2 py-2 text-right font-bold">
-                      <button onClick={() => setSortKey(c.key)} className={`min-h-8 min-w-8 rounded-md transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${sortKey === c.key ? 'text-primary' : ''}`}>{c.label}</button>
+                    <th key={c.key} className={`min-w-[3.4rem] px-2 py-2 text-right font-bold ${c.key === 'pts' ? '' : 'hidden md:table-cell'}`}>
+                      <button onClick={() => setSortKey(c.key)} className={`min-h-10 min-w-10 rounded-md transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${sortKey === c.key ? 'text-primary' : ''}`}>{c.label}</button>
                     </th>
                   ))}
                 </tr>
@@ -288,7 +288,7 @@ export function PlayerPoolPage() {
                       </div>
                     </td>
                     {STAT_COLUMNS.map((c) => (
-                      <td key={c.key} className={`whitespace-nowrap px-2 py-3 text-right text-xs tabular-nums ${sortKey === c.key ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
+                      <td key={c.key} className={`whitespace-nowrap px-2 py-3 text-right text-xs tabular-nums ${c.key === 'pts' ? '' : 'hidden md:table-cell'} ${sortKey === c.key ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
                         {fmtStat(c.key, basis, statColumnValue(p, c.key, basis))}
                       </td>
                     ))}

@@ -48,6 +48,9 @@ const SECONDARY_STATS: { key: keyof StatLine; label: string }[] = [
   { key: 'rank', label: 'Rank' },
 ];
 
+// Stats kept visible on mobile in the season-stats table (the rest hide below sm).
+const MOBILE_STAT_KEYS = new Set<keyof StatLine>(['mpg', 'pts', 'reb', 'ast']);
+
 const LOGO_ABBREV: Record<string, string> = { UTA: 'utah' };
 
 const ageFrom = (birthDate?: string | null): number | null => {
@@ -206,12 +209,13 @@ function PlayerProfileBody({
           <section className="overflow-hidden rounded-xl border bg-card">
             <div className="border-b px-4 py-3"><h3 className="text-xs font-bold uppercase tracking-wide">Season stats</h3></div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[42rem] text-xs">
+              {/* ponytail: hide secondary columns on mobile so MIN/PTS fit without hscroll; shown md+ */}
+              <table className="w-full min-w-[19rem] text-xs sm:min-w-[42rem]">
                 <thead><tr className="border-b text-[10px] uppercase tracking-wide text-muted-foreground">
-                  {PRIMARY_STATS.map(({ key, label }) => <th key={key} className="px-3 py-2 text-right font-bold first:text-left">{label}</th>)}
+                  {PRIMARY_STATS.map(({ key, label }) => <th key={key} className={`px-3 py-2 text-right font-bold first:text-left ${MOBILE_STAT_KEYS.has(key) ? '' : 'hidden sm:table-cell'}`}>{label}</th>)}
                 </tr></thead>
                 <tbody><tr>
-                  {PRIMARY_STATS.map(({ key }) => <td key={key} className="px-3 py-3 text-right font-semibold tabular-nums first:text-left">{s[key] ?? '—'}</td>)}
+                  {PRIMARY_STATS.map(({ key }) => <td key={key} className={`px-3 py-3 text-right font-semibold tabular-nums first:text-left ${MOBILE_STAT_KEYS.has(key) ? '' : 'hidden sm:table-cell'}`}>{s[key] ?? '—'}</td>)}
                 </tr></tbody>
               </table>
             </div>
