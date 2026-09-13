@@ -28,21 +28,15 @@
  * cross-check).
  */
 
+import { mgmtClient } from './lib/supabase-mgmt.mjs';
+import { espnClient } from './lib/espn.mjs';
+
 const APPLY = process.argv.includes('--apply');
 const TRUST_FANTASY = process.argv.includes('--trust-fantasy');
-const REF = process.env.SUPABASE_PROJECT_REF ?? 'xruqdjonzxkzwsslzpdl';
 const FANTASY_SEASON = 2027; // ESPN fantasy season year for the 2026-27 campaign
 const LEAGUE_ID = 201;
 
-const q = async (query) => {
-  const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.SUPABASE_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query }),
-  });
-  if (!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0, 300)}`);
-  return r.json();
-};
+const q = async (query) => mgmtClient({ token: process.env.SUPABASE_ACCESS_TOKEN }).query(query);
 
 // ---------------------------------------------------------------- core API
 const teamAbbrByRef = new Map();
@@ -81,25 +75,13 @@ async function fantasyPool() {
     console.log('(ESPN_S2/ESPN_SWID not set — skipping fantasy cross-check)');
     return null;
   }
-  const PAGE = 50;
+  const universe = await espnClient({ espnS2: ESPN_S2, espnSwid: ESPN_SWID }).allPlayers(FANTASY_SEASON, {
+    leagueId: LEAGUE_ID,
+    log: (m) => process.stderr.write(`${m}
+`),
+  });
   const pool = new Map(); // espn id -> proTeamId
-  for (let offset = 0; ; offset += PAGE) {
-    const filter = JSON.stringify({
-      players: { limit: PAGE, offset, sortStatId: { sortPriority: 1, sortAsc: true, value: 0 } },
-    });
-    const res = await fetch(
-      `https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba/seasons/${FANTASY_SEASON}/segments/0/leagues/${LEAGUE_ID}?view=kona_player_info`,
-      {
-        headers: { 'User-Agent': 'Mozilla/5.0', 'X-Fantasy-Filter': filter, Cookie: `espn_s2=${ESPN_S2}; SWID=${ESPN_SWID};` },
-        signal: AbortSignal.timeout(30000),
-      },
-    );
-    if (!res.ok) throw new Error(`fantasy pool ${res.status}: ${(await res.text()).slice(0, 150)}`);
-    const page = await res.json();
-    const players = page.players ?? [];
-    for (const w of players) pool.set(String(w.player.id), w.player.proTeamId);
-    if (players.length < PAGE) break;
-  }
+  for (const w of universe) pool.set(String(w.player.id), w.player.proTeamId);
   return pool;
 }
 

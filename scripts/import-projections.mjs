@@ -14,8 +14,8 @@
  */
 
 import { pathToFileURL } from 'url';
-
-const PROJECT_REF_DEFAULT = 'xruqdjonzxkzwsslzpdl';
+import { mgmtClient, esc, PROJECT_REF_DEFAULT } from './lib/supabase-mgmt.mjs';
+import { espnClient } from './lib/espn.mjs';
 
 // ESPN stat key -> our player_seasons.stats JSONB keys (per-game averages).
 const STAT_KEYS = {
@@ -55,52 +55,12 @@ export async function importProjections({
 } = {}) {
   if (!espnS2 || !espnSwid) throw new Error('Missing ESPN_S2 / ESPN_SWID env vars.');
   if (!dryRun && !mgmtToken) throw new Error('Missing SUPABASE_ACCESS_TOKEN.');
-  const esc = (s) => String(s).replace(/'/g, "''");
 
-  const applyQuery = async (query) => {
-    const r = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${mgmtToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query }),
-    });
-    if (!r.ok) throw new Error(`query failed: ${r.status} ${(await r.text()).slice(0, 200)}`);
-    return r.json();
-  };
+  const espn = espnClient({ espnS2, espnSwid });
+  const mgmt = dryRun ? null : mgmtClient({ token: mgmtToken, projectRef });
+  const applyQuery = (query) => mgmt.query(query);
 
-  // Page through the full player universe via kona_player_info.
-  // The players filter must go in the X-Fantasy-Filter header (the query-param
-  // form silently ignores `offset` and returns the same 50 players forever),
-  // and ESPN requires an explicit sort when a limit/offset is given.
-  // A seen-ID guard stops paging even if ESPN regresses to repeated pages.
-  const PAGE = 50;
-  const allPlayers = [];
-  const seen = new Set();
-  for (let offset = 0; ; offset += PAGE) {
-    const filter = JSON.stringify({
-      players: { limit: PAGE, offset, sortStatId: { sortPriority: 1, sortAsc: true, value: 0 } },
-    });
-    const res = await fetch(
-      `https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba/seasons/${season}/segments/0/leagues/201` +
-        `?view=kona_player_info`,
-      {
-        headers: {
-          'User-Agent': 'Mozilla/5.0',
-          'X-Fantasy-Filter': filter,
-          Cookie: `espn_s2=${espnS2}; SWID=${espnSwid};`,
-        },
-        signal: AbortSignal.timeout(30000),
-      },
-    );
-    if (!res.ok) throw new Error(`ESPN API ${res.status} (offset ${offset}): ${(await res.text()).slice(0, 200)}`);
-    const page = await res.json();
-    if (page.messages?.length) throw new Error(`ESPN filter rejected (offset ${offset}): ${page.messages.join('; ')}`);
-    const players = page.players ?? [];
-    const fresh = players.filter((w) => w.player?.id && !seen.has(String(w.player.id)));
-    for (const w of fresh) seen.add(String(w.player.id));
-    allPlayers.push(...fresh);
-    log(`  fetched offset ${offset}: ${players.length} players, ${fresh.length} new (total ${allPlayers.length})`);
-    if (players.length < PAGE || fresh.length === 0) break;
-  }
+  const allPlayers = await espn.allPlayers(season, { log });
 
   // Extract statSourceId=1 rows for the target ESPN seasonId, plus the richer
   // PG/SG/SF/PF/C eligibility from the same feed (roster bios only give G/F/C).

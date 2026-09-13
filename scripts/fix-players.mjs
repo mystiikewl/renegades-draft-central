@@ -13,8 +13,8 @@
  */
 
 import { pathToFileURL } from 'url';
-
-const REF = process.env.SUPABASE_PROJECT_REF ?? 'xruqdjonzxkzwsslzpdl';
+import { mgmtClient, esc } from './lib/supabase-mgmt.mjs';
+import { espnClient } from './lib/espn.mjs';
 
 // First-name variants ESPN collapses or expands vs. the archive data.
 const FIRST_NAME_ALIASES = {
@@ -61,15 +61,7 @@ function namesMatch(a, b) {
 export async function fixPlayers({ dryRun = false, log = console.log } = {}) {
   const token = process.env.SUPABASE_ACCESS_TOKEN;
   if (!token) throw new Error('Missing SUPABASE_ACCESS_TOKEN');
-  const q = async (query) => {
-    const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query }),
-    });
-    if (!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0, 300)}`);
-    return r.json();
-  };
+  const q = (query) => mgmtClient({ token }).query(query);
 
   const players = await q('select id, espn_id, name, position, nba_team from public.players');
   const canonical = players.filter((p) => p.espn_id); // espn-imported, keep these
@@ -105,7 +97,6 @@ export async function fixPlayers({ dryRun = false, log = console.log } = {}) {
     return { candidates: merges.length };
   }
 
-  const esc = (s) => String(s).replace(/'/g, "''");
   let merged = 0;
   for (const { orphan, keep } of merges) {
     // One atomic DO block per pair: stats/favourites/picks re-point directly;
@@ -168,15 +159,7 @@ export async function claimEspnIds({ season = 2027, dryRun = false, log = consol
   const espnS2 = process.env.ESPN_S2;
   const espnSwid = process.env.ESPN_SWID;
   if (!espnS2 || !espnSwid) throw new Error('Missing ESPN_S2 / ESPN_SWID env vars.');
-  const q = async (query) => {
-    const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query }),
-    });
-    if (!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0, 300)}`);
-    return r.json();
-  };
+  const q = (query) => mgmtClient({ token }).query(query);
 
   const rostered = await q(
     `select distinct p.id, p.name from public.rosters r join public.players p on p.id = r.player_id
@@ -187,26 +170,9 @@ export async function claimEspnIds({ season = 2027, dryRun = false, log = consol
     return { claimed: 0 };
   }
 
-  // page the full ESPN fantasy pool (same approach as import-projections)
-  const PAGE = 50;
-  const pool = [];
-  for (let offset = 0; ; offset += PAGE) {
-    const filter = JSON.stringify({
-      players: { limit: PAGE, offset, sortStatId: { sortPriority: 1, sortAsc: true, value: 0 } },
-    });
-    const res = await fetch(
-      `https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba/seasons/${season}/segments/0/leagues/201?view=kona_player_info`,
-      {
-        headers: { 'User-Agent': 'Mozilla/5.0', 'X-Fantasy-Filter': filter, Cookie: `espn_s2=${espnS2}; SWID=${espnSwid};` },
-        signal: AbortSignal.timeout(30000),
-      },
-    );
-    if (!res.ok) throw new Error(`ESPN API ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const page = await res.json();
-    const players = page.players ?? [];
-    pool.push(...players.map((w) => ({ id: String(w.player.id), name: w.player.fullName })));
-    if (players.length < PAGE) break;
-  }
+  // page the full ESPN fantasy pool via the adapter (seen-ID repeat-page guard)
+  const universe = await espnClient({ espnS2, espnSwid }).allPlayers(season);
+  const pool = universe.map((w) => ({ id: String(w.player.id), name: w.player.fullName }));
   log(`ESPN pool: ${pool.length} players; legacy rostered: ${rostered.length}`);
 
   const suffixes = new Set(['jr', 'ii', 'iii', 'iv', 'sr']);
@@ -237,7 +203,6 @@ export async function claimEspnIds({ season = 2027, dryRun = false, log = consol
     };
     const hits = pool.filter((c) => lastName(c.name) === ln && firstAgrees(ft, firstToken(c.name)));
     if (hits.length === 1) {
-      const esc = (s) => String(s).replace(/'/g, "''");
       log(`  claim: "${p.name}" -> espn:${hits[0].id} ("${hits[0].name}")`);
       if (!dryRun) {
         try {

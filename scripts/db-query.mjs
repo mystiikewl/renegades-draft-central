@@ -10,9 +10,9 @@
  */
 
 import fs from 'fs';
+import { mgmtClient } from './lib/supabase-mgmt.mjs';
 
 const token = process.env.SUPABASE_ACCESS_TOKEN;
-const ref = process.env.SUPABASE_PROJECT_REF ?? 'xruqdjonzxkzwsslzpdl';
 const [file, ...flags] = process.argv.slice(2);
 
 if (!token || !file) {
@@ -21,19 +21,13 @@ if (!token || !file) {
 }
 
 const sql = fs.readFileSync(file, 'utf8');
-const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
-  method: 'POST',
-  headers: {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({ query: sql }),
-});
+const mgmt = mgmtClient({ token });
 
-const body = await res.text();
-if (!res.ok) {
-  console.error(`HTTP ${res.status}:`);
-  console.error(body.slice(0, 3000));
+let body;
+try {
+  body = JSON.stringify(await mgmt.query(sql));
+} catch (err) {
+  console.error(err.message.slice(0, 3000));
   process.exit(1);
 }
 // Successful DDL returns empty array; SELECTs return rows.

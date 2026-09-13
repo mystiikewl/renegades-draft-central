@@ -88,12 +88,21 @@ Deno.serve(async (req) => {
     const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
     const dbTeams = await rest('teams?select=id,name,espn_team_id');
 
-    // Match ESPN teams to DB rows by linked id > normalized name; never insert.
+    // One-time reconciliation: legacy hand-typed DB names -> ESPN ids. Once
+    // espn_team_id is set on all rows this map is dead weight; matching then
+    // runs purely on espn_team_id. Faithful port of scripts/import-league.mjs.
+    const LEGACY_NAME_MAP: Record<string, number> = {
+      innocentuntilprovengiddey: 10,
+    };
+
+    // Match ESPN teams to DB rows by linked id > legacy alias > normalized
+    // name; never insert.
     const plan = [];
     const unmatched = [];
     for (const t of league.teams) {
       const db =
         dbTeams.find((d) => d.espn_team_id === t.id) ??
+        dbTeams.find((d) => d.espn_team_id == null && LEGACY_NAME_MAP[norm(d.name)] === t.id) ??
         dbTeams.find((d) => d.espn_team_id == null && norm(d.name) === norm(t.name));
       if (!db) unmatched.push(t.name);
       else plan.push({ et: t, db });

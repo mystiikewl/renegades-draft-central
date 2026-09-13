@@ -16,14 +16,15 @@
  * Env:
  *   ESPN_S2 / ESPN_SWID   required. From a logged-in espn.com browser
  *                         session. Rotates periodically — refresh when 401.
- *   SUPABASE_ACCESS_TOKEN required unless --dry-run
+ *   SUPABASE_ACCESS_TOKEN required (also for --dry-run — the match preview
+ *                         reads teams)
  *   SUPABASE_PROJECT_REF  optional (default xruqdjonzxkzwsslzpdl)
  */
 
 import fs from 'fs';
 import { pathToFileURL } from 'url';
-
-const PROJECT_REF_DEFAULT = 'xruqdjonzxkzwsslzpdl';
+import { mgmtClient, esc, PROJECT_REF_DEFAULT } from './lib/supabase-mgmt.mjs';
+import { espnClient } from './lib/espn.mjs';
 
 /**
  * Core sync — usable as a library (scripts/sync-espn-keepers.mjs, edge fn port)
@@ -42,29 +43,14 @@ export async function syncLeague({
   const DRY_RUN = !!dryRun;
 
   if (!espnS2 || !espnSwid) throw new Error('Missing ESPN_S2 / ESPN_SWID env vars.');
-  if (!DRY_RUN && !mgmtToken)
-    throw new Error('Missing SUPABASE_ACCESS_TOKEN (used for the Management API query path).');
+  // Required even for --dry-run: the match preview still reads teams.
+  if (!mgmtToken) throw new Error('Missing SUPABASE_ACCESS_TOKEN.');
 
   // ---------------------------------------------------------------------
   // Fetch league payload
   // ---------------------------------------------------------------------
-  const url =
-    `https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba/seasons/${SEASON}` +
-    `/segments/0/leagues/201?view=mTeam&view=mRoster`;
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0',
-      Cookie: `espn_s2=${espnS2}; SWID=${espnSwid};`,
-    },
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    const msg = `ESPN API ${res.status}: ${body.slice(0, 200)}`;
-    if (res.status === 401)
-      throw new Error(`${msg}\nCookies expired or invalid. Re-grab espn_s2/SWID from a logged-in browser.`);
-    throw new Error(msg);
-  }
-  const league = await res.json();
+  const espn = espnClient({ espnS2, espnSwid });
+  const league = await espn.league(SEASON, ['mTeam', 'mRoster']);
 
   const memberById = new Map(league.members.map((m) => [m.id, m]));
   const espnTeams = league.teams.map((t) => {
@@ -81,24 +67,18 @@ export async function syncLeague({
   });
   log(`League "${league.name}" — ${espnTeams.length} teams, season ${SEASON}\n`);
 
+  // Reads run in dry-run too (the match preview); writes are gated by the
+  // early DRY_RUN return below, so applyQuery never sees a write while dry.
   const applyQuery = async (query) => {
-    const r = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${mgmtToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query }),
-    });
-    if (!r.ok) throw new Error(`query failed: ${r.status} ${(await r.text()).slice(0, 200)}`);
-    return { data: await r.json() };
+    const rows = await mgmtClient({ token: mgmtToken, projectRef }).query(query);
+    return { data: rows };
   };
 
   // ---------------------------------------------------------------------
   // Load existing DB teams and build the match plan
   // ---------------------------------------------------------------------
-  let dbTeams = [];
-  if (!DRY_RUN || true) {
-    // Dry-run still reads teams to build the join preview; only writes are gated.
-    ({ data: dbTeams } = await applyQuery('select id, name, espn_team_id from public.teams'));
-  }
+  // Dry-run still reads teams to build the join preview; only writes are gated.
+  const { data: dbTeams } = await applyQuery('select id, name, espn_team_id from public.teams');
 
   const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -149,7 +129,6 @@ export async function syncLeague({
   // ---------------------------------------------------------------------
   // Apply updates only
   // ---------------------------------------------------------------------
-  const esc = (s) => String(s).replace(/'/g, "''");
   for (const { et, db } of plan) {
     await applyQuery(
       `update public.teams set espn_team_id=${et.espn_team_id}, ` +

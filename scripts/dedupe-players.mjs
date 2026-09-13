@@ -8,18 +8,11 @@
  * Run once. Re-running is a no-op (nothing left unmatched).
  */
 
+import { mgmtClient } from './lib/supabase-mgmt.mjs';
+
 const token = process.env.SUPABASE_ACCESS_TOKEN;
 if (!token) { console.error('Missing SUPABASE_ACCESS_TOKEN'); process.exit(1); }
-const REF = process.env.SUPABASE_PROJECT_REF ?? 'xruqdjonzxkzwsslzpdl';
-const q = async (query) => {
-  const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query }),
-  });
-  if (!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0, 300)}`);
-  return r.json();
-};
+const q = (query) => mgmtClient({ token }).query(query);
 
 // Single DO block: temp tables live for the whole session inside it.
 const result = await q(`

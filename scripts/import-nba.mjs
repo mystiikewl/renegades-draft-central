@@ -20,6 +20,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { mgmtClient, esc, PROJECT_REF_DEFAULT } from './lib/supabase-mgmt.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -31,7 +32,7 @@ const STATS_SEASON = flag('stats-season', '2026');
 const BIO_ONLY = args.includes('--bio-only') || STATS_SEASON === 'none';
 const LIMIT = parseInt(flag('limit', '0'), 10);
 
-const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? 'https://xruqdjonzxkzwsslzpdl.supabase.co';
+const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? `https://${PROJECT_REF_DEFAULT}.supabase.co`;
 // service_role key if available; else Management API via access token (this
 // project's .env has no service_role key — same path as db-query.mjs).
 let SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -47,27 +48,21 @@ if (!SERVICE_KEY) {
   console.error('Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ACCESS_TOKEN env var.');
   process.exit(1);
 }
+const mgmt = SERVICE_KEY === 'MGMT'
+  ? mgmtClient({
+      token: process.env.SUPABASE_ACCESS_TOKEN,
+      projectRef: process.env.SUPABASE_PROJECT_REF ?? PROJECT_REF_DEFAULT,
+    })
+  : null;
 const supabase = SERVICE_KEY === 'MGMT'
-  ? mgmtClient(process.env.SUPABASE_PROJECT_REF ?? 'xruqdjonzxkzwsslzpdl')
+  ? mgmtSupabaseShim(mgmt)
   : createClient(SUPABASE_URL, SERVICE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     });
 
 // Minimal supabase-like shim over the Management API for the ops we use.
-const mgmtFrom = (table) => ({});
-async function mgmtQuery(query) {
-  const token = process.env.SUPABASE_ACCESS_TOKEN;
-  const projectRef = process.env.SUPABASE_PROJECT_REF ?? 'xruqdjonzxkzwsslzpdl';
-  const r = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query }),
-  });
-  if (!r.ok) throw new Error(`mgmt query: ${r.status} ${(await r.text()).slice(0, 200)}`);
-  return r.json();
-}
-function mgmtClient(projectRef) {
-  const q = mgmtQuery;
+function mgmtSupabaseShim(mgmtApi) {
+  const q = (query) => mgmtApi.query(query);
   return {
     from(table) {
       const build = (clauses) => ({
@@ -129,6 +124,8 @@ function sqlVal(v) {
 const SITE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba';
 const COMMON = 'https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba';
 
+// Public site API (no cookies) with retry/429 backoff — deliberately not the
+// cookie-authenticated league client in lib/espn.mjs.
 async function getJson(url, retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
@@ -323,8 +320,8 @@ async function main() {
         const existing = byName.get(norm(bio.name));
         if (!existing) continue;
         if (SERVICE_KEY === 'MGMT') {
-          await mgmtQuery(
-            `update public.players set espn_id = '${String(bio.espn_id).replace(/'/g, "''")}' where id = '${existing.id}'`,
+          await mgmt.query(
+            `update public.players set espn_id = '${esc(bio.espn_id)}' where id = '${existing.id}'`,
           );
         } else {
           const { error: claimErr } = await supabase

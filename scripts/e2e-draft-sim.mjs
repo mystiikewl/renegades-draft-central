@@ -18,98 +18,11 @@
  * Usage: node scripts/e2e-draft-sim.mjs
  */
 
-import fs from 'fs';
-import path from 'path';
+import { e2eHarness } from './lib/e2e.mjs';
 
-// ---------------------------------------------------------------- env
-function loadEnv() {
-  const envFile = path.resolve(process.cwd(), '.env');
-  if (fs.existsSync(envFile)) {
-    for (const line of fs.readFileSync(envFile, 'utf8').split(/\r?\n/)) {
-      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-      if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
-    }
-  }
-}
-loadEnv();
-
-const URL_ = process.env.VITE_SUPABASE_URL;
-const ANON = process.env.VITE_SUPABASE_ANON_KEY;
-const MGMT_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
-const REF = process.env.SUPABASE_PROJECT_REF ?? 'xruqdjonzxkzwsslzpdl';
 const SIM_LABEL = 'E2E-SIM';
-
-for (const k of ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'SUPABASE_ACCESS_TOKEN']) {
-  if (!process.env[k]) { console.error(`FAIL env: missing ${k}`); process.exit(1); }
-}
-
-// ---------------------------------------------------------------- helpers
-let failures = 0;
-let stepNo = 0;
-function step(name, fn) {
-  stepNo += 1;
-  const label = `[${String(stepNo).padStart(2, '0')}] ${name}`;
-  return Promise.resolve()
-    .then(fn)
-    .then(() => console.log(`PASS ${label}`))
-    .catch((err) => { failures += 1; console.error(`FAIL ${label}\n     ${err.message}`); });
-}
-function assert(cond, msg) { if (!cond) throw new Error(msg); }
-function expectRpcError(promise, needle) {
-  return promise.then(
-    () => { throw new Error(`expected RPC error containing "${needle}", got success`); },
-    (err) => {
-      if (!String(err.message).includes(needle)) {
-        throw new Error(`expected RPC error containing "${needle}", got: ${err.message}`);
-      }
-      return err.message;
-    },
-  );
-}
-
-async function login(email, password) {
-  const res = await fetch(`${URL_}/auth/v1/token?grant_type=password`, {
-    method: 'POST',
-    headers: { apikey: ANON, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
-  const body = await res.json();
-  if (!res.ok) throw new Error(`login failed for ${email}: ${body.msg ?? body.error_description ?? res.status}`);
-  return body.access_token;
-}
-
-/** Call an RPC as an authenticated user (anon key + user JWT). Throws on RPC error. */
-async function rpc(fn, params, token) {
-  const res = await fetch(`${URL_}/rest/v1/rpc/${fn}`, {
-    method: 'POST',
-    headers: {
-      apikey: ANON,
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(params),
-  });
-  const text = await res.text();
-  let body = null;
-  if (text) { try { body = JSON.parse(text); } catch { body = text; } }
-  if (!res.ok) {
-    const msg = body && typeof body === 'object' ? (body.message ?? JSON.stringify(body)) : String(body);
-    throw new Error(`${fn}: ${msg}`);
-  }
-  return body;
-}
-
-/** Management API SQL — setup/teardown/verification only, never draft mutations. */
-async function sql(query) {
-  const res = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${MGMT_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query }),
-  });
-  const body = await res.text();
-  if (!res.ok) throw new Error(`mgmt sql: HTTP ${res.status}: ${body.slice(0, 500)}`);
-  try { return JSON.parse(body); } catch { return []; }
-}
+const h = e2eHarness(); // loads .env; exits if VITE_*/anon/ACCESS_TOKEN missing
+const { step, assert, expectRpcError, login, rpc, sql } = h;
 
 async function picks(seasonId) {
   return sql(`select id, pick_number, round, team_id, original_team_id, player_id, is_used
@@ -291,5 +204,5 @@ await step('cleanup: hard-delete sim season, restore 2026-27 active', async () =
   assert(active.length === 1 && active[0].label === '2026-27', `active season = ${JSON.stringify(active)}`);
 });
 
-console.log(`\n=== ${failures === 0 ? 'ALL PASS' : `${failures} FAILURE(S)`} ===\n`);
-process.exit(failures === 0 ? 0 : 1);
+console.log(`\n=== ${h.failures === 0 ? 'ALL PASS' : `${h.failures} FAILURE(S)`} ===\n`);
+process.exit(h.failures === 0 ? 0 : 1);

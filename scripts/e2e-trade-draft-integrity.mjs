@@ -8,101 +8,16 @@
  * reversal, and post-completion locks.
  */
 
-import fs from 'fs';
-import path from 'path';
+import { e2eHarness } from './lib/e2e.mjs';
 
-function loadEnv() {
-  const envFile = path.resolve(process.cwd(), '.env');
-  if (!fs.existsSync(envFile)) return;
-  for (const line of fs.readFileSync(envFile, 'utf8').split(/\r?\n/)) {
-    const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-    if (match && !(match[1] in process.env)) process.env[match[1]] = match[2].replace(/^["']|["']$/g, '');
-  }
-}
-loadEnv();
-
-const URL = process.env.VITE_SUPABASE_URL;
-const ANON = process.env.VITE_SUPABASE_ANON_KEY;
-const MGMT = process.env.SUPABASE_ACCESS_TOKEN;
-const REF = process.env.SUPABASE_PROJECT_REF ?? 'xruqdjonzxkzwsslzpdl';
+const LABEL = 'E2E-TRADE-INTEGRITY';
+const h = e2eHarness({
+  requiredEnv: ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'SUPABASE_ACCESS_TOKEN',
+    'SIM_ADMIN_EMAIL', 'SIM_ADMIN_PASSWORD'],
+});
+const { step, assert, expectRpcError, login, rpc, sql } = h;
 const ADMIN_EMAIL = process.env.SIM_ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.SIM_ADMIN_PASSWORD;
-const LABEL = 'E2E-TRADE-INTEGRITY';
-
-for (const [name, value] of Object.entries({
-  VITE_SUPABASE_URL: URL,
-  VITE_SUPABASE_ANON_KEY: ANON,
-  SUPABASE_ACCESS_TOKEN: MGMT,
-  SIM_ADMIN_EMAIL: ADMIN_EMAIL,
-  SIM_ADMIN_PASSWORD: ADMIN_PASSWORD,
-})) {
-  if (!value) {
-    console.error(`FAIL env: missing ${name}`);
-    process.exit(1);
-  }
-}
-
-let failures = 0;
-let stepNumber = 0;
-function assert(condition, message) {
-  if (!condition) throw new Error(message);
-}
-async function step(name, fn) {
-  stepNumber += 1;
-  try {
-    await fn();
-    console.log(`PASS [${String(stepNumber).padStart(2, '0')}] ${name}`);
-  } catch (error) {
-    failures += 1;
-    console.error(`FAIL [${String(stepNumber).padStart(2, '0')}] ${name}\n     ${error.message}`);
-  }
-}
-async function expectError(promise, needle) {
-  try {
-    await promise;
-    throw new Error(`expected error containing "${needle}", got success`);
-  } catch (error) {
-    if (!String(error.message).includes(needle)) throw error;
-  }
-}
-
-async function login() {
-  const response = await fetch(`${URL}/auth/v1/token?grant_type=password`, {
-    method: 'POST',
-    headers: { apikey: ANON, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }),
-  });
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.msg ?? body.error_description ?? `login ${response.status}`);
-  return body.access_token;
-}
-
-async function rpc(name, params, token) {
-  const response = await fetch(`${URL}/rest/v1/rpc/${name}`, {
-    method: 'POST',
-    headers: { apikey: ANON, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-  const text = await response.text();
-  let body = text;
-  try { body = text ? JSON.parse(text) : null; } catch { /* text response */ }
-  if (!response.ok) {
-    const message = body && typeof body === 'object' ? body.message ?? JSON.stringify(body) : String(body);
-    throw new Error(`${name}: ${message}`);
-  }
-  return body;
-}
-
-async function sql(query) {
-  const response = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${MGMT}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query }),
-  });
-  const text = await response.text();
-  if (!response.ok) throw new Error(`management SQL ${response.status}: ${text.slice(0, 500)}`);
-  try { return JSON.parse(text); } catch { return []; }
-}
 
 const picks = (seasonId) => sql(`
   select id, pick_number, round, team_id, original_team_id, player_id, is_used, is_skipped
@@ -125,7 +40,7 @@ console.log(`\n=== Trade/draft integrity E2E: ${LABEL} ===\n`);
 
 await step('clean leftovers and authenticate admin', async () => {
   await sql(`delete from public.seasons where label = '${LABEL}'`);
-  admin = await login();
+  admin = await login(ADMIN_EMAIL, ADMIN_PASSWORD);
 });
 
 await step('create isolated 2-team test season', async () => {
@@ -175,7 +90,7 @@ await step('reset preserves accepted traded pick ownership', async () => {
 });
 
 await step('draft-order regeneration is blocked while pick ownership is traded', async () => {
-  await expectError(
+  await expectRpcError(
     rpc('set_draft_order', { p_season_id: seasonId, p_order: [teamB, teamA] }, admin),
     'traded picks have changed ownership',
   );
@@ -201,7 +116,7 @@ await step('skip pick is exact-slot and undo restores that exact slot', async ()
 await step('stale exact-slot intent is rejected after board advances', async () => {
   const before = (await picks(seasonId)).find((pick) => !pick.is_used);
   await rpc('skip_pick_for_slot', { p_season_id: seasonId, p_pick_id: before.id }, admin);
-  await expectError(
+  await expectRpcError(
     rpc('make_pick_for_slot', {
       p_season_id: seasonId,
       p_pick_id: before.id,
@@ -242,7 +157,7 @@ await step('draft a player through exact-slot contract then trade that roster ro
 });
 
 await step('reset refuses to tear apart accepted drafted-player trade', async () => {
-  await expectError(
+  await expectRpcError(
     rpc('reset_draft', { p_season_id: seasonId }, admin),
     'drafted player is part of an accepted trade',
   );
@@ -263,7 +178,7 @@ await step('commissioner reverses trade, then reset safely clears drafted player
 
 await step('trade overrides lock once draft status is complete', async () => {
   await rpc('set_draft_status', { p_season_id: seasonId, p_status: 'complete' }, admin);
-  await expectError(
+  await expectRpcError(
     rpc('admin_override_trade', {
       p_season_id: seasonId,
       p_from_team_id: teamA,
@@ -284,5 +199,5 @@ await step('cleanup isolated season', async () => {
   assert(rows[0].n === 0, 'test season still exists');
 });
 
-console.log(`\n=== ${failures === 0 ? 'ALL PASS' : `${failures} FAILURE(S)`} ===\n`);
-process.exit(failures === 0 ? 0 : 1);
+console.log(`\n=== ${h.failures === 0 ? 'ALL PASS' : `${h.failures} FAILURE(S)`} ===\n`);
+process.exit(h.failures === 0 ? 0 : 1);
