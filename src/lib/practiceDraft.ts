@@ -69,6 +69,18 @@ export function assignCpuStrategies(
   return result;
 }
 
+// Draft-grid rules mirrored from the SQL authority (set_draft_order's grid
+// generation in supabase/migrations): snake drafts reverse every even round,
+// and keeper slots pre-fill rosters so the grid runs
+// roster_size - keeper_limit rounds. Nothing fails on drift — keep in sync.
+function practiceGridRounds(settings: DraftSettings): number {
+  return Math.max(0, settings.roster_size - settings.keeper_limit);
+}
+
+function practiceRoundOrder(settings: DraftSettings, round: number, order: string[]): string[] {
+  return settings.draft_type === 'snake' && round % 2 === 0 ? [...order].reverse() : order;
+}
+
 /**
  * Build a disposable board from an explicit draft order (the practice path) or
  * the settings' own order. Nothing here writes to Supabase.
@@ -78,15 +90,13 @@ export function buildPracticeBoard(
   orderOverride?: string[],
 ): DraftPick[] {
   const order = orderOverride ?? settings.draft_order ?? [];
-  const rounds = Math.max(0, settings.roster_size - settings.keeper_limit);
+  const rounds = practiceGridRounds(settings);
   if (order.length === 0 || rounds === 0) return [];
 
   const picks: DraftPick[] = [];
   let pickNumber = 1;
   for (let round = 1; round <= rounds; round += 1) {
-    const roundOrder = settings.draft_type === 'snake' && round % 2 === 0
-      ? [...order].reverse()
-      : order;
+    const roundOrder = practiceRoundOrder(settings, round, order);
 
     for (const teamId of roundOrder) {
       picks.push({
