@@ -53,9 +53,10 @@ export function TradeAnnouncementBanner() {
     };
   }, [season?.id]);
 
+  const teamsIndex = useMemo(() => teamById(teams), [teams]);
+
   if (!announcement) return null;
 
-  const teamsIndex = useMemo(() => teamById(teams), [teams]);
   const from = teamsIndex.get(announcement.fromTeamId)?.name ?? 'Team';
   const to = teamsIndex.get(announcement.toTeamId)?.name ?? 'Team';
 
