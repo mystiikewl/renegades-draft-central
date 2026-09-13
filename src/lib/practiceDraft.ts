@@ -1,5 +1,5 @@
 import type { DraftPick, DraftSettings, PlayerWithStats } from '@/api/types';
-import { LEAGUE_CATEGORIES, zScores, type Category } from '@/lib/projections';
+import { LEAGUE_CATEGORIES, valueScores, type Category } from '@/lib/projections';
 
 export type CpuDraftStrategy =
   | 'balanced'
@@ -131,16 +131,9 @@ export function availablePracticePlayers(players: PlayerWithStats[], picks: Draf
   return players.filter((player) => !drafted.has(player.id));
 }
 
-/** Existing all-category score, still used to sort the human-facing pool. */
+/** All-category value on the same scale as the Player Pool's VAL column. */
 export function practiceScores(players: PlayerWithStats[]): Map<string, number> {
-  const totals = new Map<string, number>(players.map((player) => [player.id, 0]));
-  for (const category of LEAGUE_CATEGORIES) {
-    const categoryScores = zScores(players, category, 'totals');
-    for (const player of players) {
-      totals.set(player.id, (totals.get(player.id) ?? 0) + (categoryScores.get(player.id) ?? 0));
-    }
-  }
-  return totals;
+  return valueScores(players, { basis: 'totals' });
 }
 
 const STRATEGY_WEIGHTS: Record<CpuDraftStrategy, Partial<Record<Category, number>>> = {
@@ -179,15 +172,20 @@ export function chooseCpuPracticePlayer(
   const guards = rosterFlags.filter((flags) => flags.guard).length;
   const bigs = rosterFlags.filter((flags) => flags.big).length;
   const weights = STRATEGY_WEIGHTS[strategy];
-  const categoryMaps = new Map<Category, Map<string, number>>();
-  for (const category of LEAGUE_CATEGORIES) categoryMaps.set(category, zScores(fullPool, category, 'totals'));
+  // valueScores normalises by the weight sum; the roster-balance bonuses below
+  // were tuned on the weighted-sum scale, so scale the composite back up.
+  const weightSum = LEAGUE_CATEGORIES.reduce(
+    (sum, category) => sum + Math.max(0, weights[category] ?? 1),
+    0,
+  );
+  const composite = valueScores(available, {
+    scoreUniverse: fullPool,
+    weights,
+    basis: 'totals',
+  });
 
   const scored = available.map((player) => {
-    let score = 0;
-    for (const category of LEAGUE_CATEGORIES) {
-      const weight = weights[category] ?? 1;
-      score += (categoryMaps.get(category)?.get(player.id) ?? 0) * weight;
-    }
+    let score = (composite.get(player.id) ?? 0) * weightSum;
 
     const flags = positionFlags(player.position);
     // Avoid cartoonishly unbalanced rosters while keeping archetypes distinct.

@@ -25,7 +25,7 @@ import { RealtimeBadge } from '@/components/draft/RealtimeBadge';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { PlayerStatsDialog } from '@/components/player/PlayerStatsDialog';
 import { getTeamColour } from '@/lib/teamColours';
-import { statColumnValue } from '@/lib/stats';
+import { leagueValueScores } from '@/lib/projections';
 
 function DraftStatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -70,12 +70,20 @@ export function DraftPage() {
     return picks.find((pick) => !pick.is_used && pick.pick_number >= nextPick.pick_number && pick.team_id === profile.team_id) ?? null;
   }, [picks, nextPick, profile?.team_id]);
 
-  const rankedAvailable = useMemo(
-    () => [...(availablePlayers ?? [])].sort((a, b) => {
-      const points = statColumnValue(b, 'pts', 'averages') - statColumnValue(a, 'pts', 'averages');
-      return points || a.name.localeCompare(b.name);
-    }),
+  // The picking list uses the same value basis as the Pool's VAL column, so
+  // the live draft order matches every analytics surface.
+  const valueOrder = useMemo(
+    () => leagueValueScores(availablePlayers ?? []),
     [availablePlayers],
+  );
+  const rankedAvailable = useMemo(
+    () =>
+      [...(availablePlayers ?? [])].sort(
+        (a, b) =>
+          (valueOrder.get(b.id) ?? 0) - (valueOrder.get(a.id) ?? 0) ||
+          a.name.localeCompare(b.name),
+      ),
+    [availablePlayers, valueOrder],
   );
 
   const teamName = (id: string) => teams?.find((t) => t.id === id)?.name ?? '—';

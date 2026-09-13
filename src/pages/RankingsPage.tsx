@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { rememberFocusedPlayer } from '@/lib/analysisNavigation';
 import { STRATEGY_PRESETS, type StrategyKey } from '@/lib/draftIntelligence';
 import { isRookie } from '@/lib/stats';
-import { zScores, LEAGUE_CATEGORIES, type Basis, type Category } from '@/lib/projections';
+import { valueScores, zScores, LEAGUE_CATEGORIES, type Basis, type Category } from '@/lib/projections';
 import { CATEGORY_LABELS } from '@/lib/leagueCategories';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 
@@ -82,7 +82,6 @@ export function RankingsPage() {
   const rows = useMemo(() => {
     if (!players) return [];
     const query = search.trim().toLowerCase();
-    const weightSum = CATS.reduce((sum, cat) => sum + weights[cat], 0);
     let pool = query
       ? players.filter((player) =>
           player.name.toLowerCase().includes(query) ||
@@ -90,18 +89,16 @@ export function RankingsPage() {
         )
       : players;
     if (rookiesOnly) pool = pool.filter(isRookie);
+    const composites = valueScores(pool, { scoreUniverse: players, weights, basis });
     const scored = pool.map((player) => {
       const categoryScores = {} as Record<Cat, number>;
       for (const cat of CATS) categoryScores[cat] = zByCat[cat]?.get(player.id) ?? 0;
-      const composite = weightSum > 0
-        ? CATS.reduce((sum, cat) => sum + categoryScores[cat] * weights[cat], 0) / weightSum
-        : 0;
-      return { player, zs: categoryScores, composite };
+      return { player, zs: categoryScores, composite: composites.get(player.id) ?? 0 };
     });
     return scored.sort((a, b) =>
       sortKey === 'composite' ? b.composite - a.composite : b.zs[sortKey] - a.zs[sortKey],
     );
-  }, [players, search, rookiesOnly, weights, sortKey, zByCat]);
+  }, [players, search, rookiesOnly, weights, sortKey, basis, zByCat]);
 
   const setWeight = (cat: Cat, value: number) => {
     const next = { ...weights, [cat]: value };

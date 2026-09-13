@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PlayerWithStats } from '@/api/types';
-import { baseline, categoryTotals, impact, leagueValueScores, zScores, LEAGUE_CATEGORIES } from './projections';
+import { baseline, categoryTotals, impact, leagueValueScores, valueScores, zScores, LEAGUE_CATEGORIES } from './projections';
 
 const P = (
   id: string,
@@ -141,6 +141,36 @@ describe('leagueValueScores', () => {
 
     expect(scores.get('elite')).toBeGreaterThan(scores.get('middle') ?? 0);
     expect(scores.get('middle')).toBeGreaterThan(scores.get('low') ?? 0);
+  });
+});
+
+describe('valueScores', () => {
+  // Only points vary (gp=1): z(pts) = +1.2247 / 0 / -1.2247, all other z are 0.
+  const players = [P('a', 20, 0, 0, 1), P('b', 15, 0, 0, 1), P('c', 10, 0, 0, 1)];
+
+  it('normalises by the sum of positive weights (unspecified categories weigh 1)', () => {
+    // weights pts:2, reb:3, other 11 cats default to 1 -> denominator 16
+    const scores = valueScores(players, { weights: { pts: 2, reb: 3 } });
+    expect(scores.get('a')).toBeCloseTo(1.2247 * 2 / 16, 3);
+    expect(scores.get('b')).toBeCloseTo(0, 3);
+    expect(scores.get('c')).toBeCloseTo(-1.2247 * 2 / 16, 3);
+  });
+
+  it('removes punted categories entirely', () => {
+    const scores = valueScores(players, { weights: { pts: 0, reb: 1 } });
+    for (const id of ['a', 'b', 'c']) expect(scores.get(id)).toBeCloseTo(0, 6);
+  });
+
+  it('defaults to the equal-weight league value and honours a separate scoring universe', () => {
+    const wider = [...players, P('d', 40, 0, 0, 1)];
+    const equal = valueScores(players);
+    const league = leagueValueScores(players, 'totals');
+    for (const player of players) {
+      expect(equal.get(player.id)).toBeCloseTo(league.get(player.id) ?? 0, 12);
+    }
+    // Scoring against a wider universe shrinks a's z (d pushes the mean up).
+    const againstWider = valueScores(players, { scoreUniverse: wider });
+    expect(againstWider.get('a')!).toBeLessThan(equal.get('a') ?? 0);
   });
 });
 

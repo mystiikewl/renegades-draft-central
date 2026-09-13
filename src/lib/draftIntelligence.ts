@@ -5,6 +5,7 @@ import {
   INVERTED_CATEGORIES,
   LEAGUE_CATEGORIES,
   PERCENTAGE_CATEGORIES,
+  valueScores,
   zScores,
   type Basis,
   type Category,
@@ -153,33 +154,6 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
 }
 
-function weightedComposite(
-  players: PlayerWithStats[],
-  scoreUniverse: PlayerWithStats[],
-  preset: StrategyPreset,
-  basis: Basis,
-): Map<string, number> {
-  const categoryScores = new Map<Category, Map<string, number>>();
-  for (const category of LEAGUE_CATEGORIES) {
-    categoryScores.set(category, zScores(scoreUniverse, category, basis));
-  }
-
-  const activeWeight = LEAGUE_CATEGORIES.reduce(
-    (sum, category) => sum + Math.max(0, preset.weights[category]),
-    0,
-  );
-  const result = new Map<string, number>();
-  for (const player of players) {
-    const total = LEAGUE_CATEGORIES.reduce(
-      (sum, category) =>
-        sum + (categoryScores.get(category)?.get(player.id) ?? 0) * preset.weights[category],
-      0,
-    );
-    result.set(player.id, activeWeight > 0 ? total / activeWeight : 0);
-  }
-  return result;
-}
-
 function categoryScoreMaps(
   universe: PlayerWithStats[],
   basis: Basis,
@@ -293,7 +267,11 @@ export function buildDraftIntelligence(input: DraftIntelligenceInput): DraftInte
   for (const player of [...input.available, ...input.roster]) universeById.set(player.id, player);
   const universe = [...universeById.values()];
 
-  const universeScores = weightedComposite(universe, universe, preset, basis);
+  const universeScores = valueScores(universe, {
+    scoreUniverse: universe,
+    weights: preset.weights,
+    basis,
+  });
   const targetCount = Math.max(1, input.leagueSize * input.rosterSize);
   const targetPool = [...universe]
     .sort(
@@ -311,7 +289,11 @@ export function buildDraftIntelligence(input: DraftIntelligenceInput): DraftInte
   );
 
   const categoryMaps = categoryScoreMaps(universe, basis);
-  const availableOverall = weightedComposite(input.available, universe, preset, basis);
+  const availableOverall = valueScores(input.available, {
+    scoreUniverse: universe,
+    weights: preset.weights,
+    basis,
+  });
   const positiveNeeds = needs.filter((need) => need.priority > 0);
   const needWeight = positiveNeeds.reduce((sum, need) => sum + need.priority, 0);
 

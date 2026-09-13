@@ -163,21 +163,47 @@ export function zScores(
   return scores;
 }
 
+export interface ValueScoreOptions {
+  basis?: Basis;
+  /** Pool the z-scores are computed against — defaults to `pool` itself. */
+  scoreUniverse?: PlayerWithStats[];
+  /** Category weights: missing counts as 1, zero removes (punts) the category. */
+  weights?: Partial<Record<Category, number>>;
+}
+
+/**
+ * The player-value interface: a weighted composite of per-category z-scores
+ * across the league's 13 ROTO categories, normalised by the sum of positive
+ * weights. Every consumer — pool VAL column, strategy boards, practice CPU,
+ * custom rankings — reads value through this one seam so their answers stay
+ * on a single scale.
+ */
+export function valueScores(
+  pool: PlayerWithStats[],
+  options: ValueScoreOptions = {},
+): Map<string, number> {
+  const { basis = 'totals', scoreUniverse = pool, weights = {} } = options;
+  const categoryScores = LEAGUE_CATEGORIES.map((category) => zScores(scoreUniverse, category, basis));
+  const activeWeights = LEAGUE_CATEGORIES.map((category) => Math.max(0, weights[category] ?? 1));
+  const weightSum = activeWeights.reduce((sum, weight) => sum + weight, 0);
+
+  const scores = new Map<string, number>();
+  for (const player of pool) {
+    const total = categoryScores.reduce(
+      (sum, values, index) => sum + (values.get(player.id) ?? 0) * activeWeights[index],
+      0,
+    );
+    scores.set(player.id, weightSum > 0 ? total / weightSum : 0);
+  }
+  return scores;
+}
+
 /** Equal-weight composite value across the league's 13 ROTO categories. */
 export function leagueValueScores(
   pool: PlayerWithStats[],
   basis: Basis = 'totals',
 ): Map<string, number> {
-  const categoryScores = LEAGUE_CATEGORIES.map((category) => zScores(pool, category, basis));
-  const scores = new Map<string, number>();
-  for (const player of pool) {
-    const total = categoryScores.reduce(
-      (sum, values) => sum + (values.get(player.id) ?? 0),
-      0,
-    );
-    scores.set(player.id, total / LEAGUE_CATEGORIES.length);
-  }
-  return scores;
+  return valueScores(pool, { basis });
 }
 
 export interface CategoryImpact {
