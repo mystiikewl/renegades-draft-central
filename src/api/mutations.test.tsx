@@ -83,7 +83,7 @@ describe('useUndoLastPick', () => {
 });
 
 describe('keepers', () => {
-  it('useAssignKeeper passes p_ params and invalidates rosters + pool', async () => {
+  it('useAssignKeeper passes p_ params and invalidates rosters (pools derive from it)', async () => {
     rpc.mockResolvedValue({ data: null, error: null } as never);
     const { invalidate, wrapper } = makeClient();
     const { result } = renderHook(() => useAssignKeeper(SEASON), { wrapper });
@@ -98,7 +98,7 @@ describe('keepers', () => {
     expect(toast.error).not.toHaveBeenCalled();
     const invalidated = invalidate.mock.calls.map((c) => c[0]!.queryKey);
     expect(invalidated).toEqual(
-      expect.arrayContaining([['rosters', SEASON], ['player-pool', SEASON]]),
+      expect.arrayContaining([['rosters', SEASON]]),
     );
   });
 
@@ -117,7 +117,7 @@ describe('keepers', () => {
     expect(invalidate).not.toHaveBeenCalled();
   });
 
-  it('useRemoveKeeper passes p_ params and invalidates rosters + pool', async () => {
+  it('useRemoveKeeper passes p_ params and invalidates rosters (pools derive from it)', async () => {
     rpc.mockResolvedValue({ data: null, error: null } as never);
     const { invalidate, wrapper } = makeClient();
     const { result } = renderHook(() => useRemoveKeeper(SEASON), { wrapper });
@@ -132,7 +132,7 @@ describe('keepers', () => {
     expect(toast.error).not.toHaveBeenCalled();
     const invalidated = invalidate.mock.calls.map((c) => c[0]!.queryKey);
     expect(invalidated).toEqual(
-      expect.arrayContaining([['rosters', SEASON], ['player-pool', SEASON]]),
+      expect.arrayContaining([['rosters', SEASON]]),
     );
   });
 

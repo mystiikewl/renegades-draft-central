@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { selectPreferredStats, type ProjectionStatsRow } from '@/lib/projectionData';
 import type {
@@ -14,7 +14,9 @@ import type {
 
 /**
  * Query keys: one per table, scoped by season where relevant. The realtime
- * layer (./realtime.ts) invalidates these keys on Postgres changes.
+ * layer (./realtime.ts) invalidates these keys on Postgres changes. Derived
+ * pools (usePlayerPool, usePracticeDraftPool) compose these queries and carry
+ * no keys of their own.
  */
 export const qk = {
   seasons: ['seasons'] as const,
@@ -23,8 +25,7 @@ export const qk = {
   profile: (userId: string | undefined) => ['profile', userId] as const,
   draftSettings: (seasonId: string) => ['draft-settings', seasonId] as const,
   draftPicks: (seasonId: string) => ['draft-picks', seasonId] as const,
-  playerPool: (seasonId: string) => ['player-pool', seasonId] as const,
-  practiceDraftPool: (seasonId: string) => ['practice-draft-pool', seasonId] as const,
+  players: (seasonId: string) => ['players', seasonId] as const,
   rosters: (seasonId: string) => ['rosters', seasonId] as const,
   trades: (seasonId: string) => ['trades', seasonId] as const,
 };
@@ -117,37 +118,59 @@ export function useDraftPicks(seasonId: string | undefined) {
   });
 }
 
-/** Full player pool with the given season's stats, minus already-rostered players. */
-export function usePlayerPool(seasonId: string | undefined) {
+type RawPlayerRow = PlayerWithStats & { projections?: ProjectionStatsRow[] };
+
+/** Resolve one player's effective stats row: ESPN projection first, historical fallback. */
+function toStatsEnrichedPlayer(row: RawPlayerRow, seasonId: string): PlayerWithStats {
+  const selected = selectPreferredStats(row.player_seasons ?? [], row.projections ?? [], seasonId);
+  const { projections: _projections, ...player } = row;
+  return {
+    ...player,
+    player_seasons: selected.row
+      ? [{ season_id: selected.row.season_id, stats: selected.row.stats ?? {} }]
+      : [],
+    stats_source: selected.source,
+    stats_updated_at: selected.updatedAt,
+    stats_uses_historical_fallback: selected.usesHistoricalFallback,
+  } as PlayerWithStats;
+}
+
+/**
+ * Every player with their preferred-stats row resolved — the one read behind
+ * the Player Pool, Practice Draft and Player Lab. Cached under a single key so
+ * realtime changes to players/projections/rosters refresh every consumer.
+ */
+export function useStatsEnrichedPlayers(seasonId: string | undefined) {
   return useQuery({
-    queryKey: qk.playerPool(seasonId ?? 'none'),
+    queryKey: qk.players(seasonId ?? 'none'),
     enabled: !!seasonId,
     queryFn: async () => {
-      const [playersRes, rosteredRes] = await Promise.all([
-        supabase
-          .from('players')
-          .select('*, player_seasons(season_id, stats, seasons(label)), projections(season_id, stats, source, updated_at)')
-          .not('espn_id', 'is', null)
-          .order('name'),
-        supabase.from('rosters').select('player_id').eq('season_id', seasonId),
-      ]);
-      if (playersRes.error) throw playersRes.error;
-      if (rosteredRes.error) throw rosteredRes.error;
-      const rostered = new Set(rosteredRes.data.map((r) => r.player_id));
-      const withPreferredStats = (playersRes.data as (PlayerWithStats & { projections?: ProjectionStatsRow[] })[]).map((p) => {
-        const selected = selectPreferredStats(p.player_seasons ?? [], p.projections ?? [], seasonId!);
-        const { projections: _projections, ...player } = p;
-        return {
-          ...player,
-          player_seasons: selected.row ? [{ season_id: selected.row.season_id, stats: selected.row.stats ?? {} }] : [],
-          stats_source: selected.source,
-          stats_updated_at: selected.updatedAt,
-          stats_uses_historical_fallback: selected.usesHistoricalFallback,
-        } as PlayerWithStats;
-      });
-      return withPreferredStats.filter((p) => !rostered.has(p.id));
+      const { data, error } = await supabase
+        .from('players')
+        .select('*, player_seasons(season_id, stats, seasons(label)), projections(season_id, stats, source, updated_at)')
+        .not('espn_id', 'is', null)
+        .order('name');
+      if (error) throw error;
+      return (data as RawPlayerRow[]).map((row) => toStatsEnrichedPlayer(row, seasonId!));
     },
   });
+}
+
+/** Full player pool with the given season's stats, minus already-rostered players. */
+export function usePlayerPool(seasonId: string | undefined) {
+  const players = useStatsEnrichedPlayers(seasonId);
+  const rosters = useRosters(seasonId);
+  const rosterRows = rosters.data;
+  const data =
+    players.data && rosterRows
+      ? players.data.filter((p) => !rosterRows.some((r) => r.player_id === p.id))
+      : undefined;
+  return {
+    ...players,
+    data,
+    isLoading: players.isLoading || rosters.isLoading,
+    error: players.error ?? rosters.error,
+  };
 }
 
 /**
@@ -156,40 +179,21 @@ export function usePlayerPool(seasonId: string | undefined) {
  * simulation. This hook is deliberately read-only.
  */
 export function usePracticeDraftPool(seasonId: string | undefined) {
-  return useQuery({
-    queryKey: qk.practiceDraftPool(seasonId ?? 'none'),
-    enabled: !!seasonId,
-    queryFn: async () => {
-      const [playersRes, keepersRes] = await Promise.all([
-        supabase
-          .from('players')
-          .select('*, player_seasons(season_id, stats, seasons(label)), projections(season_id, stats, source, updated_at)')
-          .not('espn_id', 'is', null)
-          .order('name'),
-        supabase
-          .from('rosters')
-          .select('player_id')
-          .eq('season_id', seasonId)
-          .eq('acquisition', 'keeper'),
-      ]);
-      if (playersRes.error) throw playersRes.error;
-      if (keepersRes.error) throw keepersRes.error;
-
-      const kept = new Set(keepersRes.data.map((r) => r.player_id));
-      const withPreferredStats = (playersRes.data as (PlayerWithStats & { projections?: ProjectionStatsRow[] })[]).map((p) => {
-        const selected = selectPreferredStats(p.player_seasons ?? [], p.projections ?? [], seasonId!);
-        const { projections: _projections, ...player } = p;
-        return {
-          ...player,
-          player_seasons: selected.row ? [{ season_id: selected.row.season_id, stats: selected.row.stats ?? {} }] : [],
-          stats_source: selected.source,
-          stats_updated_at: selected.updatedAt,
-          stats_uses_historical_fallback: selected.usesHistoricalFallback,
-        } as PlayerWithStats;
-      });
-      return withPreferredStats.filter((p) => !kept.has(p.id));
-    },
-  });
+  const players = useStatsEnrichedPlayers(seasonId);
+  const rosters = useRosters(seasonId);
+  const rosterRows = rosters.data;
+  const data =
+    players.data && rosterRows
+      ? players.data.filter(
+          (p) => !rosterRows.some((r) => r.player_id === p.id && r.acquisition === 'keeper'),
+        )
+      : undefined;
+  return {
+    ...players,
+    data,
+    isLoading: players.isLoading || rosters.isLoading,
+    error: players.error ?? rosters.error,
+  };
 }
 
 export function useRosters(seasonId: string | undefined) {
@@ -226,16 +230,4 @@ export function useTrades(seasonId: string | undefined) {
       return data as Trade[];
     },
   });
-}
-
-/** Convenience: invalidate every query key touching a season's draft data. */
-export function useInvalidateDraft() {
-  const qc = useQueryClient();
-  return (seasonId: string) => {
-    qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
-    qc.invalidateQueries({ queryKey: qk.playerPool(seasonId) });
-    qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
-    qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) });
-    qc.invalidateQueries({ queryKey: qk.trades(seasonId) });
-  };
 }

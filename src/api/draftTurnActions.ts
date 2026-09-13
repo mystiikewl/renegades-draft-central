@@ -6,7 +6,6 @@ import { isNetworkError, queuePick } from './offlineQueue';
 
 function invalidateDraft(qc: ReturnType<typeof useQueryClient>, seasonId: string) {
   qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
-  qc.invalidateQueries({ queryKey: qk.playerPool(seasonId) });
   qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
   qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) });
 }

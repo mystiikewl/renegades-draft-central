@@ -1,44 +1,18 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ArrowRight, Search, Sparkles, Swords, Target } from 'lucide-react';
-import { useActiveSeason } from '@/api/queries';
-import { supabase } from '@/lib/supabase';
-import { useQuery } from '@tanstack/react-query';
+import { useActiveSeason, useStatsEnrichedPlayers } from '@/api/queries';
 import type { PlayerWithStats } from '@/api/types';
-import { pickStatsSeason } from '@/lib/stats';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { readFocusedPlayer, rememberFocusedPlayer } from '@/lib/analysisNavigation';
 import { buildPlayerShapes, closestShapeMatches, shapeSimilarity, type PlayerShape } from '@/lib/playerShape';
 
-function usePlayerLabPool(seasonId: string | undefined) {
-  return useQuery({
-    queryKey: ['player-lab-pool', seasonId ?? 'none'],
-    enabled: !!seasonId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('players')
-        .select('*, player_seasons(season_id, stats, seasons(label))')
-        .not('espn_id', 'is', null)
-        .order('name');
-      if (error) throw error;
-      return (data as PlayerWithStats[])
-        .map((player) => {
-          const best = pickStatsSeason(player.player_seasons ?? [], seasonId!);
-          return {
-            ...player,
-            player_seasons: best ? [best as PlayerWithStats['player_seasons'][number]] : [],
-          };
-        })
-        .filter((player) => player.player_seasons.length > 0);
-    },
-  });
-}
-
 export function PlayerLabPage() {
   const { data: season } = useActiveSeason();
-  const { data: players = [], isLoading } = usePlayerLabPool(season?.id);
+  const { data: allPlayers = [], isLoading } = useStatsEnrichedPlayers(season?.id);
+  const players = useMemo(() => allPlayers.filter((p) => p.player_seasons.length > 0), [allPlayers]);
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(() => readFocusedPlayer());
   const [compareId, setCompareId] = useState<string | null>(null);

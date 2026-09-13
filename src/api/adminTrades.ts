@@ -17,7 +17,6 @@ function invalidateTradeState(qc: ReturnType<typeof useQueryClient>, seasonId: s
   qc.invalidateQueries({ queryKey: qk.trades(seasonId) });
   qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
   qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
-  qc.invalidateQueries({ queryKey: qk.playerPool(seasonId) });
 }
 
 export function useAdminTradeOverride(seasonId: string) {

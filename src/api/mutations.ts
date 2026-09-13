@@ -11,7 +11,6 @@ import { qk } from './queries';
 
 function invalidateSeason(qc: ReturnType<typeof useQueryClient>, seasonId: string) {
   qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
-  qc.invalidateQueries({ queryKey: qk.playerPool(seasonId) });
   qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
   qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) });
 }
@@ -117,7 +116,6 @@ export function useResetDraft(seasonId: string) {
  */
 function invalidateKeepers(qc: ReturnType<typeof useQueryClient>, seasonId: string) {
   qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
-  qc.invalidateQueries({ queryKey: qk.playerPool(seasonId) });
 }
 
 export function useAssignKeeper(seasonId: string) {
@@ -164,7 +162,6 @@ export function useFinalizeKeepers(seasonId: string) {
     },
     onSuccess: (dropped) => {
       qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
-      qc.invalidateQueries({ queryKey: qk.playerPool(seasonId) });
       qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
       qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) });
       toast.success(`Keepers locked — ${dropped} non-keepers dropped, draft picks generated.`);
@@ -186,7 +183,6 @@ export function useRevertFinalizeKeepers(seasonId: string) {
     },
     onSuccess: (restored) => {
       qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
-      qc.invalidateQueries({ queryKey: qk.playerPool(seasonId) });
       qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
       qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) });
       toast.success(`Keeper finalize reverted — ${restored} roster spot(s) restored, pick grid cleared.`);

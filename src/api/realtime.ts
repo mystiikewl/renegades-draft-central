@@ -49,10 +49,17 @@ export function useDraftRealtime(seasonId: string | undefined) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'rosters', filter: `season_id=eq.${seasonId}` },
-        () => {
-          qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
-          qc.invalidateQueries({ queryKey: qk.playerPool(seasonId) });
-        }
+        () => qc.invalidateQueries({ queryKey: qk.rosters(seasonId) })
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'players' },
+        () => qc.invalidateQueries({ queryKey: qk.players(seasonId) })
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'projections', filter: `season_id=eq.${seasonId}` },
+        () => qc.invalidateQueries({ queryKey: qk.players(seasonId) })
       )
       .on(
         'postgres_changes',
