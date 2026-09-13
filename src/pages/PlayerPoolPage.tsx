@@ -11,6 +11,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isRookie, STAT_COLUMNS, statColumnValue, fmtStat, type StatColumnKey } from '@/lib/stats';
+import { POSITION_FILTERS, matchesPosition, matchesSearch } from '@/lib/playerFilters';
+import { nextPick as pickOnClock, teamById } from '@/lib/draftState';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { leagueValueScores } from '@/lib/projections';
 import { availablePracticePlayers } from '@/lib/practiceDraft';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
@@ -22,15 +25,6 @@ import type { PlayerWithStats } from '@/api/types';
 type SortKey = 'value' | StatColumnKey;
 type Basis = 'averages' | 'totals';
 type PoolMode = 'practice' | 'live';
-
-const POSITIONS = ['All', 'PG', 'SG', 'SF', 'PF', 'C'] as const;
-
-const chip = (active: boolean) =>
-  `shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold transition-all active:scale-[0.98] ${
-    active
-      ? 'border-foreground bg-foreground text-background shadow-sm'
-      : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground'
-  }`;
 
 export function PlayerPoolPage() {
   const { profile } = useAuth();
@@ -58,7 +52,7 @@ export function PlayerPoolPage() {
 
   const [poolMode, setPoolMode] = useState<PoolMode>(practiceActive ? 'practice' : 'live');
   const [search, setSearch] = useState('');
-  const [position, setPosition] = useState<(typeof POSITIONS)[number]>('All');
+  const [position, setPosition] = useState<(typeof POSITION_FILTERS)[number]>('All');
   const [rookiesOnly, setRookiesOnly] = useState(false);
   const [basis, setBasis] = useState<Basis>('totals');
   const [sortKey, setSortKey] = useState<SortKey>('value');
@@ -81,10 +75,11 @@ export function PlayerPoolPage() {
   const isLoading = inPracticeMode ? practiceLoading : liveLoading;
   const valueScores = useMemo(() => leagueValueScores(players, basis), [players, basis]);
 
-  const liveNextPick = useMemo(() => picks?.find((p) => !p.is_used) ?? null, [picks]);
-  const practiceNextPick = useMemo(() => practicePicks.find((p) => !p.is_used) ?? null, [practicePicks]);
+  const liveNextPick = useMemo(() => (picks ? pickOnClock(picks) : null), [picks]);
+  const practiceNextPick = useMemo(() => pickOnClock(practicePicks), [practicePicks]);
   const nextPick = inPracticeMode ? practiceNextPick : liveNextPick;
-  const teamName = (id: string) => teams?.find((t) => t.id === id)?.name ?? (id === practiceHumanTeamId ? 'Your Team' : '—');
+  const teamsIndex = useMemo(() => teamById(teams), [teams]);
+  const teamName = (id: string) => teamsIndex.get(id)?.name ?? (id === practiceHumanTeamId ? 'Your Team' : '—');
   const isMyTurn = inPracticeMode
     ? !!practiceNextPick && practiceNextPick.team_id === practiceHumanTeamId
     : !!liveNextPick && !!profile?.team_id && liveNextPick.team_id === profile.team_id;
@@ -92,27 +87,9 @@ export function PlayerPoolPage() {
   const practiceComplete = inPracticeMode && practicePicks.length > 0 && practicePicks.every((pick) => pick.is_used);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    let pool = players;
-    if (position !== 'All') {
-      pool = pool.filter((p) => {
-        const tokens = (p.position ?? '').split(',').map((t) => t.trim());
-        return (
-          tokens.includes(position) ||
-          tokens.includes('ALL') ||
-          ((position === 'PG' || position === 'SG') && tokens.includes('G')) ||
-          ((position === 'SF' || position === 'PF') && tokens.includes('F'))
-        );
-      });
-    }
+    let pool = players.filter((p) => matchesPosition(p, position));
     if (rookiesOnly) pool = pool.filter(isRookie);
-    if (q) {
-      pool = pool.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          (p.nba_team ?? '').toLowerCase().includes(q),
-      );
-    }
+    pool = pool.filter((p) => matchesSearch(p, search));
     return [...pool].sort((a, b) => {
       const difference = sortKey === 'value'
         ? (valueScores.get(b.id) ?? 0) - (valueScores.get(a.id) ?? 0)
@@ -243,10 +220,10 @@ export function PlayerPoolPage() {
 
         <div className="mt-3 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-3">
           <div className="flex w-max items-center gap-2">
-            {POSITIONS.map((pos) => (
-              <button key={pos} onClick={() => setPosition(pos)} className={chip(position === pos)}>{pos}</button>
+            {POSITION_FILTERS.map((pos) => (
+              <FilterChip key={pos} active={position === pos} onClick={() => setPosition(pos)}>{pos}</FilterChip>
             ))}
-            <button onClick={() => setRookiesOnly((v) => !v)} aria-pressed={rookiesOnly} className={chip(rookiesOnly)}>Rookies</button>
+            <FilterChip active={rookiesOnly} onClick={() => setRookiesOnly((v) => !v)}>Rookies</FilterChip>
           </div>
         </div>
       </div>

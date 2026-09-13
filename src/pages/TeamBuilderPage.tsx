@@ -20,6 +20,7 @@ import {
 } from '@/lib/projections';
 import { CATEGORY_LABELS } from '@/lib/leagueCategories';
 import { parseStats } from '@/lib/stats';
+import { loadJsonPref, saveJsonPref } from '@/lib/prefs';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import type { PlayerWithStats } from '@/api/types';
 
@@ -63,11 +64,7 @@ export function TeamBuilderPage() {
 
   useEffect(() => {
     if (!buildsKey) return;
-    try {
-      setSavedBuilds(JSON.parse(localStorage.getItem(buildsKey) ?? '[]'));
-    } catch {
-      setSavedBuilds([]);
-    }
+    setSavedBuilds(loadJsonPref<SavedBuild[]>(buildsKey, []));
   }, [buildsKey]);
 
   const rosteredById = useMemo(() => {
@@ -157,7 +154,7 @@ export function TeamBuilderPage() {
       playerIds: picks?.filter((id): id is string => id !== null) ?? [],
     };
     const next = [...savedBuilds, build];
-    localStorage.setItem(buildsKey, JSON.stringify(next));
+    saveJsonPref(buildsKey, next);
     setSavedBuilds(next);
     setBuildName('');
   }
@@ -174,7 +171,7 @@ export function TeamBuilderPage() {
   function deleteBuild(name: string) {
     if (!buildsKey) return;
     const next = savedBuilds.filter((build) => build.name !== name);
-    localStorage.setItem(buildsKey, JSON.stringify(next));
+    saveJsonPref(buildsKey, next);
     setSavedBuilds(next);
   }
 

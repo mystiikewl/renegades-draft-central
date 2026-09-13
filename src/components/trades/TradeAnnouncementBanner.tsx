@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRightLeft, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useActiveSeason, useTeams } from '@/api/queries';
+import { teamById } from '@/lib/draftState';
 
 type Announcement = {
   id: string;
@@ -54,8 +55,9 @@ export function TradeAnnouncementBanner() {
 
   if (!announcement) return null;
 
-  const from = teams?.find((team) => team.id === announcement.fromTeamId)?.name ?? 'Team';
-  const to = teams?.find((team) => team.id === announcement.toTeamId)?.name ?? 'Team';
+  const teamsIndex = useMemo(() => teamById(teams), [teams]);
+  const from = teamsIndex.get(announcement.fromTeamId)?.name ?? 'Team';
+  const to = teamsIndex.get(announcement.toTeamId)?.name ?? 'Team';
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-3 z-[80] flex justify-center px-3 sm:top-4">

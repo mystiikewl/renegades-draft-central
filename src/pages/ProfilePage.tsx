@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { LogOut } from 'lucide-react';
 import { useTeams } from '@/api/queries';
+import { teamById } from '@/lib/draftState';
 import { useAuth } from '@/auth/AuthContext';
 import { PageHeader, PageShell } from '@/components/layout/PageLayout';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 export function ProfilePage() {
   const { profile, signOut } = useAuth();
   const { data: teams } = useTeams();
-  const team = teams?.find((t) => t.id === profile?.team_id);
+  const team = useMemo(() => teamById(teams).get(profile?.team_id ?? ''), [teams, profile?.team_id]);
 
   if (!profile) return null;
 

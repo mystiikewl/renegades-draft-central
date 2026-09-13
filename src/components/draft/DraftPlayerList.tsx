@@ -5,21 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { fmtStat, statColumnValue } from '@/lib/stats';
-
-const POSITIONS = ['All', 'PG', 'SG', 'SF', 'PF', 'C'] as const;
-
-type PositionFilter = (typeof POSITIONS)[number];
-
-function matchesPosition(player: PlayerWithStats, position: PositionFilter): boolean {
-  if (position === 'All') return true;
-  const tokens = (player.position ?? '').split(',').map((token) => token.trim());
-  return (
-    tokens.includes(position) ||
-    tokens.includes('ALL') ||
-    ((position === 'PG' || position === 'SG') && tokens.includes('G')) ||
-    ((position === 'SF' || position === 'PF') && tokens.includes('F'))
-  );
-}
+import { POSITION_FILTERS, matchesPosition, matchesSearch, type PositionFilter } from '@/lib/playerFilters';
 
 export function DraftPlayerList({
   players,
@@ -41,18 +27,13 @@ export function DraftPlayerList({
   const [search, setSearch] = useState('');
   const [position, setPosition] = useState<PositionFilter>('All');
 
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return players.filter((player) => {
-      if (!matchesPosition(player, position)) return false;
-      if (!query) return true;
-      return (
-        player.name.toLowerCase().includes(query) ||
-        (player.nba_team ?? '').toLowerCase().includes(query) ||
-        (player.position ?? '').toLowerCase().includes(query)
-      );
-    });
-  }, [players, position, search]);
+  const filtered = useMemo(
+    () =>
+      players.filter(
+        (player) => matchesPosition(player, position) && matchesSearch(player, search),
+      ),
+    [players, position, search],
+  );
 
   return (
     <section className="overflow-hidden border-y bg-card sm:rounded-2xl sm:border">
@@ -78,7 +59,7 @@ export function DraftPlayerList({
 
         <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex w-max gap-2">
-            {POSITIONS.map((item) => (
+            {POSITION_FILTERS.map((item) => (
               <button
                 key={item}
                 type="button"

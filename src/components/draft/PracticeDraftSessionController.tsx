@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { Link, useLocation } from '@tanstack/react-router';
 import { Bot, ArrowRight } from 'lucide-react';
 import { usePracticeDraftPool } from '@/api/queries';
+import { nextPick as nextPickOf } from '@/lib/draftState';
 import { availablePracticePlayers, chooseCpuPracticePlayer, makePracticePick, skipPracticePick } from '@/lib/practiceDraft';
 import { usePracticeDraftSession } from '@/stores/practiceDraftSession';
 
@@ -17,7 +18,7 @@ export function PracticeDraftSessionController() {
   const setCpuThinking = usePracticeDraftSession((state) => state.setCpuThinking);
   const { data: players, isLoading } = usePracticeDraftPool(active ? seasonId ?? undefined : undefined);
 
-  const nextPick = useMemo(() => picks.find((pick) => !pick.is_used) ?? null, [picks]);
+  const nextPick = useMemo(() => nextPickOf(picks), [picks]);
   const isHumanTurn = !!nextPick && !!humanTeamId && nextPick.team_id === humanTeamId;
   const complete = picks.length > 0 && picks.every((pick) => pick.is_used);
 
@@ -30,7 +31,7 @@ export function PracticeDraftSessionController() {
     setCpuThinking(true);
     const timer = window.setTimeout(() => {
       setPicks((current) => {
-        const currentNext = current.find((pick) => !pick.is_used);
+        const currentNext = nextPickOf(current) ?? undefined;
         if (!currentNext || currentNext.team_id === humanTeamId) return current;
         const remaining = availablePracticePlayers(players, current);
         const rosterIds = current

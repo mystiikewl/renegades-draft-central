@@ -24,6 +24,7 @@ import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { rememberFocusedPlayer } from '@/lib/analysisNavigation';
+import { loadStringPref, saveStringPref } from '@/lib/prefs';
 import {
   buildDraftIntelligence,
   STRATEGY_PRESETS,
@@ -61,12 +62,9 @@ export function AnalysisPage() {
 
   useEffect(() => {
     if (!seasonId) return;
-    try {
-      const stored = localStorage.getItem(`draft-intelligence:${seasonId}:strategy`) as StrategyKey | null;
-      if (stored && STRATEGY_PRESETS.some((preset) => preset.key === stored)) setStrategy(stored);
-    } catch {
-      setStrategy('balanced');
-    }
+    const stored = loadStringPref(`draft-intelligence:${seasonId}:strategy`) as StrategyKey | null;
+    if (stored && STRATEGY_PRESETS.some((preset) => preset.key === stored)) setStrategy(stored);
+    else setStrategy('balanced');
   }, [seasonId]);
 
   const rosteredPlayers = rosterRows;
@@ -144,7 +142,7 @@ export function AnalysisPage() {
     setStrategy(next);
     if (!seasonId) return;
     try {
-      localStorage.setItem(`draft-intelligence:${seasonId}:strategy`, next);
+      saveStringPref(`draft-intelligence:${seasonId}:strategy`, next);
     } catch {
       // Continue with in-memory state when storage is unavailable.
     }

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useDraftPicks, useDraftSettings } from '@/api/queries';
 import { useAuth } from '@/auth/AuthContext';
+import { nextPick } from '@/lib/draftState';
 
 /** True only when the draft is actively running and the current slot belongs to the user. */
 export function useCanPickNow(seasonId: string | undefined): boolean {
@@ -11,7 +12,7 @@ export function useCanPickNow(seasonId: string | undefined): boolean {
   return useMemo(() => {
     if (!profile?.is_admin && !profile?.team_id) return false;
     if (settings?.status !== 'running') return false;
-    const next = picks?.find((p) => !p.is_used);
+    const next = picks ? nextPick(picks) : null;
     if (!next) return false;
     return !!profile.is_admin || next.team_id === profile.team_id;
   }, [profile?.team_id, profile?.is_admin, settings?.status, picks]);

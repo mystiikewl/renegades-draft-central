@@ -8,6 +8,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { rememberFocusedPlayer } from '@/lib/analysisNavigation';
 import { STRATEGY_PRESETS, type StrategyKey } from '@/lib/draftIntelligence';
 import { isRookie } from '@/lib/stats';
+import { matchesSearch } from '@/lib/playerFilters';
+import { loadJsonPref, loadStringPref, removePref, saveJsonPref, saveStringPref } from '@/lib/prefs';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { valueScores, zScores, LEAGUE_CATEGORIES, type Basis, type Category } from '@/lib/projections';
 import { CATEGORY_LABELS } from '@/lib/leagueCategories';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
@@ -20,39 +23,23 @@ const DEFAULT_WEIGHTS: Record<Cat, number> = {
   blk: 1, to: 1, dd: 1, td: 1, pts: 1,
 };
 
+const weightsKey = (seasonId: string) => `rankings:${seasonId}`;
+const basisKey = (seasonId: string) => `rankings:${seasonId}:basis`;
+const presetKey = (seasonId: string) => `rankings:${seasonId}:preset`;
+
 function loadWeights(seasonId?: string): Record<Cat, number> {
-  try {
-    const raw = seasonId ? localStorage.getItem(`rankings:${seasonId}`) : null;
-    return raw ? { ...DEFAULT_WEIGHTS, ...JSON.parse(raw) } : DEFAULT_WEIGHTS;
-  } catch {
-    return DEFAULT_WEIGHTS;
-  }
+  return seasonId ? loadJsonPref(weightsKey(seasonId), DEFAULT_WEIGHTS) : DEFAULT_WEIGHTS;
 }
 
 function loadBasis(seasonId?: string): Basis {
-  try {
-    const raw = seasonId ? localStorage.getItem(`rankings:${seasonId}:basis`) : null;
-    return raw === 'averages' || raw === 'totals' ? raw : 'totals';
-  } catch {
-    return 'totals';
-  }
+  const raw = seasonId ? loadStringPref(basisKey(seasonId)) : null;
+  return raw === 'averages' || raw === 'totals' ? raw : 'totals';
 }
 
 function loadPreset(seasonId?: string): StrategyKey | null {
-  try {
-    const raw = seasonId ? localStorage.getItem(`rankings:${seasonId}:preset`) : null;
-    return STRATEGY_PRESETS.some((preset) => preset.key === raw) ? raw as StrategyKey : null;
-  } catch {
-    return null;
-  }
+  const raw = seasonId ? loadStringPref(presetKey(seasonId)) : null;
+  return STRATEGY_PRESETS.some((preset) => preset.key === raw) ? raw as StrategyKey : null;
 }
-
-const chip = (active: boolean) =>
-  `shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold transition-all active:scale-[0.98] ${
-    active
-      ? 'border-foreground bg-foreground text-background shadow-sm'
-      : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground'
-  }`;
 
 export function RankingsPage() {
   const { data: season } = useActiveSeason();
@@ -81,13 +68,7 @@ export function RankingsPage() {
 
   const rows = useMemo(() => {
     if (!players) return [];
-    const query = search.trim().toLowerCase();
-    let pool = query
-      ? players.filter((player) =>
-          player.name.toLowerCase().includes(query) ||
-          (player.nba_team ?? '').toLowerCase().includes(query),
-        )
-      : players;
+    let pool = players.filter((player) => matchesSearch(player, search));
     if (rookiesOnly) pool = pool.filter(isRookie);
     const composites = valueScores(pool, { scoreUniverse: players, weights, basis });
     const scored = pool.map((player) => {
@@ -105,8 +86,8 @@ export function RankingsPage() {
     setWeights(next);
     setActivePreset(null);
     if (season?.id) {
-      localStorage.setItem(`rankings:${season.id}`, JSON.stringify(next));
-      localStorage.removeItem(`rankings:${season.id}:preset`);
+      saveJsonPref(weightsKey(season.id), next);
+      removePref(presetKey(season.id));
     }
   };
 
@@ -116,14 +97,14 @@ export function RankingsPage() {
     setWeights(preset.weights);
     setActivePreset(key);
     if (season?.id) {
-      localStorage.setItem(`rankings:${season.id}`, JSON.stringify(preset.weights));
-      localStorage.setItem(`rankings:${season.id}:preset`, key);
+      saveJsonPref(weightsKey(season.id), preset.weights);
+      saveStringPref(presetKey(season.id), key);
     }
   };
 
   const changeBasis = (nextBasis: Basis) => {
     setBasis(nextBasis);
-    if (season?.id) localStorage.setItem(`rankings:${season.id}:basis`, nextBasis);
+    if (season?.id) saveStringPref(basisKey(season.id), nextBasis);
   };
 
   const sortLabel = sortKey === 'composite' ? 'Score' : CATEGORY_LABELS[sortKey];
@@ -169,9 +150,9 @@ export function RankingsPage() {
 
         <div className="mt-3 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-3">
           <div className="flex w-max items-center gap-2">
-            <button onClick={() => setRookiesOnly((value) => !value)} aria-pressed={rookiesOnly} className={chip(rookiesOnly)}>
+            <FilterChip active={rookiesOnly} onClick={() => setRookiesOnly((value) => !value)}>
               Rookies
-            </button>
+            </FilterChip>
             <div className="flex overflow-hidden rounded-full border bg-background">
               {(['totals', 'averages'] as const).map((value) => (
                 <button
@@ -192,16 +173,14 @@ export function RankingsPage() {
         <div className="mt-3 overflow-x-auto border-t px-4 pt-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-3">
           <div className="flex w-max gap-2">
             {STRATEGY_PRESETS.map((preset) => (
-              <button
+              <FilterChip
                 key={preset.key}
-                type="button"
+                active={activePreset === preset.key}
                 onClick={() => applyPreset(preset.key)}
-                aria-pressed={activePreset === preset.key}
-                className={chip(activePreset === preset.key)}
                 title={preset.detail}
               >
                 {preset.shortLabel}
-              </button>
+              </FilterChip>
             ))}
           </div>
         </div>
@@ -209,9 +188,9 @@ export function RankingsPage() {
         <div className="mt-3 overflow-x-auto border-t px-4 pt-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-3">
           <div className="flex w-max items-center gap-1.5">
             <span className="mr-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Sort</span>
-            <button onClick={() => setSortKey('composite')} className={chip(sortKey === 'composite')}>Score</button>
+            <FilterChip active={sortKey === 'composite'} onClick={() => setSortKey('composite')}>Score</FilterChip>
             {CATS.map((cat) => (
-              <button key={cat} onClick={() => setSortKey(cat)} className={chip(sortKey === cat)}>{CATEGORY_LABELS[cat]}</button>
+              <FilterChip key={cat} active={sortKey === cat} onClick={() => setSortKey(cat)}>{CATEGORY_LABELS[cat]}</FilterChip>
             ))}
           </div>
         </div>

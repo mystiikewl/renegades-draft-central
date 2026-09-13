@@ -62,7 +62,7 @@ function player(
 
 describe('practice draft engine', () => {
   it('generates the same keeper-adjusted snake rounds as draft finalization', () => {
-    const board = buildPracticeBoard(settings, []);
+    const board = buildPracticeBoard(settings);
 
     expect(board).toHaveLength(6);
     expect(board.map((pick) => pick.team_id)).toEqual([
@@ -86,7 +86,7 @@ describe('practice draft engine', () => {
   });
 
   it('uses the selected practice order instead of the live league order', () => {
-    const board = buildPracticeBoard(settings, [], ['team-c', 'team-a', 'team-b']);
+    const board = buildPracticeBoard(settings, ['team-c', 'team-a', 'team-b']);
 
     expect(board.slice(0, 3).map((pick) => pick.team_id)).toEqual(['team-c', 'team-a', 'team-b']);
     expect(board.slice(3).map((pick) => pick.team_id)).toEqual(['team-b', 'team-a', 'team-c']);
@@ -104,33 +104,8 @@ describe('practice draft engine', () => {
     expect(CPU_STRATEGIES.map((item) => item.key)).toContain(strategies['team-c']);
   });
 
-  it('clones real slot ownership but strips every live draft result in legacy mode', () => {
-    const livePick: DraftPick = {
-      id: 'live-1',
-      season_id: 'season-1',
-      round: 1,
-      pick_number: 1,
-      team_id: 'team-b',
-      original_team_id: 'team-a',
-      player_id: 'player-live',
-      is_used: true,
-      is_skipped: false,
-      picked_at: '2026-08-27T01:00:00Z',
-      players: { name: 'Live Player', position: 'C', nba_team: 'NYK', espn_id: '99' },
-    };
-
-    const [practicePick] = buildPracticeBoard(settings, [livePick]);
-
-    expect(practicePick.team_id).toBe('team-b');
-    expect(practicePick.original_team_id).toBe('team-a');
-    expect(practicePick.player_id).toBeNull();
-    expect(practicePick.players).toBeNull();
-    expect(practicePick.is_used).toBe(false);
-    expect(practicePick.picked_at).toBeNull();
-  });
-
   it('applies picks only to the supplied in-memory board and removes selected players from availability', () => {
-    const board = buildPracticeBoard(settings, []);
+    const board = buildPracticeBoard(settings);
     const alpha = player('alpha', 'Alpha');
     const beta = player('beta', 'Beta');
 
@@ -143,7 +118,7 @@ describe('practice draft engine', () => {
   });
 
   it('does not allow the same player to be drafted twice and can skip locally', () => {
-    const board = buildPracticeBoard(settings, []);
+    const board = buildPracticeBoard(settings);
     const alpha = player('alpha', 'Alpha');
     const first = makePracticePick(board, board[0].id, alpha);
     const duplicate = makePracticePick(first, board[1].id, alpha);

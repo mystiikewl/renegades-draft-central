@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { parseStats } from '@/lib/stats';
+import { matchesSearch } from '@/lib/playerFilters';
 import { INVERTED_CATEGORIES, PERCENTAGE_CATEGORIES, type CategoryImpact } from '@/lib/projections';
 import { CATEGORY_LABELS } from '@/lib/leagueCategories';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
@@ -80,14 +81,8 @@ export function SlotPickerDialog({ open, onOpenChange, pool, current, impactFor,
   const isMobile = useIsMobile();
 
   const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
     return pool
-      .filter((player) =>
-        !query ||
-        player.name.toLowerCase().includes(query) ||
-        (player.nba_team ?? '').toLowerCase().includes(query) ||
-        (player.position ?? '').toLowerCase().includes(query),
-      )
+      .filter((player) => matchesSearch(player, search))
       .map((player) => ({ player, impact: impactFor?.(player) ?? [] }))
       .sort((a, b) => fitScore(b.impact) - fitScore(a.impact) || a.player.name.localeCompare(b.player.name))
       .slice(0, 40);

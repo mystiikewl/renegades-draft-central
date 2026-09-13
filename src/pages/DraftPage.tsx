@@ -26,6 +26,7 @@ import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { PlayerStatsDialog } from '@/components/player/PlayerStatsDialog';
 import { getTeamColour } from '@/lib/teamColours';
 import { leagueValueScores } from '@/lib/projections';
+import { nextPick as pickOnClock, teamById } from '@/lib/draftState';
 
 function DraftStatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -58,7 +59,7 @@ export function DraftPage() {
   const queued = useOfflineQueue((s) => s.queue);
   const queuedIds = useMemo(() => new Set(queued.map((item) => item.playerId)), [queued]);
 
-  const nextPick = useMemo(() => picks?.find((p) => !p.is_used) ?? null, [picks]);
+  const nextPick = useMemo(() => (picks ? pickOnClock(picks) : null), [picks]);
   const lastPick = useMemo(() => {
     if (!picks?.length) return null;
     const used = picks.filter((p) => p.is_used);
@@ -86,7 +87,8 @@ export function DraftPage() {
     [availablePlayers, valueOrder],
   );
 
-  const teamName = (id: string) => teams?.find((t) => t.id === id)?.name ?? '—';
+  const teamsIndex = useMemo(() => teamById(teams), [teams]);
+  const teamName = (id: string) => teamsIndex.get(id)?.name ?? '—';
   const isMyTurn = !!nextPick && !!profile?.team_id && nextPick.team_id === profile.team_id;
   const canPickNow = useCanPickNow(seasonId);
   const draftVisible = settings?.status === 'running' || settings?.status === 'paused';
@@ -341,7 +343,7 @@ export function DraftBoard({
     );
 
   const rounds = [...new Set(picks.map((p) => p.round))].sort((a, b) => a - b);
-  const onClockId = picks.find((p) => !p.is_used)?.id;
+  const onClockId = pickOnClock(picks)?.id;
 
   return (
     <section className="overflow-hidden border-y bg-card sm:rounded-2xl sm:border">

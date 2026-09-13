@@ -1,5 +1,6 @@
 import type { DraftPick, DraftSettings, PlayerWithStats } from '@/api/types';
 import { LEAGUE_CATEGORIES, valueScores, type Category } from '@/lib/projections';
+import { STRATEGY_PRESETS } from '@/lib/draftIntelligence';
 
 export type CpuDraftStrategy =
   | 'balanced'
@@ -69,30 +70,13 @@ export function assignCpuStrategies(
 }
 
 /**
- * Build a disposable board. `orderOverride` is the normal practice path; the
- * source-pick cloning fallback is retained for backwards compatibility with the
- * original simulator helpers/tests. Nothing here writes to Supabase.
+ * Build a disposable board from an explicit draft order (the practice path) or
+ * the settings' own order. Nothing here writes to Supabase.
  */
 export function buildPracticeBoard(
   settings: DraftSettings,
-  sourcePicks: DraftPick[] = [],
   orderOverride?: string[],
 ): DraftPick[] {
-  if (!orderOverride && sourcePicks.length > 0) {
-    return sourcePicks
-      .slice()
-      .sort((a, b) => a.pick_number - b.pick_number)
-      .map((pick) => ({
-        ...pick,
-        player_id: null,
-        is_used: false,
-        is_skipped: false,
-        skipped_at: null,
-        picked_at: null,
-        players: null,
-      }));
-  }
-
   const order = orderOverride ?? settings.draft_order ?? [];
   const rounds = Math.max(0, settings.roster_size - settings.keeper_limit);
   if (order.length === 0 || rounds === 0) return [];
@@ -136,15 +120,11 @@ export function practiceScores(players: PlayerWithStats[]): Map<string, number> 
   return valueScores(players, { basis: 'totals' });
 }
 
-const STRATEGY_WEIGHTS: Record<CpuDraftStrategy, Partial<Record<Category, number>>> = {
-  balanced: {},
-  'punt-ft': { ftPct: 0, reb: 1.3, blk: 1.35, fgPct: 1.25, dd: 1.2 },
-  'punt-fg': { fgPct: 0, fgm: 0.7, tp: 1.3, tpPct: 1.15, ast: 1.25, ftPct: 1.2, pts: 1.15 },
-  'punt-assists': { ast: 0, reb: 1.25, blk: 1.2, stl: 1.15, pts: 1.15, dd: 1.15 },
-  'big-heavy': { reb: 1.45, blk: 1.5, fgPct: 1.35, dd: 1.35, fgm: 1.2, tp: 0.65 },
-  'guard-heavy': { tp: 1.4, ast: 1.45, stl: 1.3, ftPct: 1.25, pts: 1.15, blk: 0.7 },
-  stocks: { stl: 1.65, blk: 1.65, reb: 1.1, to: 1.1 },
-};
+// One weight table: the CPU consumes the same STRATEGY_PRESETS the live
+// Decision Board uses (they had silently diverged when duplicated).
+const STRATEGY_WEIGHTS = Object.fromEntries(
+  STRATEGY_PRESETS.map((preset) => [preset.key, preset.weights]),
+) as Record<CpuDraftStrategy, Partial<Record<Category, number>>>;
 
 function positionFlags(position: string | null): { guard: boolean; wing: boolean; big: boolean } {
   const p = (position ?? '').toUpperCase();

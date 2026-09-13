@@ -3,6 +3,7 @@ import { ArrowRight, Clock3 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { useActiveSeason, useDraftPicks, useDraftSettings } from '@/api/queries';
 import { useDraftRealtime } from '@/api/realtime';
+import { nextPick } from '@/lib/draftState';
 
 /** Pull a manager back into the live draft when their turn arrives elsewhere in the app. */
 export function DraftTurnBanner() {
@@ -14,12 +15,12 @@ export function DraftTurnBanner() {
   const { data: settings } = useDraftSettings(seasonId);
   const { data: picks } = useDraftPicks(seasonId);
 
-  const nextPick = picks?.find((pick) => !pick.is_used) ?? null;
+  const onClock = picks ? nextPick(picks) : null;
   const isMyTurn =
     settings?.status === 'running' &&
     !!profile?.team_id &&
-    !!nextPick &&
-    nextPick.team_id === profile.team_id;
+    !!onClock &&
+    onClock.team_id === profile.team_id;
 
   // Draft and Pool already have full on-clock treatments; avoid stacking banners there.
   if (!isMyTurn || pathname === '/' || pathname === '/pool') return null;
@@ -32,7 +33,7 @@ export function DraftTurnBanner() {
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-draft-active">It's your pick</div>
-          <div className="truncate text-sm font-semibold">Pick #{nextPick.pick_number} is yours</div>
+          <div className="truncate text-sm font-semibold">Pick #{onClock?.pick_number} is yours</div>
         </div>
         <Link
           to="/pool"

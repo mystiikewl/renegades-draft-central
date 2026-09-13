@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { Bot, Dices, Eye, RotateCcw, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { useActiveSeason, useDraftSettings, usePracticeDraftPool, useTeams } from '@/api/queries';
+import { nextPick as nextPickOf } from '@/lib/draftState';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -56,7 +57,7 @@ export function PracticeDraftPage() {
     if (selectedSlot > eligibleTeamIds.length && eligibleTeamIds.length > 0) setSelectedSlot(eligibleTeamIds.length);
   }, [eligibleTeamIds.length, selectedSlot]);
 
-  const nextPick = useMemo(() => picks.find((pick) => !pick.is_used) ?? null, [picks]);
+  const nextPick = useMemo(() => nextPickOf(picks), [picks]);
   const available = useMemo(() => availablePracticePlayers(players ?? [], picks), [players, picks]);
   const scores = useMemo(() => practiceScores(players ?? []), [players]);
   const rankedAvailable = useMemo(
@@ -83,7 +84,7 @@ export function PracticeDraftPage() {
       selectedSlot,
       draftOrder: order,
       cpuStrategies: assignCpuStrategies(order, profile.team_id),
-      picks: buildPracticeBoard(settings, [], order),
+      picks: buildPracticeBoard(settings, order),
     });
     setShowBoard(false);
   };

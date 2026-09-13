@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ArrowLeft, ArrowRightLeft, RotateCcw, ShieldCheck } from 'lucide-react';
+import { teamById } from '@/lib/draftState';
 import { useActiveSeason, useDraftPicks, useDraftSettings, useRosters, useTeams, useTrades } from '@/api/queries';
 import { useAdminReverseTrade, useAdminTradeOverride } from '@/api/adminTrades';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +19,7 @@ export function AdminTradeOverridesPage() {
   const seasonId = season?.id;
   const { data: settings } = useDraftSettings(seasonId);
   const { data: teams } = useTeams();
+  const teamsIndex = useMemo(() => teamById(teams), [teams]);
   const { data: rosters } = useRosters(seasonId);
   const { data: picks } = useDraftPicks(seasonId);
   const { data: trades } = useTrades(seasonId);
@@ -89,7 +91,7 @@ export function AdminTradeOverridesPage() {
           {fromTeamId && toTeamId && (
             <div className="grid gap-4 lg:grid-cols-2">
               <AssetColumn
-                title={`${teams?.find((team) => team.id === fromTeamId)?.name ?? 'Team A'} sends`}
+                title={`${teamsIndex.get(fromTeamId)?.name ?? 'Team A'} sends`}
                 players={fromPlayers.map((row) => ({ id: row.id, label: row.players?.name ?? 'Unknown player' }))}
                 picks={fromPicks.map((pick) => ({ id: pick.id, label: `Round ${pick.round} · #${pick.pick_number}` }))}
                 rosterIds={fromRosterIds}
@@ -98,7 +100,7 @@ export function AdminTradeOverridesPage() {
                 onPick={(id) => setFromPickIds((ids) => toggle(ids, id))}
               />
               <AssetColumn
-                title={`${teams?.find((team) => team.id === toTeamId)?.name ?? 'Team B'} sends`}
+                title={`${teamsIndex.get(toTeamId)?.name ?? 'Team B'} sends`}
                 players={toPlayers.map((row) => ({ id: row.id, label: row.players?.name ?? 'Unknown player' }))}
                 picks={toPicks.map((pick) => ({ id: pick.id, label: `Round ${pick.round} · #${pick.pick_number}` }))}
                 rosterIds={toRosterIds}

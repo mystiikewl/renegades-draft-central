@@ -29,6 +29,7 @@ import {
   UsersRound,
   type LucideIcon,
 } from 'lucide-react';
+import { teamById } from '@/lib/draftState';
 import { useActiveSeason, useDraftPicks, useDraftSettings, useRosters, useTeams } from '@/api/queries';
 import {
   useCreateSeason,
@@ -343,8 +344,9 @@ function DraftOrderCard({ seasonId, locked }: { seasonId: string; locked: boolea
   const { data: settings } = useDraftSettings(seasonId);
   const { data: teams } = useTeams();
   const setDraftOrder = useSetDraftOrder(seasonId);
-  const teamName = (id: string) => teams?.find((team) => team.id === id)?.name ?? '—';
-  const teamClaimed = (id: string) => !!teams?.find((team) => team.id === id)?.owner_profile_id;
+  const teamsIndex = useMemo(() => teamById(teams), [teams]);
+  const teamName = (id: string) => teamsIndex.get(id)?.name ?? '—';
+  const teamClaimed = (id: string) => !!teamsIndex.get(id)?.owner_profile_id;
   const [order, setOrder] = useState<string[]>([]);
 
   useEffect(() => {
@@ -425,6 +427,7 @@ function DraftStatusCard({ seasonId, status }: { seasonId: string; status: strin
 function AdminKeepersCard({ seasonId, keeperLimit }: { seasonId: string; keeperLimit: number }) {
   const { data: teams } = useTeams();
   const { data: rosters } = useRosters(seasonId);
+  const teamsIndex = useMemo(() => teamById(teams), [teams]);
   const [teamId, setTeamId] = useState('');
   useEffect(() => {
     if (!teamId && teams?.length) setTeamId(teams[0].id);
@@ -444,7 +447,7 @@ function AdminKeepersCard({ seasonId, keeperLimit }: { seasonId: string; keeperL
             </SelectContent>
           </Select>
         </div>
-        {teamId && <KeeperManager key={teamId} seasonId={seasonId} teamId={teamId} teamName={teams?.find((team) => team.id === teamId)?.name} />}
+        {teamId && <KeeperManager key={teamId} seasonId={seasonId} teamId={teamId} teamName={teamsIndex.get(teamId)?.name} />}
         <div className="border-t pt-4"><FinalizeKeepersButton seasonId={seasonId} /></div>
       </CardContent>
     </Card>

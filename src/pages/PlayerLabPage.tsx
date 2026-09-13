@@ -7,6 +7,7 @@ import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { readFocusedPlayer, rememberFocusedPlayer } from '@/lib/analysisNavigation';
+import { matchesSearch } from '@/lib/playerFilters';
 import { buildPlayerShapes, closestShapeMatches, shapeSimilarity, type PlayerShape } from '@/lib/playerShape';
 
 export function PlayerLabPage() {
@@ -31,17 +32,10 @@ export function PlayerLabPage() {
   const selectedShape = selected ? shapes.get(selected.id) ?? null : null;
   const compareShape = comparison ? shapes.get(comparison.id) ?? null : null;
 
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return players.slice(0, 8);
-    return players
-      .filter((player) =>
-        `${player.name} ${player.nba_team ?? ''} ${player.position ?? ''}`
-          .toLowerCase()
-          .includes(needle),
-      )
-      .slice(0, 8);
-  }, [players, query]);
+  const filtered = useMemo(
+    () => players.filter((player) => matchesSearch(player, query)).slice(0, 8),
+    [players, query],
+  );
 
   const matches = selected
     ? closestShapeMatches(selected.id, shapes, 5)

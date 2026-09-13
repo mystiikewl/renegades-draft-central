@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { ArrowRight, ArrowRightLeft, ClipboardList, Users, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { useActiveSeason, useDraftPicks, useRosters, useTeams, useTrades } from '@/api/queries';
+import { teamById } from '@/lib/draftState';
 import { useDraftRealtime } from '@/api/realtime';
 import type { RosterEntry } from '@/api/types';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +29,7 @@ export function MyTeamPage() {
   const { data: trades, isLoading: tradesLoading } = useTrades(seasonId);
 
   const teamId = profile?.team_id ?? '';
-  const team = teams?.find((candidate) => candidate.id === teamId);
+  const team = useMemo(() => teamById(teams).get(teamId ?? ''), [teams, teamId]);
 
   const myRoster = useMemo(
     () =>
