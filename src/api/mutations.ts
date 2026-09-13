@@ -1,18 +1,17 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { qk } from './queries';
+import { invalidateTables } from './invalidation';
 
 /**
  * All draft mutations go through SECURITY DEFINER RPCs — the client never
  * writes draft_picks or rosters directly. Errors from the RPCs (turn checks,
- * availability, admin gates) surface as user-facing toasts.
+ * availability, admin gates) surface as user-facing toasts. Cache
+ * invalidation is owned by ./invalidation.ts.
  */
 
 function invalidateSeason(qc: ReturnType<typeof useQueryClient>, seasonId: string) {
-  qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
-  qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
-  qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) });
+  invalidateTables(qc, seasonId, 'draft_picks', 'rosters', 'draft_settings');
 }
 
 export function useUndoLastPick(seasonId: string) {
@@ -37,10 +36,7 @@ export function useClaimTeam() {
       const { error } = await supabase.rpc('claim_team', { p_team_id: teamId });
       if (error) throw new Error(error.message);
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.teams });
-      qc.invalidateQueries({ queryKey: ['profile'] });
-    },
+    onSuccess: () => invalidateTables(qc, undefined, 'teams', 'profiles'),
     onError: (err: Error) => toast.error(err.message),
   });
 }
@@ -53,10 +49,7 @@ export function useCreateSeason() {
       if (error) throw new Error(error.message);
       return data;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.seasons });
-      qc.invalidateQueries({ queryKey: qk.activeSeason });
-    },
+    onSuccess: () => invalidateTables(qc, undefined, 'seasons'),
     onError: (err: Error) => toast.error(err.message),
   });
 }
@@ -111,13 +104,9 @@ export function useResetDraft(seasonId: string) {
 
 /**
  * Keepers are roster rows with acquisition='keeper'. Assigning/removing only
- * changes rosters — the pool query derives from rosters, so those two keys are
- * what needs invalidating (picks/settings are untouched).
+ * changes rosters — pools derive from rosters, so nothing else needs
+ * invalidating (picks/settings are untouched).
  */
-function invalidateKeepers(qc: ReturnType<typeof useQueryClient>, seasonId: string) {
-  qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
-}
-
 export function useAssignKeeper(seasonId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -129,7 +118,7 @@ export function useAssignKeeper(seasonId: string) {
       });
       if (error) throw new Error(error.message);
     },
-    onSuccess: () => invalidateKeepers(qc, seasonId),
+    onSuccess: () => invalidateTables(qc, seasonId, 'rosters'),
     onError: (err: Error) => toast.error(err.message),
   });
 }
@@ -145,7 +134,7 @@ export function useRemoveKeeper(seasonId: string) {
       });
       if (error) throw new Error(error.message);
     },
-    onSuccess: () => invalidateKeepers(qc, seasonId),
+    onSuccess: () => invalidateTables(qc, seasonId, 'rosters'),
     onError: (err: Error) => toast.error(err.message),
   });
 }
@@ -161,9 +150,7 @@ export function useFinalizeKeepers(seasonId: string) {
       return data as number;
     },
     onSuccess: (dropped) => {
-      qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
-      qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
-      qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) });
+      invalidateTables(qc, seasonId, 'rosters', 'draft_picks', 'draft_settings');
       toast.success(`Keepers locked — ${dropped} non-keepers dropped, draft picks generated.`);
     },
     onError: (err: Error) => toast.error(err.message),
@@ -182,9 +169,7 @@ export function useRevertFinalizeKeepers(seasonId: string) {
       return data as number;
     },
     onSuccess: (restored) => {
-      qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
-      qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
-      qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) });
+      invalidateTables(qc, seasonId, 'rosters', 'draft_picks', 'draft_settings');
       toast.success(`Keeper finalize reverted — ${restored} roster spot(s) restored, pick grid cleared.`);
     },
     onError: (err: Error) => toast.error(err.message),
@@ -214,7 +199,7 @@ export function useUpdateDraftSettings(seasonId: string) {
     },
     onSuccess: () => {
       toast.success('Draft settings saved');
-      qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) });
+      invalidateTables(qc, seasonId, 'draft_settings');
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -222,7 +207,6 @@ export function useUpdateDraftSettings(seasonId: string) {
 
 export function useTradePick(seasonId: string) {
   const qc = useQueryClient();
-  const invalidate = () => qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
   return useMutation({
     mutationFn: async ({ pickId, toTeamId }: { pickId: string; toTeamId: string }) => {
       const { error } = await supabase.rpc('trade_pick', {
@@ -232,7 +216,7 @@ export function useTradePick(seasonId: string) {
       if (error) throw new Error(error.message);
     },
     onSuccess: () => {
-      invalidate();
+      invalidateTables(qc, seasonId, 'draft_picks');
       toast.success('Pick traded.');
     },
     onError: (err: Error) => toast.error(err.message),
@@ -250,32 +234,9 @@ export function useSwapPicks(seasonId: string) {
       if (error) throw new Error(error.message);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
+      invalidateTables(qc, seasonId, 'draft_picks');
       toast.success('Picks swapped.');
     },
-    onError: (err: Error) => toast.error(err.message),
-  });
-}
-
-export function useToggleFavourite(seasonId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ playerId, favourited }: { playerId: string; favourited: boolean }) => {
-      if (favourited) {
-        const { error } = await supabase
-          .from('user_favourites')
-          .delete()
-          .eq('player_id', playerId)
-          .eq('season_id', seasonId);
-        if (error) throw new Error(error.message);
-      } else {
-        const { error } = await supabase
-          .from('user_favourites')
-          .insert({ player_id: playerId, season_id: seasonId });
-        if (error) throw new Error(error.message);
-      }
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['favourites'] }),
     onError: (err: Error) => toast.error(err.message),
   });
 }

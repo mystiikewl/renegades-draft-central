@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { qk } from './queries';
+import { invalidateTables } from './invalidation';
 
 export function useSkipPick(seasonId: string) {
   const qc = useQueryClient();
@@ -12,9 +12,7 @@ export function useSkipPick(seasonId: string) {
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
-      qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) });
-      qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
+      invalidateTables(qc, seasonId, 'draft_picks', 'draft_settings', 'rosters');
       toast.success('Pick skipped');
     },
     onError: (err: Error) => toast.error(err.message),

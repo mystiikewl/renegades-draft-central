@@ -1,13 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { qk } from './queries';
+import { invalidateTables } from './invalidation';
 import { isNetworkError, queuePick } from './offlineQueue';
 
 function invalidateDraft(qc: ReturnType<typeof useQueryClient>, seasonId: string) {
-  qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
-  qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
-  qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) });
+  invalidateTables(qc, seasonId, 'draft_picks', 'rosters', 'draft_settings');
 }
 
 export function useMakePickForSlot(seasonId: string) {

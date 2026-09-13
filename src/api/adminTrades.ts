@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { qk } from './queries';
+import { invalidateTables } from './invalidation';
 
 export interface AdminTradeOverrideInput {
   fromTeamId: string;
@@ -14,9 +14,7 @@ export interface AdminTradeOverrideInput {
 }
 
 function invalidateTradeState(qc: ReturnType<typeof useQueryClient>, seasonId: string) {
-  qc.invalidateQueries({ queryKey: qk.trades(seasonId) });
-  qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) });
-  qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
+  invalidateTables(qc, seasonId, 'trades', 'draft_picks', 'rosters');
 }
 
 export function useAdminTradeOverride(seasonId: string) {

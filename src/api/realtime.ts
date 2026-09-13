@@ -1,7 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { qk } from './queries';
+import { invalidateTables, REALTIME_TABLES } from './invalidation';
 
 export type RealtimeStatus = 'connected' | 'connecting' | 'disconnected';
 
@@ -39,52 +39,20 @@ export function useDraftRealtime(seasonId: string | undefined) {
   useEffect(() => {
     if (!seasonId) return;
 
-    const channel = supabase
-      .channel(`draft-${seasonId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'draft_picks', filter: `season_id=eq.${seasonId}` },
-        () => qc.invalidateQueries({ queryKey: qk.draftPicks(seasonId) })
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'rosters', filter: `season_id=eq.${seasonId}` },
-        () => qc.invalidateQueries({ queryKey: qk.rosters(seasonId) })
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'players' },
-        () => qc.invalidateQueries({ queryKey: qk.players(seasonId) })
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'projections', filter: `season_id=eq.${seasonId}` },
-        () => qc.invalidateQueries({ queryKey: qk.players(seasonId) })
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'draft_settings',
-          filter: `season_id=eq.${seasonId}`,
-        },
-        () => qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) })
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'trades', filter: `season_id=eq.${seasonId}` },
-        () => qc.invalidateQueries({ queryKey: qk.trades(seasonId) })
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'trade_assets' },
-        () => qc.invalidateQueries({ queryKey: qk.trades(seasonId) })
-      )
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () =>
-        qc.invalidateQueries({ queryKey: qk.teams })
-      )
-      .subscribe(setChannelStatus);
+    const channel = REALTIME_TABLES.reduce(
+      (ch, { table, seasonScoped }) =>
+        ch.on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table,
+            filter: seasonScoped ? `season_id=eq.${seasonId}` : undefined,
+          },
+          () => invalidateTables(qc, seasonId, table),
+        ),
+      supabase.channel(`draft-${seasonId}`),
+    ).subscribe(setChannelStatus);
 
     return () => {
       supabase.removeChannel(channel);

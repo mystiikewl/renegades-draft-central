@@ -137,10 +137,3 @@ export interface Trade {
   to_team?: Pick<Team, 'id' | 'name'> | null;
   assets?: TradeAsset[];
 }
-
-export interface Favourite {
-  id: string;
-  profile_id: string;
-  player_id: string;
-  season_id: string;
-}

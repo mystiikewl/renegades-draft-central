@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { qk } from './queries';
 
 /**
  * Per-player game log, fetched live from ESPN's public gamelog endpoint keyed
@@ -96,7 +97,7 @@ async function fetchGameLog(espnId: string): Promise<GameLogRow[]> {
 
 export function useGameLog(espnId: string | null | undefined, enabled: boolean) {
   return useQuery({
-    queryKey: ['game-log', espnId],
+    queryKey: qk.gameLog(espnId),
     enabled: enabled && !!espnId,
     staleTime: 15 * 60 * 1000,
     retry: false,
