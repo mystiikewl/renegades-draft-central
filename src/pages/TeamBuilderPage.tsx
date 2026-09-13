@@ -15,20 +15,16 @@ import {
   impact,
   INVERTED_CATEGORIES,
   LEAGUE_CATEGORIES,
+  PERCENTAGE_CATEGORIES,
   type Category,
 } from '@/lib/projections';
+import { CATEGORY_LABELS } from '@/lib/leagueCategories';
 import { parseStats, pickStatsSeason, type StatsSeasonRow } from '@/lib/stats';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import type { PlayerWithStats } from '@/api/types';
 
 const ALL_CATEGORIES: Category[] = LEAGUE_CATEGORIES;
 const DEFAULT_CATEGORIES: Category[] = LEAGUE_CATEGORIES;
-const PERCENTAGE_CATEGORIES = new Set<Category>(['fgPct', 'ftPct', 'tpPct']);
-
-const CAT_LABEL: Record<Category, string> = {
-  fgm: 'FGM', fgPct: 'FG%', ftPct: 'FT%', tp: '3PM', tpPct: '3P%', reb: 'REB', ast: 'AST',
-  stl: 'STL', blk: 'BLK', to: 'TO', dd: 'DD', td: 'TD', pts: 'PTS',
-};
 
 interface SavedBuild {
   name: string;
@@ -306,7 +302,7 @@ export function TeamBuilderPage() {
                       active ? 'border-foreground bg-foreground text-background' : 'text-muted-foreground'
                     }`}
                   >
-                    {CAT_LABEL[cat]}
+                    {CATEGORY_LABELS[cat]}
                   </button>
                 );
               })}
@@ -412,7 +408,7 @@ export function TeamBuilderPage() {
                       <tbody>
                         {balance.map((item) => (
                           <tr key={item.cat} className="border-b last:border-b-0">
-                            <td className="px-3 py-2 font-semibold">{CAT_LABEL[item.cat]}{INVERTED_CATEGORIES.has(item.cat) ? ' ↓' : ''}</td>
+                            <td className="px-3 py-2 font-semibold">{CATEGORY_LABELS[item.cat]}{INVERTED_CATEGORIES.has(item.cat) ? ' ↓' : ''}</td>
                             <td className="px-3 py-2 text-right">{formatCategory(item.cat, item.value)}</td>
                             <td className="px-3 py-2 text-right text-muted-foreground">{formatCategory(item.cat, item.target)}</td>
                             <td className="px-3 py-2 text-right font-medium">{formatSigned(item.cat, item.rawDiff)}</td>
@@ -503,7 +499,7 @@ function BalanceGroup({
           <span className="text-xs text-muted-foreground">None yet</span>
         ) : (
           items.map((item) => (
-            <Badge key={item.cat} variant="secondary" className="px-2 py-0.5 text-[10px]">{CAT_LABEL[item.cat]}</Badge>
+            <Badge key={item.cat} variant="secondary" className="px-2 py-0.5 text-[10px]">{CATEGORY_LABELS[item.cat]}</Badge>
           ))
         )}
       </div>

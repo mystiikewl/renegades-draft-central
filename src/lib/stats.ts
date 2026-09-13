@@ -29,28 +29,25 @@ export function pickStatsSeason(rows: StatsSeasonRow[], activeSeasonId: string):
 }
 
 /** Ordered stat-column config shared by the Player Pool and Rankings tables. */
-import type { Category } from '@/lib/projections';
+import {
+  CATEGORY_LABELS,
+  CATEGORY_STAT_KEYS,
+  GAMES_PLAYED_KEY,
+  LEAGUE_CATEGORIES,
+  PERCENTAGE_CATEGORIES,
+  type Category,
+} from '@/lib/leagueCategories';
 
 export type StatColumnKey = 'gp' | Category;
 
 export const STAT_COLUMNS: { key: StatColumnKey; label: string }[] = [
   { key: 'gp', label: 'GP' },
-  { key: 'fgm', label: 'FGM' },
-  { key: 'fgPct', label: 'FG%' },
-  { key: 'ftPct', label: 'FT%' },
-  { key: 'tp', label: '3PM' },
-  { key: 'tpPct', label: '3P%' },
-  { key: 'reb', label: 'REB' },
-  { key: 'ast', label: 'AST' },
-  { key: 'stl', label: 'STL' },
-  { key: 'blk', label: 'BLK' },
-  { key: 'to', label: 'TO' },
-  { key: 'dd', label: 'DD' },
-  { key: 'td', label: 'TD' },
-  { key: 'pts', label: 'PTS' },
+  ...LEAGUE_CATEGORIES.map((cat) => ({ key: cat as StatColumnKey, label: CATEGORY_LABELS[cat] })),
 ];
 
-const PCT_KEYS: ReadonlySet<StatColumnKey> = new Set(['fgPct', 'ftPct', 'tpPct']);
+const PCT_KEYS: ReadonlySet<StatColumnKey> = new Set(
+  [...PERCENTAGE_CATEGORIES] as StatColumnKey[],
+);
 
 /** Display value for a stat column under the given basis (averages|totals). */
 export function statColumnValue(
@@ -85,20 +82,8 @@ export function fmtStat(key: StatColumnKey, basis: 'averages' | 'totals', v: num
 
 /** JSONB key for each stat column (gp included). */
 const STAT_COLUMN_KEYS: Record<StatColumnKey, string> = {
-  gp: 'games_played',
-  fgm: 'field_goals_made',
-  fgPct: 'field_goal_percentage',
-  ftPct: 'free_throw_percentage',
-  tp: 'three_pointers_made',
-  tpPct: 'three_point_percentage',
-  reb: 'total_rebounds',
-  ast: 'assists',
-  stl: 'steals',
-  blk: 'blocks',
-  to: 'turnovers',
-  dd: 'double_doubles',
-  td: 'triple_doubles',
-  pts: 'points',
+  gp: GAMES_PLAYED_KEY,
+  ...(CATEGORY_STAT_KEYS as Record<Category, string>),
 };
 export interface StatLine {
   gp: string | null;
@@ -127,22 +112,13 @@ const fmt = (v: unknown, dp = 1): string | null => {
 
 export function parseStats(stats: Record<string, unknown> | undefined | null): StatLine {
   const s = stats ?? {};
-  return {
-    gp: fmt(s.games_played, 0),
+  const line = {
+    gp: fmt(s[GAMES_PLAYED_KEY], 0),
     mpg: fmt(s.minutes_per_game),
-    fgm: fmt(s.field_goals_made),
-    fgPct: fmt(s.field_goal_percentage, 3),
-    ftPct: fmt(s.free_throw_percentage, 3),
-    tp: fmt(s.three_pointers_made),
-    tpPct: fmt(s.three_point_percentage, 3),
-    reb: fmt(s.total_rebounds),
-    ast: fmt(s.assists),
-    stl: fmt(s.steals),
-    blk: fmt(s.blocks),
-    to: fmt(s.turnovers),
-    dd: fmt(s.double_doubles, 0),
-    td: fmt(s.triple_doubles, 0),
-    pts: fmt(s.points),
     rank: fmt(s.rank, 0),
-  };
+  } as StatLine;
+  for (const cat of LEAGUE_CATEGORIES) {
+    line[cat] = fmt(s[CATEGORY_STAT_KEYS[cat]], PERCENTAGE_CATEGORIES.has(cat) ? 3 : cat === 'dd' || cat === 'td' ? 0 : 1);
+  }
+  return line;
 }

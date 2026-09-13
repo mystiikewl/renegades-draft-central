@@ -1,5 +1,6 @@
 import type { PlayerWithStats } from '@/api/types';
 import { playerValue } from '@/lib/projections';
+import { attemptsPerGame, CATEGORY_STAT_KEYS, toFraction } from '@/lib/leagueCategories';
 
 export type ShapeAxis = 'pts' | 'tp' | 'reb' | 'ast' | 'stl' | 'blk' | 'fgImpact' | 'ftImpact';
 
@@ -36,35 +37,17 @@ function num(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function fraction(value: unknown): number {
-  const parsed = num(value);
-  return parsed > 1.5 ? parsed / 100 : parsed;
-}
-
 function games(player: PlayerWithStats): number {
   return Math.max(1, num(player.player_seasons[0]?.stats?.games_played));
 }
 
-function shootingAttempts(player: PlayerWithStats, kind: 'fg' | 'ft'): number {
-  const stats = player.player_seasons[0]?.stats ?? {};
-  const pctKey = kind === 'fg' ? 'field_goal_percentage' : 'free_throw_percentage';
-  const madeKey = kind === 'fg' ? 'field_goals_made' : 'free_throws_made';
-  const attemptKey = kind === 'fg' ? 'field_goals_attempted' : 'free_throws_attempted';
-  const direct = num(stats[attemptKey]);
-  if (direct > 0) return direct;
-  const made = num(stats[madeKey]);
-  const pct = fraction(stats[pctKey]);
-  return pct > 0 && made > 0 ? made / pct : 0;
-}
-
-function poolShootingBaseline(pool: PlayerWithStats[], kind: 'fg' | 'ft'): number {
-  const pctKey = kind === 'fg' ? 'field_goal_percentage' : 'free_throw_percentage';
+function poolShootingBaseline(pool: PlayerWithStats[], cat: 'fgPct' | 'ftPct'): number {
   let makes = 0;
   let attempts = 0;
   for (const player of pool) {
     const stats = player.player_seasons[0]?.stats ?? {};
-    const att = shootingAttempts(player, kind) * games(player);
-    const pct = fraction(stats[pctKey]);
+    const att = attemptsPerGame(stats, cat) * games(player);
+    const pct = toFraction(stats[CATEGORY_STAT_KEYS[cat]]);
     if (att <= 0 || pct <= 0) continue;
     attempts += att;
     makes += pct * att;
@@ -72,18 +55,21 @@ function poolShootingBaseline(pool: PlayerWithStats[], kind: 'fg' | 'ft'): numbe
   return attempts > 0 ? makes / attempts : 0;
 }
 
-function shootingImpact(player: PlayerWithStats, kind: 'fg' | 'ft', baseline: number): number {
+function shootingImpact(
+  player: PlayerWithStats,
+  cat: 'fgPct' | 'ftPct',
+  baseline: number,
+): number {
   const stats = player.player_seasons[0]?.stats ?? {};
-  const pctKey = kind === 'fg' ? 'field_goal_percentage' : 'free_throw_percentage';
-  const pct = fraction(stats[pctKey]);
-  const attempts = shootingAttempts(player, kind) * games(player);
+  const pct = toFraction(stats[CATEGORY_STAT_KEYS[cat]]);
+  const attempts = attemptsPerGame(stats, cat) * games(player);
   if (pct <= 0 || attempts <= 0 || baseline <= 0) return 0;
   return (pct - baseline) * attempts;
 }
 
 function rawMetric(player: PlayerWithStats, axis: ShapeAxis, fgBase: number, ftBase: number): number {
-  if (axis === 'fgImpact') return shootingImpact(player, 'fg', fgBase);
-  if (axis === 'ftImpact') return shootingImpact(player, 'ft', ftBase);
+  if (axis === 'fgImpact') return shootingImpact(player, 'fgPct', fgBase);
+  if (axis === 'ftImpact') return shootingImpact(player, 'ftPct', ftBase);
   return playerValue(player, axis, 'totals');
 }
 
@@ -124,8 +110,8 @@ function shapeTags(metrics: ShapeMetric[]): string[] {
 export function buildPlayerShapes(pool: PlayerWithStats[]): Map<string, PlayerShape> {
   const result = new Map<string, PlayerShape>();
   if (!pool.length) return result;
-  const fgBase = poolShootingBaseline(pool, 'fg');
-  const ftBase = poolShootingBaseline(pool, 'ft');
+  const fgBase = poolShootingBaseline(pool, 'fgPct');
+  const ftBase = poolShootingBaseline(pool, 'ftPct');
   const rawByAxis = new Map<ShapeAxis, number[]>();
 
   for (const axis of SHAPE_AXES) {

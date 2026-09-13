@@ -12,12 +12,9 @@ import {
   PERCENTAGE_CATEGORIES,
   type Category,
 } from '@/lib/projections';
+import { CATEGORY_LABELS } from '@/lib/leagueCategories';
 import type { PlayerWithStats } from '@/api/types';
 
-const CAT_LABEL: Record<Category, string> = {
-  fgm: 'FGM', fgPct: 'FG%', ftPct: 'FT%', tp: '3PM', tpPct: '3P%', reb: 'REB', ast: 'AST',
-  stl: 'STL', blk: 'BLK', to: 'TO', dd: 'DD', td: 'TD', pts: 'PTS',
-};
 
 interface TeamRow {
   teamId: string;
@@ -146,8 +143,8 @@ export function PowerRankingsPage() {
           <div className="rounded-2xl border bg-card p-4">
             <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Your strongest / weakest</div>
             <div className="mt-2 flex flex-wrap gap-1.5">
-              <Badge variant="secondary" className="text-[10px]">{CAT_LABEL[bestCat(mine)]}</Badge>
-              <Badge variant="outline" className="text-[10px]">{CAT_LABEL[worstCat(mine)]}</Badge>
+              <Badge variant="secondary" className="text-[10px]">{CATEGORY_LABELS[bestCat(mine)]}</Badge>
+              <Badge variant="outline" className="text-[10px]">{CATEGORY_LABELS[worstCat(mine)]}</Badge>
             </div>
           </div>
         </section>
@@ -161,7 +158,7 @@ export function PowerRankingsPage() {
               <th className="sticky left-8 z-10 bg-muted/30 px-3 py-2 text-left">Team</th>
               <th className="px-3 py-2 text-right">Pts</th>
               {LEAGUE_CATEGORIES.map((cat) => (
-                <th key={cat} className="px-2 py-2 text-right">{CAT_LABEL[cat]}{INVERTED_CATEGORIES.has(cat) ? ' ↓' : ''}</th>
+                <th key={cat} className="px-2 py-2 text-right">{CATEGORY_LABELS[cat]}{INVERTED_CATEGORIES.has(cat) ? ' ↓' : ''}</th>
               ))}
             </tr>
           </thead>

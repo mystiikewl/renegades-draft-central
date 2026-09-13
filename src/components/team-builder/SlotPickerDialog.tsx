@@ -5,7 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { parseStats } from '@/lib/stats';
-import { INVERTED_CATEGORIES, type CategoryImpact } from '@/lib/projections';
+import { INVERTED_CATEGORIES, PERCENTAGE_CATEGORIES, type CategoryImpact } from '@/lib/projections';
+import { CATEGORY_LABELS } from '@/lib/leagueCategories';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import type { PlayerWithStats } from '@/api/types';
@@ -19,12 +20,6 @@ interface Props {
   onPick: (player: PlayerWithStats) => void;
 }
 
-const PERCENTAGE_CATEGORIES = new Set<CategoryImpact['cat']>(['fgPct', 'ftPct', 'tpPct']);
-
-const CAT_LABEL: Record<CategoryImpact['cat'], string> = {
-  fgm: 'FGM', fgPct: 'FG%', ftPct: 'FT%', tp: '3PM', tpPct: '3P%', reb: 'REB', ast: 'AST',
-  stl: 'STL', blk: 'BLK', to: 'TO', dd: 'DD', td: 'TD', pts: 'PTS',
-};
 
 function isHelpful(item: CategoryImpact) {
   return INVERTED_CATEGORIES.has(item.cat) ? item.delta < 0 : item.delta > 0;
@@ -63,17 +58,17 @@ function FitSummary({ impact }: { impact: CategoryImpact[] }) {
       </Badge>
       {flips.slice(0, 2).map((item) => (
         <span key={item.cat} className="rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary">
-          boosts {CAT_LABEL[item.cat]}
+          boosts {CATEGORY_LABELS[item.cat]}
         </span>
       ))}
       {flips.length === 0 && helpful.slice(0, 2).map((item) => (
         <span key={item.cat} className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
-          + {CAT_LABEL[item.cat]}
+          + {CATEGORY_LABELS[item.cat]}
         </span>
       ))}
       {risks.slice(0, 1).map((item) => (
         <span key={item.cat} className="rounded-full border px-2 py-0.5 text-muted-foreground">
-          watch {CAT_LABEL[item.cat]}
+          watch {CATEGORY_LABELS[item.cat]}
         </span>
       ))}
     </div>

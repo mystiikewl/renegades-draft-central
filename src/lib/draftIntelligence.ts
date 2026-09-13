@@ -19,22 +19,6 @@ export type StrategyKey =
   | 'guard-heavy'
   | 'stocks';
 
-export const CATEGORY_LABELS: Record<Category, string> = {
-  fgm: 'FGM',
-  fgPct: 'FG%',
-  ftPct: 'FT%',
-  tp: '3PM',
-  tpPct: '3P%',
-  reb: 'REB',
-  ast: 'AST',
-  stl: 'STL',
-  blk: 'BLK',
-  to: 'TO',
-  dd: 'DD',
-  td: 'TD',
-  pts: 'PTS',
-};
-
 export interface StrategyPreset {
   key: StrategyKey;
   label: string;

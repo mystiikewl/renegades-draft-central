@@ -9,15 +9,12 @@ import { rememberFocusedPlayer } from '@/lib/analysisNavigation';
 import { STRATEGY_PRESETS, type StrategyKey } from '@/lib/draftIntelligence';
 import { isRookie } from '@/lib/stats';
 import { zScores, LEAGUE_CATEGORIES, type Basis, type Category } from '@/lib/projections';
+import { CATEGORY_LABELS } from '@/lib/leagueCategories';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 
 const CATS = LEAGUE_CATEGORIES;
 type Cat = Category;
 
-const LABELS: Record<Cat, string> = {
-  fgm: 'FGM', fgPct: 'FG%', ftPct: 'FT%', tp: '3PM', tpPct: '3P%', reb: 'REB',
-  ast: 'AST', stl: 'STL', blk: 'BLK', to: 'TO', dd: 'DD', td: 'TD', pts: 'PTS',
-};
 const DEFAULT_WEIGHTS: Record<Cat, number> = {
   fgm: 1, fgPct: 1, ftPct: 1, tp: 1, tpPct: 1, reb: 1, ast: 1, stl: 1,
   blk: 1, to: 1, dd: 1, td: 1, pts: 1,
@@ -132,7 +129,7 @@ export function RankingsPage() {
     if (season?.id) localStorage.setItem(`rankings:${season.id}:basis`, nextBasis);
   };
 
-  const sortLabel = sortKey === 'composite' ? 'Score' : LABELS[sortKey];
+  const sortLabel = sortKey === 'composite' ? 'Score' : CATEGORY_LABELS[sortKey];
 
   return (
     <div className="mx-auto max-w-7xl space-y-3 px-0 py-3 sm:px-4 md:space-y-4 md:p-6">
@@ -217,7 +214,7 @@ export function RankingsPage() {
             <span className="mr-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Sort</span>
             <button onClick={() => setSortKey('composite')} className={chip(sortKey === 'composite')}>Score</button>
             {CATS.map((cat) => (
-              <button key={cat} onClick={() => setSortKey(cat)} className={chip(sortKey === cat)}>{LABELS[cat]}</button>
+              <button key={cat} onClick={() => setSortKey(cat)} className={chip(sortKey === cat)}>{CATEGORY_LABELS[cat]}</button>
             ))}
           </div>
         </div>
@@ -228,7 +225,7 @@ export function RankingsPage() {
               {CATS.map((cat) => (
                 <label key={cat} className="space-y-1 text-[11px] font-medium text-muted-foreground">
                   <span className="flex items-center justify-between gap-2">
-                    <span>{LABELS[cat]}</span>
+                    <span>{CATEGORY_LABELS[cat]}</span>
                     <span className="font-mono text-foreground">{weights[cat]}</span>
                   </span>
                   <input
@@ -286,7 +283,7 @@ export function RankingsPage() {
                       <div className="mt-0.5 text-[11px] text-muted-foreground">{row.player.nba_team ?? 'FA'} · {row.player.position ?? '—'}</div>
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {strengths.map(({ cat, score }) => (
-                          <Badge key={cat} variant="secondary" className="text-[9px]">{LABELS[cat]} {score > 0 ? '+' : ''}{score.toFixed(1)}</Badge>
+                          <Badge key={cat} variant="secondary" className="text-[9px]">{CATEGORY_LABELS[cat]} {score > 0 ? '+' : ''}{score.toFixed(1)}</Badge>
                         ))}
                       </div>
                     </div>
@@ -309,7 +306,7 @@ export function RankingsPage() {
                     </th>
                     {CATS.map((cat) => (
                       <th key={cat} className="min-w-[3.7rem] px-2 py-2 text-right font-bold">
-                        <button onClick={() => setSortKey(cat)} className={sortKey === cat ? 'text-primary' : ''}>{LABELS[cat]}</button>
+                        <button onClick={() => setSortKey(cat)} className={sortKey === cat ? 'text-primary' : ''}>{CATEGORY_LABELS[cat]}</button>
                       </th>
                     ))}
                   </tr>

@@ -1,45 +1,25 @@
 /**
  * Pure projection math for the Team Builder / rankings surfaces.
  * All functions operate on PlayerWithStats[] (see src/api/types.ts) using
- * the ESPN stat keys stored in player_seasons.stats JSONB.
+ * the ESPN stat keys stored in player_seasons.stats JSONB. The category
+ * vocabulary itself lives in ./leagueCategories.ts.
  */
 import type { PlayerWithStats } from '@/api/types';
+import {
+  AVERAGE_CATEGORIES,
+  ATTEMPT_KEYS,
+  attemptsPerGame,
+  CATEGORY_STAT_KEYS,
+  GAMES_PLAYED_KEY,
+  INVERTED_CATEGORIES,
+  LEAGUE_CATEGORIES,
+  PERCENTAGE_CATEGORIES,
+  statNumber,
+  type Category,
+} from '@/lib/leagueCategories';
 
-export const CATEGORY_STAT_KEYS = {
-  fgm: 'field_goals_made',
-  fgPct: 'field_goal_percentage',
-  ftPct: 'free_throw_percentage',
-  tp: 'three_pointers_made',
-  tpPct: 'three_point_percentage',
-  reb: 'total_rebounds',
-  ast: 'assists',
-  stl: 'steals',
-  blk: 'blocks',
-  to: 'turnovers',
-  dd: 'double_doubles',
-  td: 'triple_doubles',
-  pts: 'points',
-} as const;
-
-export type Category = keyof typeof CATEGORY_STAT_KEYS;
-/** The league's 13 ROTO categories, in standings order. */
-export const LEAGUE_CATEGORIES = Object.keys(CATEGORY_STAT_KEYS) as Category[];
-/** Categories where LOWER is better (counted negatively in rankings). */
-export const INVERTED_CATEGORIES: ReadonlySet<Category> = new Set(['to']);
-/** Percentage categories require volume-aware aggregation and ranking. */
-export const PERCENTAGE_CATEGORIES: ReadonlySet<Category> = new Set(['fgPct', 'ftPct', 'tpPct']);
-/** Counting cats stored as per-game averages — valued at season totals (avg x GP). */
-const AVERAGE_CATEGORIES: ReadonlySet<Category> = new Set([
-  'fgm', 'tp', 'reb', 'ast', 'stl', 'blk', 'to', 'pts',
-]);
-
-const PERCENTAGE_VOLUME_KEYS: Partial<
-  Record<Category, { made: string; attempts: string }>
-> = {
-  fgPct: { made: 'field_goals_made', attempts: 'field_goals_attempted' },
-  ftPct: { made: 'free_throws_made', attempts: 'free_throws_attempted' },
-  tpPct: { made: 'three_pointers_made', attempts: 'three_pointers_attempted' },
-};
+export { CATEGORY_STAT_KEYS, INVERTED_CATEGORIES, LEAGUE_CATEGORIES, PERCENTAGE_CATEGORIES };
+export type { Category } from '@/lib/leagueCategories';
 
 /** Value basis: 'totals' (ROTO season totals) or 'averages' (per-game). */
 export type Basis = 'totals' | 'averages';
@@ -49,15 +29,8 @@ function num(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function percentage(value: unknown): number {
-  const parsed = num(value);
-  // The current feed stores fractions, but accepting 49.5 as 49.5% keeps the
-  // projection layer resilient to alternate import sources.
-  return parsed > 1.5 ? parsed / 100 : parsed;
-}
-
 function gamesPlayed(player: PlayerWithStats): number {
-  return Math.max(0, num(player.player_seasons[0]?.stats?.games_played));
+  return Math.max(0, num(player.player_seasons[0]?.stats?.[GAMES_PLAYED_KEY]));
 }
 
 function percentageVolume(
@@ -66,14 +39,9 @@ function percentageVolume(
   basis: Basis = 'totals',
 ): number {
   const stats = player.player_seasons[0]?.stats;
-  const keys = PERCENTAGE_VOLUME_KEYS[cat];
-  if (!stats || !keys) return basis === 'totals' ? Math.max(1, gamesPlayed(player)) : 1;
+  if (!stats || !ATTEMPT_KEYS[cat]) return basis === 'totals' ? Math.max(1, gamesPlayed(player)) : 1;
 
-  const pct = percentage(stats[CATEGORY_STAT_KEYS[cat]]);
-  const directAttempts = num(stats[keys.attempts]);
-  const made = num(stats[keys.made]);
-  const attempts = directAttempts > 0 ? directAttempts : pct > 0 && made > 0 ? made / pct : 0;
-  const perGameVolume = attempts > 0 ? attempts : 1;
+  const perGameVolume = Math.max(attemptsPerGame(stats, cat), 1);
 
   if (basis === 'averages') return perGameVolume;
   const games = gamesPlayed(player);
@@ -82,8 +50,7 @@ function percentageVolume(
 
 export function playerValue(p: PlayerWithStats, cat: Category, basis: Basis = 'totals'): number {
   const stats = p.player_seasons[0]?.stats;
-  const raw = stats?.[CATEGORY_STAT_KEYS[cat]];
-  const value = PERCENTAGE_CATEGORIES.has(cat) ? percentage(raw) : num(raw);
+  const value = statNumber(stats, cat);
   if (!Number.isFinite(value) || value === 0) return 0;
 
   if (AVERAGE_CATEGORIES.has(cat)) {

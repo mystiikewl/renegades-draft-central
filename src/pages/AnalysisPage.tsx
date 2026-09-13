@@ -26,13 +26,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { rememberFocusedPlayer } from '@/lib/analysisNavigation';
 import {
   buildDraftIntelligence,
-  CATEGORY_LABELS,
   STRATEGY_PRESETS,
   type DraftRecommendation,
   type StrategyKey,
 } from '@/lib/draftIntelligence';
 import { availablePracticePlayers } from '@/lib/practiceDraft';
-import { PERCENTAGE_CATEGORIES, type Category } from '@/lib/projections';
+import { CATEGORY_LABELS, PERCENTAGE_CATEGORIES, type Category } from '@/lib/leagueCategories';
 import { pickStatsSeason, type StatsSeasonRow } from '@/lib/stats';
 import { usePracticeDraftSession } from '@/stores/practiceDraftSession';
 
