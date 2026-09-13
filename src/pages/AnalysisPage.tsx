@@ -15,9 +15,9 @@ import {
   useDraftSettings,
   usePlayerPool,
   usePracticeDraftPool,
-  useRosters,
+  useRosterWithStats,
 } from '@/api/queries';
-import type { PlayerWithStats, RosterEntry } from '@/api/types';
+import type { PlayerWithStats } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { PageHeader, PageShell } from '@/components/layout/PageLayout';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
@@ -32,27 +32,7 @@ import {
 } from '@/lib/draftIntelligence';
 import { availablePracticePlayers } from '@/lib/practiceDraft';
 import { CATEGORY_LABELS, PERCENTAGE_CATEGORIES, type Category } from '@/lib/leagueCategories';
-import { pickStatsSeason, type StatsSeasonRow } from '@/lib/stats';
 import { usePracticeDraftSession } from '@/stores/practiceDraftSession';
-
-function rosterPlayer(entry: RosterEntry, seasonId: string): PlayerWithStats | null {
-  if (!entry.player_id || !entry.players) return null;
-  const best = pickStatsSeason(
-    (entry.players.player_seasons ?? []) as StatsSeasonRow[],
-    seasonId,
-  );
-  if (!best) return null;
-  return {
-    id: entry.player_id,
-    name: entry.players.name,
-    position: entry.players.position,
-    nba_team: entry.players.nba_team ?? null,
-    espn_id: entry.players.espn_id ?? null,
-    image_url: null,
-    created_at: '',
-    player_seasons: [{ season_id: best.season_id, stats: best.stats ?? {} }],
-  };
-}
 
 function uniquePlayers(groups: PlayerWithStats[][]): PlayerWithStats[] {
   const byId = new Map<string, PlayerWithStats>();
@@ -71,7 +51,7 @@ export function AnalysisPage() {
   const { data: settings, isLoading: settingsLoading } = useDraftSettings(seasonId);
   const { data: livePool = [], isLoading: livePoolLoading } = usePlayerPool(seasonId);
   const { data: practicePool = [], isLoading: practicePoolLoading } = usePracticeDraftPool(seasonId);
-  const { data: rosters = [], isLoading: rostersLoading } = useRosters(seasonId);
+  const { data: rosterRows = [], isLoading: rostersLoading } = useRosterWithStats(seasonId);
   const practiceActive = usePracticeDraftSession((state) => state.active);
   const practiceSeasonId = usePracticeDraftSession((state) => state.seasonId);
   const practiceHumanTeamId = usePracticeDraftSession((state) => state.humanTeamId);
@@ -89,12 +69,7 @@ export function AnalysisPage() {
     }
   }, [seasonId]);
 
-  const rosteredPlayers = useMemo(
-    () => seasonId
-      ? rosters.map((entry) => ({ entry, player: rosterPlayer(entry, seasonId) }))
-      : [],
-    [rosters, seasonId],
-  );
+  const rosteredPlayers = rosterRows;
 
   const context = useMemo(() => {
     if (!settings || !profile?.team_id) {

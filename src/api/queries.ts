@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { selectPreferredStats, type ProjectionStatsRow } from '@/lib/projectionData';
+import { pickStatsSeason, type StatsSeasonRow } from '@/lib/stats';
 import type {
   DraftPick,
   DraftSettings,
@@ -210,6 +212,42 @@ export function useRosters(seasonId: string | undefined) {
       return data as RosterEntry[];
     },
   });
+}
+
+/**
+ * Adapt a roster row to the stats-hungry PlayerWithStats shape the analytics
+ * modules consume: best stats row for the season, null when there is nothing
+ * to read. Previously faked independently by Analysis, Team Builder and
+ * Power Rankings.
+ */
+export function rosteredPlayer(entry: RosterEntry, seasonId: string): PlayerWithStats | null {
+  if (!entry.player_id || !entry.players) return null;
+  const best = pickStatsSeason((entry.players.player_seasons ?? []) as StatsSeasonRow[], seasonId);
+  if (!best) return null;
+  return {
+    id: entry.player_id,
+    name: entry.players.name,
+    position: entry.players.position,
+    nba_team: entry.players.nba_team ?? null,
+    espn_id: entry.players.espn_id ?? null,
+    image_url: null,
+    created_at: '',
+    player_seasons: [{ season_id: best.season_id, stats: best.stats ?? {} }],
+  };
+}
+
+/** Roster rows paired with their adapted PlayerWithStats — one adapter for every analytics page. */
+export function useRosterWithStats(seasonId: string | undefined) {
+  const rosters = useRosters(seasonId);
+  const rows = rosters.data;
+  const data = useMemo(
+    () =>
+      rows
+        ? rows.map((entry) => ({ entry, player: rosteredPlayer(entry, seasonId ?? '') }))
+        : undefined,
+    [rows, seasonId],
+  );
+  return { ...rosters, data };
 }
 
 export function useTrades(seasonId: string | undefined) {

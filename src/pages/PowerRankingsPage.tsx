@@ -1,30 +1,20 @@
 import { useMemo } from 'react';
 import { Link } from '@tanstack/react-router';
 import { Sparkles } from 'lucide-react';
-import { useActiveSeason, useDraftSettings, useRosters, useTeams } from '@/api/queries';
+import { useActiveSeason, useDraftSettings, useRosterWithStats, useTeams } from '@/api/queries';
 import { useAuth } from '@/auth/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  categoryTotals,
   INVERTED_CATEGORIES,
   LEAGUE_CATEGORIES,
   PERCENTAGE_CATEGORIES,
   type Category,
 } from '@/lib/projections';
 import { CATEGORY_LABELS } from '@/lib/leagueCategories';
+import { rotoStandings, type RotoTeamRow } from '@/lib/rotoStandings';
 import type { PlayerWithStats } from '@/api/types';
 
-
-interface TeamRow {
-  teamId: string;
-  name: string;
-  totals: Record<Category, number>;
-  /** ROTO standings points per category (best = teams count). */
-  points: Record<Category, number>;
-  totalPoints: number;
-  rank: number;
-}
 
 function formatTotal(cat: Category, value: number): string {
   return PERCENTAGE_CATEGORIES.has(cat)
@@ -38,60 +28,19 @@ export function PowerRankingsPage() {
   const { profile } = useAuth();
   const { data: settings } = useDraftSettings(seasonId);
   const { data: teams, isLoading: teamsLoading } = useTeams();
-  const { data: rosters, isLoading: rostersLoading } = useRosters(seasonId);
+  const { data: rosterRows, isLoading: rostersLoading } = useRosterWithStats(seasonId);
 
-  const rows = useMemo<TeamRow[]>(() => {
-    if (!teams || !rosters) return [];
+  const rows = useMemo<RotoTeamRow[]>(() => {
+    if (!teams || !rosterRows) return [];
     const byTeam = new Map<string, PlayerWithStats[]>();
-    for (const entry of rosters) {
-      if (!entry.player_id || !entry.players) continue;
+    for (const { entry, player } of rosterRows) {
+      if (!player) continue;
       const list = byTeam.get(entry.team_id) ?? [];
-      list.push({
-        id: entry.player_id,
-        name: entry.players.name,
-        position: entry.players.position,
-        nba_team: entry.players.nba_team ?? null,
-        espn_id: entry.players.espn_id ?? null,
-        image_url: null,
-        created_at: '',
-        player_seasons: (entry.players.player_seasons ?? []) as PlayerWithStats['player_seasons'],
-      });
+      list.push(player);
       byTeam.set(entry.team_id, list);
     }
-
-    const scored: TeamRow[] = teams.map((team) => {
-      const players = byTeam.get(team.id) ?? [];
-      return {
-        teamId: team.id,
-        name: team.name,
-        totals: categoryTotals(players, LEAGUE_CATEGORIES),
-        points: {} as Record<Category, number>,
-        totalPoints: 0,
-        rank: 0,
-      };
-    });
-
-    const teamCount = Math.max(scored.length, 1);
-    for (const cat of LEAGUE_CATEGORIES) {
-      const sorted = [...scored].sort((a, b) =>
-        INVERTED_CATEGORIES.has(cat)
-          ? a.totals[cat] - b.totals[cat]
-          : b.totals[cat] - a.totals[cat],
-      );
-      sorted.forEach((row, index) => {
-        row.points[cat] = teamCount - index;
-      });
-    }
-    for (const row of scored) {
-      row.totalPoints = LEAGUE_CATEGORIES.reduce((sum, cat) => sum + row.points[cat], 0);
-    }
-    [...scored]
-      .sort((a, b) => b.totalPoints - a.totalPoints)
-      .forEach((row, index) => {
-        row.rank = index + 1;
-      });
-    return scored.sort((a, b) => b.totalPoints - a.totalPoints);
-  }, [teams, rosters]);
+    return rotoStandings(teams, byTeam);
+  }, [teams, rosterRows]);
 
   if (teamsLoading || rostersLoading) {
     return (
@@ -188,10 +137,10 @@ export function PowerRankingsPage() {
   );
 }
 
-function bestCat(row: TeamRow): Category {
+function bestCat(row: RotoTeamRow): Category {
   return LEAGUE_CATEGORIES.reduce((a, b) => (row.points[b] > row.points[a] ? b : a));
 }
 
-function worstCat(row: TeamRow): Category {
+function worstCat(row: RotoTeamRow): Category {
   return LEAGUE_CATEGORIES.reduce((a, b) => (row.points[b] < row.points[a] ? b : a));
 }

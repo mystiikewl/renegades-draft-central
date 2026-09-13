@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ChevronDown, Radar, Save, Settings2, Trash2, X } from 'lucide-react';
-import { useActiveSeason, useDraftSettings, usePlayerPool, useRosters } from '@/api/queries';
+import { useActiveSeason, useDraftSettings, usePlayerPool, useRosterWithStats } from '@/api/queries';
 import { useAuth } from '@/auth/AuthContext';
 import { SlotPickerDialog } from '@/components/team-builder/SlotPickerDialog';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,7 @@ import {
   type Category,
 } from '@/lib/projections';
 import { CATEGORY_LABELS } from '@/lib/leagueCategories';
-import { parseStats, pickStatsSeason, type StatsSeasonRow } from '@/lib/stats';
+import { parseStats } from '@/lib/stats';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import type { PlayerWithStats } from '@/api/types';
 
@@ -45,7 +45,7 @@ export function TeamBuilderPage() {
   const { profile } = useAuth();
   const { data: settings } = useDraftSettings(seasonId);
   const { data: pool, isLoading: poolLoading } = usePlayerPool(seasonId);
-  const { data: rosters } = useRosters(seasonId);
+  const { data: rosterRows = [] } = useRosterWithStats(seasonId);
 
   const liveRounds = settings ? Math.max(1, settings.roster_size) : 18;
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
@@ -71,38 +71,29 @@ export function TeamBuilderPage() {
   }, [buildsKey]);
 
   const rosteredById = useMemo(() => {
-    if (!rosters || !profile?.team_id) return new Map<string, PlayerWithStats>();
     const map = new Map<string, PlayerWithStats>();
-    for (const entry of rosters) {
-      if (entry.team_id !== profile.team_id || !entry.player_id || !entry.players) continue;
-      const best = pickStatsSeason((entry.players.player_seasons ?? []) as StatsSeasonRow[], seasonId ?? '');
-      map.set(entry.player_id, {
-        id: entry.player_id,
-        name: entry.players.name,
-        position: entry.players.position,
-        nba_team: entry.players.nba_team ?? null,
-        espn_id: entry.players.espn_id ?? null,
-        image_url: null,
-        created_at: '',
-        player_seasons: best ? [{ season_id: best.season_id, stats: best.stats ?? {} }] : [],
-      });
+    if (!profile?.team_id) return map;
+    for (const { entry, player } of rosterRows) {
+      if (entry.team_id === profile.team_id && player) map.set(player.id, player);
     }
     return map;
-  }, [rosters, profile?.team_id, seasonId]);
+  }, [rosterRows, profile?.team_id]);
 
   const byId = useMemo(() => indexById(pool ?? [], [...rosteredById.values()]), [pool, rosteredById]);
   const focusedCandidate = focusedId ? byId.get(focusedId) ?? null : null;
 
   useEffect(() => {
-    if (picks !== null || !rosters || liveRounds < 1) return;
+    if (picks !== null || liveRounds < 1) return;
     const mine = profile?.team_id
-      ? rosters.filter((entry) => entry.team_id === profile.team_id).map((entry) => entry.player_id)
+      ? rosterRows
+          .filter(({ entry }) => entry.team_id === profile.team_id)
+          .map(({ entry }) => entry.player_id)
       : [];
     setPicks([
       ...mine.slice(0, liveRounds),
       ...Array<string | null>(Math.max(0, liveRounds - mine.length)).fill(null),
     ]);
-  }, [picks, profile?.team_id, rosters, liveRounds]);
+  }, [picks, profile?.team_id, rosterRows, liveRounds]);
 
   const teamPlayers = useMemo(() => {
     const list = (picks ?? []).map((id) => (id ? byId.get(id) ?? null : null));
