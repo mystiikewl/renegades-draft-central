@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isRookie, STAT_COLUMNS, statColumnValue, fmtStat, type StatColumnKey } from '@/lib/stats';
+import { leagueValueScores } from '@/lib/projections';
 import { availablePracticePlayers } from '@/lib/practiceDraft';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { PlayerStatsDialog } from '@/components/player/PlayerStatsDialog';
@@ -18,7 +19,7 @@ import { RealtimeBadge } from '@/components/draft/RealtimeBadge';
 import { usePracticeDraftSession } from '@/stores/practiceDraftSession';
 import type { PlayerWithStats } from '@/api/types';
 
-type SortKey = StatColumnKey;
+type SortKey = 'value' | StatColumnKey;
 type Basis = 'averages' | 'totals';
 type PoolMode = 'practice' | 'live';
 
@@ -59,8 +60,8 @@ export function PlayerPoolPage() {
   const [search, setSearch] = useState('');
   const [position, setPosition] = useState<(typeof POSITIONS)[number]>('All');
   const [rookiesOnly, setRookiesOnly] = useState(false);
-  const [basis, setBasis] = useState<Basis>('averages');
-  const [sortKey, setSortKey] = useState<SortKey>('pts');
+  const [basis, setBasis] = useState<Basis>('totals');
+  const [sortKey, setSortKey] = useState<SortKey>('value');
   const [selected, setSelected] = useState<PlayerWithStats | null>(null);
 
   useEffect(() => {
@@ -73,8 +74,12 @@ export function PlayerPoolPage() {
     [practicePicks, practiceUniverse],
   );
   const inPracticeMode = practiceActive && poolMode === 'practice';
-  const players = inPracticeMode ? practicePlayers : (livePlayers ?? []);
+  const players = useMemo(
+    () => inPracticeMode ? practicePlayers : (livePlayers ?? []),
+    [inPracticeMode, livePlayers, practicePlayers],
+  );
   const isLoading = inPracticeMode ? practiceLoading : liveLoading;
+  const valueScores = useMemo(() => leagueValueScores(players, basis), [players, basis]);
 
   const liveNextPick = useMemo(() => picks?.find((p) => !p.is_used) ?? null, [picks]);
   const practiceNextPick = useMemo(() => practicePicks.find((p) => !p.is_used) ?? null, [practicePicks]);
@@ -108,12 +113,23 @@ export function PlayerPoolPage() {
           (p.nba_team ?? '').toLowerCase().includes(q),
       );
     }
-    return [...pool].sort((a, b) =>
-      statColumnValue(b, sortKey, basis) - statColumnValue(a, sortKey, basis),
-    );
-  }, [players, search, position, rookiesOnly, sortKey, basis]);
+    return [...pool].sort((a, b) => {
+      const difference = sortKey === 'value'
+        ? (valueScores.get(b.id) ?? 0) - (valueScores.get(a.id) ?? 0)
+        : statColumnValue(b, sortKey, basis) - statColumnValue(a, sortKey, basis);
+      return difference || a.name.localeCompare(b.name);
+    });
+  }, [players, search, position, rookiesOnly, sortKey, basis, valueScores]);
 
-  const activeSortLabel = STAT_COLUMNS.find((c) => c.key === sortKey)?.label ?? sortKey;
+  const activeSortLabel = sortKey === 'value'
+    ? 'Value'
+    : STAT_COLUMNS.find((c) => c.key === sortKey)?.label ?? sortKey;
+  const projectedCount = players.filter((player) => player.stats_source === 'espn').length;
+  const fallbackCount = players.filter((player) => player.stats_uses_historical_fallback).length;
+  const projectionUpdatedAt = players.reduce<string | null>((latest, player) => {
+    if (!player.stats_updated_at) return latest;
+    return !latest || player.stats_updated_at > latest ? player.stats_updated_at : latest;
+  }, null);
   const canSelectPractice = inPracticeMode && isMyTurn && !practiceComplete;
   const canSelectLive = !inPracticeMode && canPick && !!liveNextPick && !!selected && !queuedIds.has(selected.id);
 
@@ -240,6 +256,11 @@ export function PlayerPoolPage() {
           <div>
             <div className="text-sm font-bold uppercase tracking-wide">Available</div>
             <div className="mt-0.5 text-xs text-muted-foreground">{filtered.length} players · sorted by {activeSortLabel}</div>
+            <div className="mt-1 text-[10px] font-medium text-muted-foreground">
+              {projectedCount > 0
+                ? `ESPN projections${projectionUpdatedAt ? ` · updated ${new Date(projectionUpdatedAt).toLocaleDateString()}` : ''}${fallbackCount > 0 ? ` · ${fallbackCount} historical fallback${fallbackCount === 1 ? '' : 's'}` : ''}`
+                : 'Historical stats · ESPN projections not imported yet'}
+            </div>
           </div>
           <div className="flex overflow-hidden rounded-full border bg-background">
             {(['averages', 'totals'] as const).map((b) => (
@@ -261,10 +282,13 @@ export function PlayerPoolPage() {
           <p className="py-12 text-center text-sm text-muted-foreground">No players found.</p>
         ) : (
           <div className="max-h-[calc(100dvh-17rem)] overflow-auto sm:max-h-[68vh]">
-            <table className="w-full min-w-[26rem] border-collapse text-sm sm:min-w-[60rem]">
+            <table className="w-full min-w-[30rem] border-collapse text-sm sm:min-w-[64rem]">
               <thead className="sticky top-0 z-30 bg-card shadow-[0_1px_0_0_var(--border)]">
                 <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
                   <th className="sticky left-0 z-40 w-[13rem] bg-card px-3 py-2 text-left font-bold sm:w-[17rem] sm:px-4">Players</th>
+                  <th className="min-w-[4rem] px-2 py-2 text-right font-bold">
+                    <button onClick={() => setSortKey('value')} className={`min-h-10 min-w-10 rounded-md transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${sortKey === 'value' ? 'text-primary' : ''}`}>VAL</button>
+                  </th>
                   {STAT_COLUMNS.map((c) => (
                     <th key={c.key} className={`min-w-[3.4rem] px-2 py-2 text-right font-bold ${c.key === 'pts' ? '' : 'hidden md:table-cell'}`}>
                       <button onClick={() => setSortKey(c.key)} className={`min-h-10 min-w-10 rounded-md transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${sortKey === c.key ? 'text-primary' : ''}`}>{c.label}</button>
@@ -282,10 +306,16 @@ export function PlayerPoolPage() {
                           <div className="flex min-w-0 items-center gap-1.5">
                             <span className="line-clamp-1 font-semibold leading-tight">{p.name}</span>
                             {isRookie(p) && <Badge variant="outline" className="shrink-0 border-primary/40 px-1 py-0 text-[9px] text-primary">R</Badge>}
+                            {p.stats_source === 'historical' && (
+                              <Badge variant="outline" className="shrink-0 px-1 py-0 text-[9px] text-muted-foreground" title="ESPN projection unavailable; using historical stats">HIST</Badge>
+                            )}
                           </div>
                           <div className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{p.nba_team ?? 'FA'} · {p.position ?? '—'}</div>
                         </div>
                       </div>
+                    </td>
+                    <td className={`whitespace-nowrap px-2 py-3 text-right text-xs font-bold tabular-nums ${sortKey === 'value' ? 'text-primary' : 'text-foreground'}`}>
+                      {(valueScores.get(p.id) ?? 0).toFixed(2)}
                     </td>
                     {STAT_COLUMNS.map((c) => (
                       <td key={c.key} className={`whitespace-nowrap px-2 py-3 text-right text-xs tabular-nums ${c.key === 'pts' ? '' : 'hidden md:table-cell'} ${sortKey === c.key ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>

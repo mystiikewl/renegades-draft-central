@@ -25,6 +25,7 @@ vi.mock('@/api/queries', () => ({
     ],
   })),
   usePlayerPool: vi.fn(() => ({ data: [], isLoading: false })),
+  usePracticeDraftPool: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 
 const mutate = vi.fn();
@@ -105,8 +106,37 @@ describe('PlayerPoolPage', () => {
     mockedPool.mockReturnValue({ data: [player()], isLoading: false } as never);
     render(<PlayerPoolPage />);
     expect(screen.getByText('Test Player')).toBeInTheDocument();
-    expect(screen.getByText('25.1')).toBeInTheDocument();
+    expect(screen.getByText('1757')).toBeInTheDocument();
     expect(screen.getByText('BOS · PG')).toBeInTheDocument();
+  });
+
+  it('defaults to league value order and identifies ESPN projections', () => {
+    mockedPool.mockReturnValue({
+      data: [
+        player({ id: 'low', name: 'Lower Value', stats_source: 'espn', stats_updated_at: '2026-09-10T01:00:00Z', player_seasons: [{ season_id: 's1', stats: { points: 10, games_played: 82 } }] }),
+        player({ id: 'high', name: 'Higher Value', stats_source: 'espn', stats_updated_at: '2026-09-10T01:00:00Z', player_seasons: [{ season_id: 's1', stats: { points: 30, games_played: 82 } }] }),
+      ],
+      isLoading: false,
+    } as never);
+
+    render(<PlayerPoolPage />);
+
+    expect(screen.getByText(/sorted by Value/i)).toBeInTheDocument();
+    expect(screen.getByText(/ESPN projections/i)).toBeInTheDocument();
+    const rows = screen.getAllByRole('row');
+    expect(rows[1]).toHaveTextContent('Higher Value');
+    expect(rows[2]).toHaveTextContent('Lower Value');
+  });
+
+  it('labels a player whose ranking uses historical stats', () => {
+    mockedPool.mockReturnValue({
+      data: [player({ stats_source: 'historical', stats_uses_historical_fallback: true })],
+      isLoading: false,
+    } as never);
+
+    render(<PlayerPoolPage />);
+
+    expect(screen.getByText('HIST')).toBeInTheDocument();
   });
 
   it('shows the current pick context', () => {

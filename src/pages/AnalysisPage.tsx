@@ -51,7 +51,7 @@ function rosterPlayer(entry: RosterEntry, seasonId: string): PlayerWithStats | n
     espn_id: entry.players.espn_id ?? null,
     image_url: null,
     created_at: '',
-    player_seasons: [best],
+    player_seasons: [{ season_id: best.season_id, stats: best.stats ?? {} }],
   };
 }
 

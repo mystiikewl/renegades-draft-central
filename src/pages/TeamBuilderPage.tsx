@@ -88,7 +88,7 @@ export function TeamBuilderPage() {
         espn_id: entry.players.espn_id ?? null,
         image_url: null,
         created_at: '',
-        player_seasons: best ? [best] : [],
+        player_seasons: best ? [{ season_id: best.season_id, stats: best.stats ?? {} }] : [],
       });
     }
     return map;

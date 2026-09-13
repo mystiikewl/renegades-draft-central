@@ -196,6 +196,23 @@ export function zScores(
   return scores;
 }
 
+/** Equal-weight composite value across the league's 13 ROTO categories. */
+export function leagueValueScores(
+  pool: PlayerWithStats[],
+  basis: Basis = 'totals',
+): Map<string, number> {
+  const categoryScores = LEAGUE_CATEGORIES.map((category) => zScores(pool, category, basis));
+  const scores = new Map<string, number>();
+  for (const player of pool) {
+    const total = categoryScores.reduce(
+      (sum, values) => sum + (values.get(player.id) ?? 0),
+      0,
+    );
+    scores.set(player.id, total / LEAGUE_CATEGORIES.length);
+  }
+  return scores;
+}
+
 export interface CategoryImpact {
   cat: Category;
   before: number;

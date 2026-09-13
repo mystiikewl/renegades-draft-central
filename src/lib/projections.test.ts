@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PlayerWithStats } from '@/api/types';
-import { baseline, categoryTotals, impact, zScores, LEAGUE_CATEGORIES } from './projections';
+import { baseline, categoryTotals, impact, leagueValueScores, zScores, LEAGUE_CATEGORIES } from './projections';
 
 const P = (
   id: string,
@@ -126,6 +126,21 @@ describe('zScores', () => {
       missing,
     ];
     expect(zScores(shooters, 'fgPct').get('missing')).toBeCloseTo(0);
+  });
+});
+
+describe('leagueValueScores', () => {
+  it('ranks players by an equal-weight composite of the league categories', () => {
+    const players = [
+      P('elite', 30, 10, 0.55, 82, { assists: 8, steals: 2, blocks: 1.5, turnovers: 2 }),
+      P('middle', 20, 5, 0.48, 82, { assists: 5, steals: 1, blocks: 0.7, turnovers: 3 }),
+      P('low', 10, 2, 0.40, 82, { assists: 2, steals: 0.5, blocks: 0.2, turnovers: 4 }),
+    ];
+
+    const scores = leagueValueScores(players, 'totals');
+
+    expect(scores.get('elite')).toBeGreaterThan(scores.get('middle') ?? 0);
+    expect(scores.get('middle')).toBeGreaterThan(scores.get('low') ?? 0);
   });
 });
 

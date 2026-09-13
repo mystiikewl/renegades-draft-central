@@ -31,11 +31,13 @@ vi.mock('@/api/queries', () => ({
     ],
   })),
   useRosters: vi.fn(() => ({ data: [] })),
+  usePlayerPool: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 
 const undoMutate = vi.fn();
 const skipMutate = vi.fn();
 vi.mock('@/api/draftTurnActions', () => ({
+  useMakePickForSlot: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useUndoDraftActionForSlot: vi.fn(() => ({ mutate: undoMutate, isPending: false })),
   useSkipPickForSlot: vi.fn(() => ({ mutate: skipMutate, isPending: false })),
 }));
@@ -135,8 +137,8 @@ describe('DraftPage', () => {
 
     render(<DraftPage />);
 
-    expect(screen.getByText('YOUR PICK')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Open Player Pool/i })).toHaveAttribute('href', '/pool');
+    expect(screen.getByText(/YOUR PICK · CHOOSE BELOW/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Full Player Pool/i })).toHaveAttribute('href', '/pool');
     expect(screen.getByRole('button', { name: /^Skip$/i })).toBeEnabled();
   });
 

@@ -59,6 +59,9 @@ export type PlayerWithStats = Player & {
   player_seasons: (Pick<PlayerSeason, 'season_id' | 'stats'> & {
     seasons?: { label: string } | null;
   })[];
+  stats_source?: 'espn' | 'historical' | 'none';
+  stats_updated_at?: string | null;
+  stats_uses_historical_fallback?: boolean;
 };
 
 export interface DraftSettings {

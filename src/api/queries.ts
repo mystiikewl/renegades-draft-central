@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { pickStatsSeason } from '@/lib/stats';
+import { selectPreferredStats, type ProjectionStatsRow } from '@/lib/projectionData';
 import type {
   DraftPick,
   DraftSettings,
@@ -126,7 +126,7 @@ export function usePlayerPool(seasonId: string | undefined) {
       const [playersRes, rosteredRes] = await Promise.all([
         supabase
           .from('players')
-          .select('*, player_seasons(season_id, stats, seasons(label))')
+          .select('*, player_seasons(season_id, stats, seasons(label)), projections(season_id, stats, source, updated_at)')
           .not('espn_id', 'is', null)
           .order('name'),
         supabase.from('rosters').select('player_id').eq('season_id', seasonId),
@@ -134,9 +134,16 @@ export function usePlayerPool(seasonId: string | undefined) {
       if (playersRes.error) throw playersRes.error;
       if (rosteredRes.error) throw rosteredRes.error;
       const rostered = new Set(rosteredRes.data.map((r) => r.player_id));
-      const withPreferredStats = (playersRes.data as PlayerWithStats[]).map((p) => {
-        const best = pickStatsSeason(p.player_seasons ?? [], seasonId!);
-        return { ...p, player_seasons: best ? [best as PlayerWithStats['player_seasons'][number]] : [] };
+      const withPreferredStats = (playersRes.data as (PlayerWithStats & { projections?: ProjectionStatsRow[] })[]).map((p) => {
+        const selected = selectPreferredStats(p.player_seasons ?? [], p.projections ?? [], seasonId!);
+        const { projections: _projections, ...player } = p;
+        return {
+          ...player,
+          player_seasons: selected.row ? [{ season_id: selected.row.season_id, stats: selected.row.stats ?? {} }] : [],
+          stats_source: selected.source,
+          stats_updated_at: selected.updatedAt,
+          stats_uses_historical_fallback: selected.usesHistoricalFallback,
+        } as PlayerWithStats;
       });
       return withPreferredStats.filter((p) => !rostered.has(p.id));
     },
@@ -156,7 +163,7 @@ export function usePracticeDraftPool(seasonId: string | undefined) {
       const [playersRes, keepersRes] = await Promise.all([
         supabase
           .from('players')
-          .select('*, player_seasons(season_id, stats, seasons(label))')
+          .select('*, player_seasons(season_id, stats, seasons(label)), projections(season_id, stats, source, updated_at)')
           .not('espn_id', 'is', null)
           .order('name'),
         supabase
@@ -169,9 +176,16 @@ export function usePracticeDraftPool(seasonId: string | undefined) {
       if (keepersRes.error) throw keepersRes.error;
 
       const kept = new Set(keepersRes.data.map((r) => r.player_id));
-      const withPreferredStats = (playersRes.data as PlayerWithStats[]).map((p) => {
-        const best = pickStatsSeason(p.player_seasons ?? [], seasonId!);
-        return { ...p, player_seasons: best ? [best as PlayerWithStats['player_seasons'][number]] : [] };
+      const withPreferredStats = (playersRes.data as (PlayerWithStats & { projections?: ProjectionStatsRow[] })[]).map((p) => {
+        const selected = selectPreferredStats(p.player_seasons ?? [], p.projections ?? [], seasonId!);
+        const { projections: _projections, ...player } = p;
+        return {
+          ...player,
+          player_seasons: selected.row ? [{ season_id: selected.row.season_id, stats: selected.row.stats ?? {} }] : [],
+          stats_source: selected.source,
+          stats_updated_at: selected.updatedAt,
+          stats_uses_historical_fallback: selected.usesHistoricalFallback,
+        } as PlayerWithStats;
       });
       return withPreferredStats.filter((p) => !kept.has(p.id));
     },

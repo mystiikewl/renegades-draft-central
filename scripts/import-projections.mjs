@@ -4,12 +4,12 @@
  * Import ESPN fantasy per-player projections into public.projections.
  *
  * ESPN publishes projections as stats rows with statSourceId=1 for the
- * upcoming fantasy season (e.g. seasonId 2027 = "2026-27"). Until ESPN
+ * upcoming fantasy season (e.g. seasonId 2026 = "2026-27"). Until ESPN
  * publishes them the API returns zero rows — this script exits cleanly
  * with a count of 0; just re-run after ESPN's fantasy basketball launch.
  *
  * Usage:
- *   node scripts/import-projections.mjs [--season 2027] [--dry-run]
+ *   node scripts/import-projections.mjs [--season 2026] [--dry-run]
  * Env: ESPN_S2, ESPN_SWID, SUPABASE_ACCESS_TOKEN (unless --dry-run)
  */
 
@@ -45,7 +45,7 @@ function slotsToPosition(eligibleSlots) {
 }
 
 export async function importProjections({
-  season = 2027,
+  season = 2026,
   dryRun = false,
   espnS2 = process.env.ESPN_S2,
   espnSwid = process.env.ESPN_SWID,
@@ -187,7 +187,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     return i >= 0 ? args[i + 1] : fallback;
   };
   try {
-    const result = await importProjections({ season: flag('season', '2027'), dryRun: args.includes('--dry-run') });
+    const result = await importProjections({ season: flag('season', '2026'), dryRun: args.includes('--dry-run') });
     console.log('Done:', result);
   } catch (err) {
     console.error(err.message);

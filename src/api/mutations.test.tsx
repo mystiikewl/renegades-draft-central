@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { queuePick, isNetworkError } from './offlineQueue';
 import {
-  useMakePick,
   useUndoLastPick,
   useSetDraftOrder,
   useSetDraftStatus,
@@ -58,64 +57,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.mocked(toast.success).mockClear();
-});
-
-describe('useMakePick', () => {
-  it('happy path: calls make_pick with p_ params and invalidates season queries', async () => {
-    rpc.mockResolvedValue({ data: { ok: true }, error: null } as never);
-    const { invalidate, wrapper } = makeClient();
-    const { result } = renderHook(() => useMakePick(SEASON), { wrapper });
-
-    await result.current.mutateAsync({ playerId: 'player-9', playerName: 'Test Player' });
-
-    expect(rpc).toHaveBeenCalledWith('make_pick', {
-      p_season_id: SEASON,
-      p_player_id: 'player-9',
-    });
-    expect(toast.error).not.toHaveBeenCalled();
-    const invalidated = invalidate.mock.calls.map((c) => c[0]!.queryKey);
-    expect(invalidated).toEqual(
-      expect.arrayContaining([
-        ['draft-picks', SEASON],
-        ['player-pool', SEASON],
-        ['rosters', SEASON],
-        ['draft-settings', SEASON],
-      ]),
-    );
-  });
-
-  it('RPC rejection → error toast, never queued', async () => {
-    rpc.mockResolvedValue({ data: null, error: { message: 'Not your turn' } } as never);
-    const { wrapper } = makeClient();
-    const { result } = renderHook(() => useMakePick(SEASON), { wrapper });
-
-    await expect(
-      result.current.mutateAsync({ playerId: 'p1', playerName: 'X' }),
-    ).rejects.toThrow('Not your turn');
-
-    expect(toast.error).toHaveBeenCalledWith('Not your turn');
-    expect(mockedQueuePick).not.toHaveBeenCalled();
-    expect(toast.info).not.toHaveBeenCalled();
-  });
-
-  it('network failure → queued + info toast, no error toast', async () => {
-    mockedIsNetworkError.mockImplementation(() => true);
-    rpc.mockRejectedValue(new TypeError('fetch failed') as never);
-    const { wrapper } = makeClient();
-    const { result } = renderHook(() => useMakePick(SEASON), { wrapper });
-
-    await expect(
-      result.current.mutateAsync({ playerId: 'p2', playerName: 'Queued Guy' }),
-    ).rejects.toThrow();
-
-    expect(mockedQueuePick).toHaveBeenCalledWith(
-      expect.objectContaining({ seasonId: SEASON, playerId: 'p2', playerName: 'Queued Guy' }),
-    );
-    expect(toast.info).toHaveBeenCalledWith(
-      'Offline — pick of Queued Guy queued and will submit when you reconnect',
-    );
-    expect(toast.error).not.toHaveBeenCalled();
-  });
 });
 
 describe('useUndoLastPick', () => {

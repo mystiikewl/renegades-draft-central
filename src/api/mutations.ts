@@ -2,7 +2,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { qk } from './queries';
-import { isNetworkError, queuePick } from './offlineQueue';
 
 /**
  * All draft mutations go through SECURITY DEFINER RPCs — the client never
@@ -15,35 +14,6 @@ function invalidateSeason(qc: ReturnType<typeof useQueryClient>, seasonId: strin
   qc.invalidateQueries({ queryKey: qk.playerPool(seasonId) });
   qc.invalidateQueries({ queryKey: qk.rosters(seasonId) });
   qc.invalidateQueries({ queryKey: qk.draftSettings(seasonId) });
-}
-
-export function useMakePick(seasonId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      playerId,
-      playerName,
-    }: {
-      playerId: string;
-      playerName: string;
-    }) => {
-      const { data, error } = await supabase.rpc('make_pick', {
-        p_season_id: seasonId,
-        p_player_id: playerId,
-      });
-      if (error) throw new Error(error.message);
-      return { data, playerName };
-    },
-    onSuccess: (_res) => invalidateSeason(qc, seasonId),
-    onError: (err: Error, { playerId, playerName }) => {
-      if (isNetworkError(err)) {
-        queuePick({ seasonId, playerId, playerName, queuedAt: Date.now() });
-        toast.info(`Offline — pick of ${playerName} queued and will submit when you reconnect`);
-        return;
-      }
-      toast.error(err.message);
-    },
-  });
 }
 
 export function useUndoLastPick(seasonId: string) {

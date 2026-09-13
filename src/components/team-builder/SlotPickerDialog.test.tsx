@@ -29,10 +29,15 @@ const player = {
   ],
 } as PlayerWithStats;
 
+// Fit summary arithmetic for this fixture (see fitScore in SlotPickerDialog):
+//   pts:   gap 5 -> need 1.5, scale 5.25, +10 -> 1.905*1.5 + flip 1 = 3.857
+//   to:    gap 0 -> need 0.35, scale 2.5, -2 (inverted) -> 0.8*0.35 = 0.28
+//   fgPct: pct scale 0.01, -0.02 -> -2*0.35 = -0.7
+//   total = 3.44 -> "+3.4 fit"
 const impact: CategoryImpact[] = [
-  { cat: 'pts', before: 100, after: 110, delta: 10, flipsVsBaseline: true },
-  { cat: 'to', before: 50, after: 48, delta: -2, flipsVsBaseline: false },
-  { cat: 'fgPct', before: 0.48, after: 0.46, delta: -0.02, flipsVsBaseline: false },
+  { cat: 'pts', before: 100, after: 110, baseline: 105, delta: 10, flipsVsBaseline: true },
+  { cat: 'to', before: 50, after: 48, baseline: 50, delta: -2, flipsVsBaseline: false },
+  { cat: 'fgPct', before: 0.48, after: 0.46, baseline: 0.48, delta: -0.02, flipsVsBaseline: false },
 ];
 
 describe('SlotPickerDialog', () => {
@@ -50,7 +55,7 @@ describe('SlotPickerDialog', () => {
 
     expect(screen.getByText('Test Guard')).toBeInTheDocument();
     expect(screen.getByText(/24.5 PTS/)).toBeInTheDocument();
-    expect(screen.getByText('+1 fit')).toBeInTheDocument();
+    expect(screen.getByText('+3.4 fit')).toBeInTheDocument();
     expect(screen.getByText('boosts PTS')).toBeInTheDocument();
     expect(screen.getByText('watch FG%')).toBeInTheDocument();
     expect(screen.queryByText(/pts \+10/i)).not.toBeInTheDocument();

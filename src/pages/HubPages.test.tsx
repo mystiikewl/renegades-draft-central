@@ -20,7 +20,8 @@ describe('navigation hubs', () => {
     expect(screen.getByRole('link', { name: /Draft Intelligence/i })).toHaveAttribute('href', '/analysis');
     expect(screen.getByRole('link', { name: /Rosters/i })).toHaveAttribute('href', '/rosters');
     expect(screen.getByRole('link', { name: /Trade Center/i })).toHaveAttribute('href', '/trades');
-    expect(screen.getByRole('link', { name: /League Forecast/i })).toHaveAttribute('href', '/power-rankings');
+    // Anchored: the featured card's blurb also says "league forecasts".
+    expect(screen.getByRole('link', { name: /^League Forecast/i })).toHaveAttribute('href', '/power-rankings');
   });
 
   it('does not duplicate analysis tools under More', () => {
