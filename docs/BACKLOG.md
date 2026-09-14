@@ -4,9 +4,12 @@ Prioritized remaining work. Updated 2026-09-14, after the 2026-27 season
 go-live: ESPN keeper sync + finalize landed, the duplicate-season incident
 was repaired (see `scripts/sql/remove-duplicate-26-27-season.sql` and
 `scripts/sql/revert-stale-proposed-trade-2026-27.sql`), and the suite is
-green — 150/150 tests, clean production build. The original rebuild backlog
+green — 168/168 tests, clean production build, `tsc --noEmit` clean. The original rebuild backlog
 (P0 draft-night items) is done. Effort: S (< half day), M (~1 day),
 L (multi-day). Priority favors "draft night works flawlessly for 10 mates."
+
+The 2026-09-14 hardening push landed backlog items 1, 3, 4, 5, 6, 7 and 10 (commits
+`aefbd56`..`dc583be`); each done item below records its evidence.
 
 Offseason tooling note: ESPN's site-roster feed (what `import-nba.mjs` reads)
 lags trades/signings. After offseason news, dry-run
@@ -14,15 +17,27 @@ lags trades/signings. After offseason news, dry-run
 against ESPN's core athlete API + fantasy feed, and add `--apply` to write.
 Fantasy-flagged "FA" players in its output are in-transit — watch those.
 
+## P0 — Decide before draft night
+
+### 0. Verify traded-pick ownership on the 2026-27 board
+- **Why:** The 2026-09-14 rescue re-pointed each rescued trade asset at the *same-numbered* pick on the real grid, but the twin season's grid used a different draft order, so two of the four trades sit on a pick whose draft-order owner is not the team that traded it:
+  - `R3 · Pick #23` (asset: Innocent till proven Giddey → Mamba) is linked to pick 23, whose `original_team_id` is Stroking Threes. ITPG's R3 pick is #24 under the current linear order.
+  - `R7 · Pick #62` (asset: Stroking Threes → Mamba) is linked to pick 62, owned in the order by Affco Meat Workers. Stroking's R7 pick is #63.
+  The other two (`R5 #48` Fresh Prince → Flash, `R6 #57` Flash → Mamba) line up correctly. Net effect: Mamba holds two picks the order assigns to other teams, while ITPG and Affco still hold picks the trade record says they sent.
+- **Fix:** re-link each asset to the pick whose `original_team_id` = the asset's `from_team_id` within the same round, then restore `team_id` on the two wrongly-linked picks (one UPDATE each, reversible).
+- **Needs:** the commissioner's confirmation of which pick each trade meant, before touching ownership.
+- **Effort:** S · **Risk:** Medium — competitive fairness; do not silently re-link.
+
 ## P1 — Fix next
 
-### 1. Guard `create_season` against duplicate/near-duplicate labels
+### ✅ 1. Guard `create_season` against duplicate/near-duplicate labels
 - **Why:** Root cause of the 2026-09-14 incident: a hand-typed label
   ("Season 26-27" vs "2026-27") created a twin season that stole
   `is_active`, while every script addresses seasons by exact label — the
   app went blind to the real season's keepers/pool. Refuse when an active
   pre_draft season exists, and/or enforce the `YYYY-YY` label format.
 - **Effort:** S · **Risk:** Low.
+- **Done 2026-09-14** (`aefbd56`): label format + rollover + twin start-year guards, unique index, and a refuse-while-undrafted gate. Verified by `scripts/sql/verify-2026-09-14-guards.sql`.
 
 ### 2. 2027 season rollover runbook
 - **Why:** Seasons are modeled and 2025-26 is archived, but there's still no
@@ -37,7 +52,7 @@ Fantasy-flagged "FA" players in its output are in-transit — watch those.
   itself becomes this runbook.
 - **Effort:** M · **Risk:** Data-loss risk if rushed — that's why it's here early.
 
-### 3. Confirm `sync-keepers` edge function is deployed + auth-gated
+### ✅ 3. Confirm `sync-keepers` edge function is deployed + auth-gated
 - **Why:** `supabase/functions/sync-keepers/` exists and package.json wires the
   local fallback, but deployment/verification status was never recorded. It
   performs privileged Mgmt-API writes — must verify caller JWT/admin before
@@ -45,41 +60,47 @@ Fantasy-flagged "FA" players in its output are in-transit — watch those.
   lacks the upcoming-season keeper inference — keep their semantics in
   sync or delete one path.
 - **Effort:** S · **Risk:** Medium (privileged surface).
+- **Done 2026-09-14** (`dc583be`): deployed v5 is ACTIVE with `verify_jwt = true` + `requireAdmin`; the deployed bundle carries the new keeper inference (`keepers_inferred`), so the edge port and `scripts/import-league.mjs` are in lockstep.
 
 ## P2 — Hygiene & robustness
 
-### 4. Offline pick queue persistence + stale-guard
+### ✅ 4. Offline pick queue persistence + stale-guard
 - **Why:** The queue lives in zustand memory only; a refresh loses queued
   picks. Persist to localStorage and drop entries older than ~10 min (a stale
   queued pick is worse than a lost one).
 - **Builds on:** `src/api/offlineQueue.ts` (~105 lines, easy extension).
   First half of the "Offline-first drafting" vision item — do them together.
 - **Effort:** S · **Risk:** Low.
+- **Done 2026-09-14** (`f1b5962`): the queue persists to localStorage; entries older than 10 minutes are dropped on rehydrate and at flush time.
 
-### 5. Admin action audit log
+### ✅ 5. Admin action audit log
 - **Why:** `reset_draft`, `undo_last_pick`, `finalize_keepers` are destructive
   one-click ops among 10 users. An `admin_log(action, actor, payload, at)`
   row appended inside each SECURITY DEFINER fn gives post-hoc "who did what."
 - **Effort:** M · **Risk:** Low (one insert per RPC).
+- **Done 2026-09-14** (`aefbd56`, `f4de93d`): `admin_log` + `append_admin_log()` inside the seven commissioner/destructive RPCs, admin-only SELECT, and `AdminLogCard` on the admin page. Picks, keeper tagging and trade acceptance are deliberately not logged — they are already visible on the board.
 
-### 6. Vendor-split the bundle
+### ✅ 6. Vendor-split the bundle
 - **Why:** Route-level splitting shipped (largest route chunk: AdminPage at
   ~156 kB), but the shared index chunk is still ~494 kB (153 kB gzip) —
   recharts is the heavy suspect. A `manualChunks` vendor split would cut
   first load further.
 - **Effort:** S · **Risk:** Low.
+- **Done 2026-09-14** (`5d54beb`): react / @tanstack / supabase / ui-core chunks; the budget test now measures the real first-load graph (~223 kB gzip baseline) and runs in vitest (`npm run test:bundle`).
 
-### 7. Make `finalize_keepers` honor `draft_settings.draft_type`
+### ✅ 7. Make `finalize_keepers` honor `draft_settings.draft_type`
 - **Why:** The RPC hardcodes a snake grid; 2026-27 is configured `linear`
   and its grid was built linearly. A revert + re-finalize from the app
   would silently flip the board to snake on draft night. Honor the setting,
   or raise when they disagree.
 - **Effort:** S · **Risk:** Medium if left — draft-night board shape.
+- **Done 2026-09-14** (`aefbd56`): the RPC builds linear or snake per the setting; `scripts/sql/verify-2026-09-14-guards.sql` proves both shapes inside a rolled-back transaction.
 
-### 8. CI/pre-push gate: `lint && test:run && build`
+### ✅ 8. CI/pre-push gate: `lint && test:run && build`
 - **Why:** Lint on `src/` is clean, tests are 150/150, build green — lock it
   in so it stays that way.
 - **Effort:** S · **Risk:** None.
+- **Done earlier** (`8404717`): `.github/workflows/ci.yml` runs `tsc --noEmit`, lint, vitest and build.
 
 ### 9. Consolidate type sources
 - **Why:** Generated Supabase types vs hand-mirrored `src/api/types.ts` drift
@@ -89,17 +110,19 @@ Fantasy-flagged "FA" players in its output are in-transit — watch those.
 
 ## P3 — Nice-to-have (post-draft)
 
-### 10. Draft clock with pause
+### ✅ 10. Draft clock with pause
 - **Why:** PickClock exists with tests; the league drafts untimed so it stays
   dormant and settings-driven. Revisit only if the format changes — or if
   "Commissioner TV mode" ships, where a countdown is part of the show.
 - **Effort:** M · **Risk:** None while dormant.
+- **Done 2026-09-14** (`c4cccc9`): `PickClock` ships dormant (renders only when `turn_deadline_at` is set) and freezes while paused.
 
-### 11. PWA install + "you're on the clock" push
+### ◐ 11. PWA install + "you're on the clock" push
 - **Why:** Delight for remote/hybrid drafts; web-push via edge fn on turn
   change. Explicit YAGNI while the draft is in-person. Shares groundwork
   with "Offline-first drafting."
 - **Effort:** L · **Risk:** Complexity.
+- **Partial 2026-09-14** (`924bbe2`, `c4cccc9`): installable shell + offline fallback, and a local Notification when the turn lands while the tab is hidden. Web push (remote drafts) is still unspecced — local alerts only fire while the app is open.
 
 ## Vision — make it great (2026-09-14 brainstorm, unspecced)
 
