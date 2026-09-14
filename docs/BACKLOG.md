@@ -24,6 +24,7 @@ Fantasy-flagged "FA" players in its output are in-transit — watch those.
   - `R3 · Pick #23` (asset: Innocent till proven Giddey → Mamba) is linked to pick 23, whose `original_team_id` is Stroking Threes. ITPG's R3 pick is #24 under the current linear order.
   - `R7 · Pick #62` (asset: Stroking Threes → Mamba) is linked to pick 62, owned in the order by Affco Meat Workers. Stroking's R7 pick is #63.
   The other two (`R5 #48` Fresh Prince → Flash, `R6 #57` Flash → Mamba) line up correctly. Net effect: Mamba holds two picks the order assigns to other teams, while ITPG and Affco still hold picks the trade record says they sent.
+- **Noise to ignore:** three further assets (`R1 #6`, `R2 #16`, `R3 #26`, Mamba → F Dem Kids) point at 2026-27 picks from the two **cancelled** 2026-08-27 proposals; their ownership is correctly not applied. Filter `status = 'accepted'` when checking.
 - **Fix:** re-link each asset to the pick whose `original_team_id` = the asset's `from_team_id` within the same round, then restore `team_id` on the two wrongly-linked picks (one UPDATE each, reversible).
 - **Needs:** the commissioner's confirmation of which pick each trade meant, before touching ownership.
 - **Effort:** S · **Risk:** Medium — competitive fairness; do not silently re-link.
