@@ -161,24 +161,26 @@ export async function syncLeague({
     );
     const teamByEspn = new Map(teamRows.map((t) => [t.espn_team_id, t.id]));
 
-    // Keeper protection (same contract as the edge fn): never overwrite rows
-    // already tagged acquisition='keeper', and go fully read-only once
-    // keepers are finalized — otherwise a sync silently un-keeps players and
-    // the next finalize drops them.
-    const { data: settingsRow } = await applyQuery(
-      `select keepers_finalized_at from public.draft_settings where season_id = '${seasonId}'`,
-    );
-    if (settingsRow?.length && settingsRow[0].keepers_finalized_at) {
-      log(
-        `Keepers finalized for ${seasonLabel} — roster mirror skipped (read-only after finalize).`,
-      );
-      return { teamsMatched: plan.length, teamsUpdated: plan.length, rosterUpserted: 0, playersResolved: 0, playersSkipped: 0 };
+    // Keeper handling. Pre-draft ESPN does NOT tag kept players KEEPER — the
+    // upcoming season's roster simply contains exactly the kept players. So:
+    // upcoming season's rosters present -> its entries are the keepers and
+    // they win (stale DB tags demoted to the ESPN acquisition). Otherwise fall
+    // back to protecting existing DB tags (pre-keeper-selection behaviour,
+    // covered by import-league.test.mjs).
+    const upcoming = await espn.league(SEASON + 1, ['mTeam', 'mRoster']);
+    const espnKeepers = new Map();
+    for (const t of upcoming.teams ?? []) {
+      for (const e of t.roster?.entries ?? []) {
+        const p = e.playerPoolEntry?.player ?? e.player;
+        if (p?.id) espnKeepers.set(String(p.id), t.id);
+      }
     }
+    const espnHasKeepers = espnKeepers.size > 0;
     const { data: keeperRows } = await applyQuery(
       `select player_id from public.rosters where season_id = '${seasonId}' and acquisition = 'keeper'`,
     );
     const keeperSet = new Set((keeperRows ?? []).map((r) => r.player_id));
-    if (keeperSet.size) log(`Protecting ${keeperSet.size} tagged keeper row(s) from overwrite.`);
+    if (!espnHasKeepers && keeperSet.size) log(`Protecting ${keeperSet.size} tagged keeper row(s) from overwrite.`);
 
     const rosterRows = [];
     for (const t of league.teams) {
@@ -187,6 +189,21 @@ export async function syncLeague({
       for (const e of t.roster?.entries ?? []) {
         const p = e.playerPoolEntry?.player ?? e.player;
         if (!p?.id) continue;
+        const keptBy = espnKeepers.get(String(p.id));
+        if (keptBy != null) {
+          // Off-season trades only exist on the upcoming rosters — a player
+          // kept by team B while his last-season entry sits on team A belongs
+          // to team B now. Emit the keeper row against the keeping team.
+          const keeperTeamId = teamByEspn.get(keptBy);
+          if (!keeperTeamId) continue; // unknown ESPN team; plan guard already rejects those
+          rosterRows.push({
+            player_espn_id: String(p.id),
+            team_id: keeperTeamId,
+            acquisition: 'keeper',
+            acquired_at: e.acquisitionDate ? new Date(parseInt(e.acquisitionDate)).toISOString() : null,
+          });
+          continue;
+        }
         rosterRows.push({
           player_espn_id: String(p.id),
           team_id: teamId,
@@ -213,9 +230,12 @@ export async function syncLeague({
     }
     const missing = new Set(rosterRows.filter((r) => !r.player_id));
     playersSkipped = missing.size;
-    const keptSkipped = rosterRows.filter((r) => r.player_id && keeperSet.has(r.player_id)).length;
+    // Legacy protection only applies when ESPN has no keeper selections of
+    // its own; when it does, ESPN wins and stale DB tags get overwritten.
+    const protect = !espnHasKeepers ? keeperSet : new Set();
+    const keptSkipped = rosterRows.filter((r) => r.player_id && protect.has(r.player_id)).length;
     if (keptSkipped) log(`Skipping ${keptSkipped} ESPN row(s) that conflict with tagged keepers.`);
-    const rows = rosterRows.filter((r) => r.player_id && !keeperSet.has(r.player_id));
+    const rows = rosterRows.filter((r) => r.player_id && !protect.has(r.player_id));
 
     // upsert, batched
     for (let i = 0; i < rows.length; i += 100) {

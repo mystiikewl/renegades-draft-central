@@ -19,13 +19,15 @@ const espnTeam = (id, name, extra = {}) => ({
  * Supabase Management API. `mgmtRows` maps a SQL substring -> rows; every
  * mgmt query is recorded in `queries` for write-path assertions.
  */
-function mockTransports(t, { league, mgmtRows = {} }) {
+function mockTransports(t, { league, upcomingLeague, mgmtRows = {} }) {
   const queries = [];
   const snapshot = [];
   t.mock.method(globalThis, 'fetch', async (url, init = {}) => {
     const u = String(url);
     if (u.includes('lm-api-reads.fantasy.espn.com')) {
-      return { ok: true, json: async () => league };
+      // The sync reads the target season plus season+1 (upcoming keepers).
+      const isUpcoming = /\/seasons\/\d+\//.exec(u) && !u.includes('/seasons/2027/');
+      return { ok: true, json: async () => (isUpcoming ? (upcomingLeague ?? { name: 'U', members: [], teams: [] }) : league) };
     }
     if (u.includes('api.supabase.com')) {
       const { query } = JSON.parse(init.body ?? '{}');
@@ -133,4 +135,48 @@ test('roster mirror upserts non-keeper rows and protects tagged keepers', async 
   assert.ok(insert, 'draft entry upserted');
   assert.match(insert, /'uuid-111'/);
   assert.doesNotMatch(insert, /'uuid-222'/, 'tagged keeper row must be protected from overwrite');
+});
+
+test('ESPN keeper selections win: kept players tagged keeper, stale DB tags overwritten', async (t) => {
+  const { queries } = mockTransports(t, {
+    league: {
+      name: 'L',
+      members: [],
+      teams: [espnTeam(7, 'Alpha', {
+        roster: {
+          entries: [
+            { playerPoolEntry: { player: { id: 111 } }, acquisitionType: 'DRAFT' },
+            { playerPoolEntry: { player: { id: 222 } }, acquisitionType: 'TRADE' }, // stale DB tag says keeper
+          ],
+        },
+      })],
+    },
+    // Upcoming season rosters = keeper selections: 111 kept by Alpha, 222 NOT kept.
+    upcomingLeague: {
+      name: 'U',
+      members: [],
+      teams: [espnTeam(7, 'Alpha', {
+        roster: { entries: [{ playerPoolEntry: { player: { id: 111 } } }] },
+      })],
+    },
+    mgmtRows: {
+      'select id, name, espn_team_id from public.teams': [{ id: 'db-1', name: 'Alpha', espn_team_id: 7 }],
+      'from public.seasons where label': [{ id: 'season-1' }],
+      'where espn_team_id is not null': [{ id: 'db-1', espn_team_id: 7 }],
+      'keepers_finalized_at': [{ keepers_finalized_at: null }],
+      "acquisition = 'keeper'": [{ player_id: 'uuid-222' }],
+      'from public.players where espn_id in': [
+        { id: 'uuid-111', espn_id: '111' },
+        { id: 'uuid-222', espn_id: '222' },
+      ],
+    },
+  });
+
+  const result = await run({ season: 2027 });
+
+  assert.equal(result.rosterUpserted, 2, 'both rows synced — nothing protected once ESPN speaks');
+  const insert = queries.find((q) => q.includes('insert into public.rosters'));
+  assert.ok(insert);
+  assert.match(insert, /\('season-1', 'db-1', 'uuid-111', 'keeper'/, 'ESPN-kept player tagged keeper');
+  assert.match(insert, /\('season-1', 'db-1', 'uuid-222', 'trade'/, 'stale DB keeper tag demoted to ESPN acquisition');
 });
