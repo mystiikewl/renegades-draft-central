@@ -176,6 +176,15 @@ export async function syncLeague({
       }
     }
     const espnHasKeepers = espnKeepers.size > 0;
+    // Read-only once keepers are finalized — a sync must never resurrect
+    // non-keepers into the pool (or demote keeper tags) after Finalize.
+    const { data: settingsRow } = await applyQuery(
+      `select keepers_finalized_at from public.draft_settings where season_id = '${seasonId}'`,
+    );
+    if (settingsRow?.length && settingsRow[0].keepers_finalized_at) {
+      log(`Keepers finalized for ${seasonLabel} — roster mirror skipped (read-only after finalize).`);
+      return { teamsMatched: plan.length, teamsUpdated: plan.length, rosterUpserted: 0, playersResolved: 0, playersSkipped: 0 };
+    }
     const { data: keeperRows } = await applyQuery(
       `select player_id from public.rosters where season_id = '${seasonId}' and acquisition = 'keeper'`,
     );
