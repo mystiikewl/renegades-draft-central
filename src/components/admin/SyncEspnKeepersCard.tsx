@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { useActiveSeason } from '@/api/queries';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -14,6 +15,7 @@ import {
 type SyncResult = {
   teams_updated?: number;
   roster_upserted?: number;
+  keepers_inferred?: number;
   players_resolved?: number;
   players_skipped?: number;
 };
@@ -21,17 +23,21 @@ type SyncResult = {
 /** Admin action: refresh rosters (incl. keeper flags) from the live ESPN league. */
 export function SyncEspnKeepersCard() {
   const [pending, setPending] = useState(false);
+  const { data: season } = useActiveSeason();
 
   const sync = async () => {
     setPending(true);
     try {
       const { data, error } = await supabase.functions.invoke('sync-keepers', {
-        body: { season: 2026 },
+        body: { season: season ? Number(season.label.slice(0, 4)) : undefined },
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       const r = data as SyncResult;
+      const keepers = r.keepers_inferred
+        ? ` · ${r.keepers_inferred} keepers inferred from upcoming rosters`
+        : '';
       toast.success(
-        `Synced ${r.roster_upserted ?? 0} roster spots across ${r.teams_updated ?? 0} teams` +
+        `Synced ${r.roster_upserted ?? 0} roster spots across ${r.teams_updated ?? 0} teams${keepers}` +
           ` (${r.players_skipped ? `${r.players_skipped} skipped — not in pool` : 'all players resolved'})`,
       );
     } catch (err) {
