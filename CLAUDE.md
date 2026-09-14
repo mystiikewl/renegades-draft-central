@@ -7,6 +7,16 @@ logic, season-aware schema, practice simulator, analytics. The 2025 app was
 deleted (`docs/history/` keeps its handoff docs; season data lives archived in
 Supabase as `2025-26` — never mutate it).
 
+## Current season state
+
+2026-27 is the live season: 90 keepers synced from ESPN upcoming-season
+rosters and finalized (2026-09-14), 90-pick linear grid (`draft_type =
+'linear'`), 0 picks used. The 2026-09-14 duplicate-season + stale-proposal
+repairs live in `scripts/sql/remove-duplicate-26-27-season.sql` and
+`scripts/sql/revert-stale-proposed-trade-2026-27.sql` — read them before
+touching season rows; scripts address seasons by exact `YYYY-YY` label
+while the app reads `is_active`.
+
 ## Commands
 
 - `npm run dev` — Vite dev server (port 8080)
