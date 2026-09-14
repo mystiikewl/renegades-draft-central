@@ -9,7 +9,7 @@ green — 168/168 tests, clean production build, `tsc --noEmit` clean. The origi
 L (multi-day). Priority favors "draft night works flawlessly for 10 mates."
 
 The 2026-09-14 hardening push landed backlog items 1, 3, 4, 5, 6, 7 and 10 (commits
-`aefbd56`..`dc583be`); each done item below records its evidence.
+`aefbd56`..`dc583be`); each done item below records its evidence. Same day, later: draft-order changes now preserve accepted pick trades (item 0).
 
 Offseason tooling note: ESPN's site-roster feed (what `import-nba.mjs` reads)
 lags trades/signings. After offseason news, dry-run
@@ -19,16 +19,13 @@ Fantasy-flagged "FA" players in its output are in-transit — watch those.
 
 ## P0 — Decide before draft night
 
-### 0. Verify traded-pick ownership on the 2026-27 board
-- **Why:** The 2026-09-14 rescue re-pointed each rescued trade asset at the *same-numbered* pick on the real grid, but the twin season's grid used a different draft order, so two of the four trades sit on a pick whose draft-order owner is not the team that traded it:
-  - `R3 · Pick #23` (asset: Innocent till proven Giddey → Mamba) is linked to pick 23, whose `original_team_id` is Stroking Threes. ITPG's R3 pick is #24 under the current linear order.
-  - `R7 · Pick #62` (asset: Stroking Threes → Mamba) is linked to pick 62, owned in the order by Affco Meat Workers. Stroking's R7 pick is #63.
-  The other two (`R5 #48` Fresh Prince → Flash, `R6 #57` Flash → Mamba) line up correctly. Net effect: Mamba holds two picks the order assigns to other teams, while ITPG and Affco still hold picks the trade record says they sent.
-- **Noise to ignore:** three further assets (`R1 #6`, `R2 #16`, `R3 #26`, Mamba → F Dem Kids) point at 2026-27 picks from the two **cancelled** 2026-08-27 proposals; their ownership is correctly not applied. Filter `status = 'accepted'` when checking.
-- **Fix:** re-link each asset to the pick whose `original_team_id` = the asset's `from_team_id` within the same round, then restore `team_id` on the two wrongly-linked picks (one UPDATE each, reversible).
-- **Needs:** the commissioner's confirmation of which pick each trade meant, before touching ownership.
-- **Effort:** S · **Risk:** Medium — competitive fairness; do not silently re-link.
-
+### ✅ 0. Traded-pick ownership follows the draft order (fixed 2026-09-14)
+- **What it was:** `set_draft_order` refused to run at all once a pick had changed hands — *"Cannot regenerate draft order while traded picks have changed ownership"* — so logging an official pick trade froze the draft order. It also rebuilt `roster_size` rounds (18) rather than `roster_size - keeper_limit` (9), so a regeneration would have handed the board 18 rounds instead of 9.
+- **Now** (`20260914140000_set_draft_order_preserve_trades.sql`): the grid is upserted by `(season_id, pick_number)` — row ids survive, which is required because `trade_assets.draft_pick_id` is `ON DELETE RESTRICT` **and** NOT NULL for pick assets — then every accepted pick trade is re-applied against the new order: the *seller's* round-R slot pick becomes the buyer's, and the asset is re-pointed at it. `revert_finalize_keepers` no longer clears the grid, so the revert → re-finalize path can't drop traded ownership either.
+- **Side effect:** re-applying from each trade's declared seller lands the two hand-rescued links (`R3 #23` ITPG → Mamba, `R7 #62` Stroking → Mamba) back on the seller's pick in that round, so the reorder repairs them.
+- **Left to do:** the commissioner saves the new order (Admin → Draft order); then confirm the board shows exactly 4 traded picks — one per official trade, each on its seller's round pick.
+- **Verified:** `npm run test:e2e:trade` step 05 (regeneration re-applies the trade, re-points the asset, leaves exactly one override on the grid) — 12/12 steps green against the live project.
+- **Known ceiling:** a chained trade on the same pick (A→B, then B→C) re-applies in asset order and resolves against the grid as it stands, so the second hop lands on the second seller's own slot pick. The league has only ever logged single-hop trades.
 ## P1 — Fix next
 
 ### ✅ 1. Guard `create_season` against duplicate/near-duplicate labels
@@ -108,6 +105,11 @@ Fantasy-flagged "FA" players in its output are in-transit — watch those.
   as migrations land. Regenerate in a script; keep hand types only for
   view-shapes (e.g. `PlayerWithStats`).
 - **Effort:** M · **Risk:** Low; mechanical.
+
+### 12. Refresh `e2e-draft-sim` to the exact-slot RPCs
+- **Why:** The sim still calls `make_pick` / `undo_last_pick`, which are revoked for `authenticated` (the app moved to `make_pick_for_slot` / `undo_draft_action_for_slot` / `skip_pick_for_slot` after the stale-intent migration). It therefore fails at its first pick step — grid generation (steps 02–07) passes, so the skeleton is sound.
+- **Fix:** swap the pick/undo calls to the `_for_slot` variants, resolving the on-clock pick from the board (as `e2e-trade-draft-integrity.mjs` already does).
+- **Effort:** S · **Risk:** Low — throwaway season only.
 
 ## P3 — Nice-to-have (post-draft)
 

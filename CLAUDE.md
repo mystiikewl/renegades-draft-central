@@ -17,6 +17,11 @@ repairs live in `scripts/sql/remove-duplicate-26-27-season.sql` and
 touching season rows; scripts address seasons by exact `YYYY-YY` label
 while the app reads `is_active`.
 
+Draft-order changes preserve accepted pick trades: `set_draft_order` upserts the grid
+(stable pick ids — `trade_assets.draft_pick_id` is `ON DELETE RESTRICT` and NOT NULL
+for pick assets) and re-applies each trade against the new order from its declared
+seller, building `roster_size - keeper_limit` rounds.
+
 ## Commands
 
 - `npm run dev` — Vite dev server (port 8080)
