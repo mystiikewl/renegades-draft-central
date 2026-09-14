@@ -1,18 +1,26 @@
 // Supabase Edge Function: sync-keepers
 //
 // Mirrors rosters (incl. keeper flags) from the live ESPN league into
-// public.rosters — server-side port of scripts/import-league.mjs.
+// public.rosters — server-side port of scripts/import-league.mjs, kept in
+// lockstep with its semantics:
+//   - rows already marked acquisition='keeper' are protected when ESPN has
+//     no keeper selections of its own (pre-keeper-selection behaviour);
+//   - pre-draft ESPN does NOT tag kept players KEEPER — the upcoming
+//     season's rosters are exactly the kept players, so they win over stale
+//     DB tags, and off-season moves (kept by B while last sitting on A's
+//     roster) are re-attributed to the keeping team;
+//   - once draft_settings.keepers_finalized_at is set the roster mirror goes
+//     read-only so a sync can never resurrect non-keepers into the pool
+//     after Finalize Keepers.
 //
-// Keeper safety: rows already marked acquisition='keeper' are never touched
-// (ESPN cannot overwrite or move them), and once draft_settings
-// .keepers_finalized_at is set the roster mirror goes read-only so a sync
-// can never resurrect non-keepers into the pool after Finalize Keepers.
+// Auth: platform verify_jwt is ON (config.toml) and requireAdmin() below
+// additionally requires profiles.is_admin — both gates must pass.
 //
 // Env vars: ESPN_S2, ESPN_SWID set via `supabase secrets set`.
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are injected into every
 // Edge Function by the platform — no PAT required.
 //
-// POST { "season": 2026 } -> { teams_updated, roster_upserted, keepers_protected, rosters_skipped_finalized, players_resolved, players_skipped }
+// POST { "season": 2026 } -> { teams_updated, roster_upserted, keepers_inferred, keepers_protected, rosters_skipped_finalized, players_resolved, players_skipped }
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
 const ACQ = { DRAFT: 'draft', KEEPER: 'keeper', TRADE: 'trade', ADD: 'trade', WAIVER: 'trade' };
@@ -76,12 +84,12 @@ Deno.serve(async (req) => {
 
   try {
     // Fetch league payload
-    const url =
+    const leagueUrl =
       `https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba/seasons/${season}` +
       `/segments/0/leagues/201?view=mTeam&view=mRoster`;
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0', Cookie: `espn_s2=${ESPN_S2}; SWID=${ESPN_SWID};` },
-    });
+    const espnFetch = (url) =>
+      fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', Cookie: `espn_s2=${ESPN_S2}; SWID=${ESPN_SWID};` } });
+    const res = await espnFetch(leagueUrl);
     if (!res.ok) throw new Error(`ESPN API ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const league = await res.json();
 
@@ -132,13 +140,51 @@ Deno.serve(async (req) => {
     const teamRows = await rest('teams?espn_team_id=not.is.null&select=id,espn_team_id');
     const teamByEspn = new Map(teamRows.map((t) => [t.espn_team_id, t.id]));
 
+    // Keeper inference (port of import-league.mjs): pre-draft ESPN does not
+    // tag KEEPER — the upcoming season's rosters are exactly the kept
+    // players. Off-season trades only exist there, so a player kept by team B
+    // while his last-season entry sits on team A belongs to B now.
+    const espnKeepers = new Map();
+    try {
+      const upcomingRes = await espnFetch(
+        `https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba/seasons/${season + 1}` +
+          `/segments/0/leagues/201?view=mTeam&view=mRoster`,
+      );
+      if (upcomingRes.ok) {
+        const upcoming = await upcomingRes.json();
+        for (const t of upcoming.teams ?? []) {
+          for (const e of t.roster?.entries ?? []) {
+            const p = e.playerPoolEntry?.player ?? e.player;
+            if (p?.id) espnKeepers.set(String(p.id), t.id);
+          }
+        }
+      }
+    } catch {
+      // Upcoming league not published yet — fall back to protecting tagged rows.
+    }
+    const espnHasKeepers = espnKeepers.size > 0;
+
     const rosterRows = [];
+    let keepersInferred = 0;
     for (const t of league.teams) {
       const teamId = teamByEspn.get(t.id);
       if (!teamId) continue;
       for (const e of t.roster?.entries ?? []) {
         const p = e.playerPoolEntry?.player ?? e.player;
         if (!p?.id) continue;
+        const keptBy = espnKeepers.get(String(p.id));
+        if (keptBy != null) {
+          const keeperTeamId = teamByEspn.get(keptBy);
+          if (!keeperTeamId) continue; // unknown ESPN team; plan guard already rejects those
+          rosterRows.push({
+            player_espn_id: String(p.id),
+            team_id: keeperTeamId,
+            acquisition: 'keeper',
+            acquired_at: e.acquisitionDate ? new Date(parseInt(e.acquisitionDate)).toISOString() : null,
+          });
+          keepersInferred++;
+          continue;
+        }
         rosterRows.push({
           player_espn_id: String(p.id),
           team_id: teamId,
@@ -163,8 +209,11 @@ Deno.serve(async (req) => {
     }
     const rows = rosterRows.filter((r) => r.player_id);
     const playersSkipped = rosterRows.length - rows.length;
-    const keepersProtected = rows.filter((r) => keeperSet.has(r.player_id)).length;
-    const writable = keepersFinalized ? [] : rows.filter((r) => !keeperSet.has(r.player_id));
+    // Legacy protection only applies when ESPN has no keeper selections of
+    // its own; when it does, ESPN wins and stale DB tags get overwritten.
+    const protect = espnHasKeepers ? new Set() : keeperSet;
+    const keepersProtected = rows.filter((r) => protect.has(r.player_id)).length;
+    const writable = keepersFinalized ? [] : rows.filter((r) => !protect.has(r.player_id));
 
     let rosterUpserted = 0;
     for (let i = 0; i < writable.length; i += 100) {
@@ -186,6 +235,7 @@ Deno.serve(async (req) => {
     return json({
       teams_updated: plan.length,
       roster_upserted: rosterUpserted,
+      keepers_inferred: espnHasKeepers ? keepersInferred : 0,
       keepers_protected: keepersProtected,
       rosters_skipped_finalized: keepersFinalized ? rows.length : 0,
       players_resolved: playersResolved,

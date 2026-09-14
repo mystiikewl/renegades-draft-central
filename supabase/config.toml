@@ -1,1 +1,5 @@
 project_id = "xruqdjonzxkzwsslzpdl"
+[functions.sync-keepers]
+# Edge JWT verification ON: the gateway rejects unauthenticated callers
+# before requireAdmin() runs. Keep both gates when redeploying.
+verify_jwt = true
