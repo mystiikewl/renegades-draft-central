@@ -3,14 +3,15 @@
 /**
  * Trade/draft integrity simulation against a throwaway Supabase season.
  *
- * Exercises commissioner overrides, pick ownership across reset, exact-slot
- * skip/pick/undo behavior, reset protection for traded drafted players,
- * reversal, and post-completion locks.
+ * Exercises commissioner overrides, pick ownership across reset, draft-order
+ * regeneration re-applying accepted pick trades onto the new order,
+ * exact-slot skip/pick/undo behavior, reset protection for traded drafted
+ * players, reversal, and post-completion locks.
  */
 
 import { e2eHarness } from './lib/e2e.mjs';
 
-const LABEL = 'E2E-TRADE-INTEGRITY';
+const LABEL = '2400-01'; // YYYY-YY contract (seasons_label_format); never a real season
 const h = e2eHarness({
   requiredEnv: ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'SUPABASE_ACCESS_TOKEN',
     'SIM_ADMIN_EMAIL', 'SIM_ADMIN_PASSWORD'],
@@ -44,9 +45,15 @@ await step('clean leftovers and authenticate admin', async () => {
 });
 
 await step('create isolated 2-team test season', async () => {
-  seasonId = await rpc('create_season', { p_label: LABEL }, admin);
+  // Setup only. create_season is deliberately guarded (label contract, no twin
+  // seasons, no premature rollover while the live season is undrafted), so the
+  // throwaway season is inserted directly — and never steals is_active from
+  // the live league.
+  const created = await sql(`insert into public.seasons (label, is_active) values ('${LABEL}', false) returning id`);
+  seasonId = created[0].id;
   assert(typeof seasonId === 'string' && seasonId.length === 36, 'season UUID missing');
-  await sql(`update public.draft_settings set league_size = 2, roster_size = 3 where season_id = '${seasonId}'::uuid`);
+  await sql(`insert into public.draft_settings (season_id) values ('${seasonId}'::uuid)`);
+  await sql(`update public.draft_settings set league_size = 2, roster_size = 3, keeper_limit = 0 where season_id = '${seasonId}'::uuid`);
   const teams = await sql(`select id from public.teams where not is_shadow order by name limit 2`);
   assert(teams.length === 2, 'need two real teams');
   [teamA, teamB] = teams.map((row) => row.id);
@@ -89,11 +96,36 @@ await step('reset preserves accepted traded pick ownership', async () => {
   assert(target?.is_used === false && target?.is_skipped === false, 'reset did not clear outcome state');
 });
 
-await step('draft-order regeneration is blocked while pick ownership is traded', async () => {
-  await expectRpcError(
-    rpc('set_draft_order', { p_season_id: seasonId, p_order: [teamB, teamA] }, admin),
-    'traded picks have changed ownership',
-  );
+await step('draft-order regeneration re-applies the accepted pick trade to the new order', async () => {
+  const before = await picks(seasonId);
+  const traded = before.find((pick) => pick.id === tradedPickId);
+  assert(traded?.team_id === teamB, "precondition: the traded pick should be Team B's");
+  const { round } = traded;
+
+  // Team B picks first now, so Team A's round-1 slot shifts one place right.
+  await rpc('set_draft_order', { p_season_id: seasonId, p_order: [teamB, teamA] }, admin);
+
+  const after = await picks(seasonId);
+  assert(after.length === before.length, `grid shape changed on reorder: ${before.length} -> ${after.length}`);
+
+  // The trade means "Team A's round-N pick → Team B", so it follows Team A's slot.
+  const sellerPick = after.find((pick) => pick.round === round && pick.original_team_id === teamA);
+  assert(sellerPick && sellerPick.team_id === teamB, `Team A's round-${round} pick should now belong to Team B`);
+
+  const overrides = after.filter((pick) => pick.team_id !== pick.original_team_id);
+  assert(overrides.length === 1, `expected exactly one traded pick on the new grid, found ${overrides.length}`);
+
+  const stale = after.find((pick) => pick.id === tradedPickId);
+  assert(stale.team_id === stale.original_team_id, 'the row that used to carry the override kept it');
+
+  const assets = await sql(`select a.draft_pick_id from public.trade_assets a
+                            join public.trades t on t.id = a.trade_id
+                            where t.season_id = '${seasonId}'::uuid and t.status = 'accepted'
+                              and a.asset_type = 'pick'`);
+  assert(assets.length === 1 && assets[0].draft_pick_id === sellerPick.id,
+    "trade asset was not re-pointed at the seller's new slot pick");
+
+  tradedPickId = sellerPick.id; // later steps assert against the live override
 });
 
 await step('skip pick is exact-slot and undo restores that exact slot', async () => {

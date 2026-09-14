@@ -2,7 +2,7 @@
 
 /**
  * Phase 5 — End-to-end draft simulation against the LIVE Supabase project,
- * on a throwaway season (label 'E2E-SIM'). Never touches 2025-26/2026-27.
+ * on a throwaway season (label '2400-02'). Never touches 2025-26/2026-27.
  *
  * All draft mutations are called as real authenticated users via the anon-key
  * REST endpoint (exercises RLS + turn checks). SUPABASE_ACCESS_TOKEN
@@ -20,7 +20,7 @@
 
 import { e2eHarness } from './lib/e2e.mjs';
 
-const SIM_LABEL = 'E2E-SIM';
+const SIM_LABEL = '2400-02'; // format-valid throwaway label (seasons_label_format)
 const h = e2eHarness(); // loads .env; exits if VITE_*/anon/ACCESS_TOKEN missing
 const { step, assert, expectRpcError, login, rpc, sql } = h;
 
@@ -51,14 +51,19 @@ await step('cleanup any leftover sim season + login test users', async () => {
   if (USER_EMAIL) user = await login(USER_EMAIL, USER_PASSWORD);
 });
 
-await step("create_season('E2E-SIM') as admin", async () => {
-  const id = await rpc('create_season', { p_label: SIM_LABEL }, admin);
+await step(`create throwaway season ${SIM_LABEL} (setup SQL, never steals is_active)`, async () => {
+  // create_season is deliberately guarded now (label contract, no twin seasons,
+  // no premature rollover while the live season is undrafted), so setup inserts
+  // the throwaway season directly with is_active = false.
+  const created = await sql(`insert into public.seasons (label, is_active) values ('${SIM_LABEL}', false) returning id`);
+  const id = created[0].id;
   assert(typeof id === 'string' && id.length === 36, `expected uuid, got ${JSON.stringify(id)}`);
+  await sql(`insert into public.draft_settings (season_id) values ('${id}'::uuid)`);
   seasonId = id;
 });
 
 await step('shrink sim settings to 4 teams x 2 rounds (Management API, setup only)', async () => {
-  await sql(`update public.draft_settings set league_size = 4, roster_size = 2
+  await sql(`update public.draft_settings set league_size = 4, roster_size = 2, keeper_limit = 0
              where season_id = '${seasonId}'::uuid`);
   const rows = await sql(`select league_size, roster_size, status, draft_order from public.draft_settings
                           where season_id = '${seasonId}'::uuid`);
