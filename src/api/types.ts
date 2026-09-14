@@ -74,6 +74,8 @@ export interface DraftSettings {
   status: DraftStatus;
   draft_order: string[];
   keepers_finalized_at?: string | null;
+  /** Display-only clock anchor; null in this league (untimed drafts). */
+  turn_deadline_at?: string | null;
   updated_at: string;
 }
 
@@ -136,4 +138,14 @@ export interface Trade {
   from_team?: Pick<Team, 'id' | 'name'> | null;
   to_team?: Pick<Team, 'id' | 'name'> | null;
   assets?: TradeAsset[];
+}
+
+/** Row from admin_log — appended inside SECURITY DEFINER RPCs, read-only here. */
+export interface AdminLogEntry {
+  id: number;
+  at: string;
+  actor: string | null;
+  action: string;
+  payload: Record<string, unknown>;
+  profiles?: { display_name: string | null } | null;
 }

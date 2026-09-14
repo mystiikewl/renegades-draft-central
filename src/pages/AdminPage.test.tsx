@@ -23,6 +23,7 @@ vi.mock('@/api/queries', () => ({
   useDraftPicks: () => ({ data: [] }),
   useRosters: () => ({ data: [] }),
   useTeams: () => ({ data: teams }),
+  useAdminLog: () => ({ data: [] }),
 }));
 
 vi.mock('@/api/mutations', () => ({

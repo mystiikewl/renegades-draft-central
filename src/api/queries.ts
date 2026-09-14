@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { selectPreferredStats, type ProjectionStatsRow } from '@/lib/projectionData';
 import { pickStatsSeason, type StatsSeasonRow } from '@/lib/stats';
 import type {
+  AdminLogEntry,
   DraftPick,
   DraftSettings,
   PlayerWithStats,
@@ -31,6 +32,7 @@ export const qk = {
   rosters: (seasonId: string) => ['rosters', seasonId] as const,
   trades: (seasonId: string) => ['trades', seasonId] as const,
   gameLog: (espnId: string | null | undefined) => ['game-log', espnId] as const,
+  adminLog: ['admin-log'] as const,
 };
 
 export function useSeasons() {
@@ -267,6 +269,22 @@ export function useTrades(seasonId: string | undefined) {
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as Trade[];
+    },
+  });
+}
+
+/** Append-only record of destructive commissioner actions (admin-read-only via RLS). */
+export function useAdminLog(limit = 30) {
+  return useQuery({
+    queryKey: [...qk.adminLog, limit],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('admin_log')
+        .select('id, at, actor, action, payload, profiles(display_name)')
+        .order('at', { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data as AdminLogEntry[];
     },
   });
 }

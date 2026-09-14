@@ -41,6 +41,7 @@ import {
 } from '@/api/mutations';
 import { SyncEspnKeepersCard } from '@/components/admin/SyncEspnKeepersCard';
 import { DraftSettingsCard } from '@/components/admin/DraftSettingsCard';
+import { AdminLogCard } from '@/components/admin/AdminLogCard';
 import { KeeperManager } from '@/components/keepers/KeeperManager';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -211,6 +212,8 @@ function AdminOverview({
           </Link>
         ))}
       </div>
+
+      <AdminLogCard />
     </div>
   );
 }
@@ -319,6 +322,10 @@ function EmptyState({ message }: { message: string }) {
 }
 
 function CreateSeasonCard({ onCreate, pending, label, setLabel }: { onCreate: (label: string) => void; pending: boolean; label: string; setLabel: (value: string) => void }) {
+  // Scripts and repair SQL address seasons by exact YYYY-YY label — the same
+  // contract create_season enforces server-side (2026-09-14 twin-season incident).
+  const labelOk = /^\d{4}-\d{2}$/.test(label.trim());
+  const showHint = label.trim().length > 0 && !labelOk;
   return (
     <Card>
       <CardHeader><CardTitle className="text-lg">Create season</CardTitle></CardHeader>
@@ -329,12 +336,18 @@ function CreateSeasonCard({ onCreate, pending, label, setLabel }: { onCreate: (l
           onSubmit={(event) => {
             event.preventDefault();
             const trimmed = label.trim();
-            if (trimmed) onCreate(trimmed);
+            if (trimmed && labelOk) onCreate(trimmed);
           }}
         >
           <Input placeholder="Season label, e.g. 2027-28" value={label} onChange={(event) => setLabel(event.target.value)} />
-          <Button type="submit" className="sm:w-auto" disabled={pending || !label.trim()}>Create season</Button>
+          <Button type="submit" className="sm:w-auto" disabled={pending || !labelOk}>Create season</Button>
         </form>
+        {showHint && (
+          <p className="text-sm text-destructive">
+            Labels must be exactly YYYY-YY (e.g. 2027-28). The server rejects anything else — and refuses
+            while the active season hasn't drafted.
+          </p>
+        )}
       </CardContent>
     </Card>
   );
