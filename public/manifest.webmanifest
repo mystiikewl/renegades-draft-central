@@ -1,0 +1,26 @@
+{
+  "name": "Renegades Draft Central",
+  "short_name": "Renegades",
+  "description": "Draft board, keepers and live picks for the Renegades NBA dynasty league.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#070b11",
+  "theme_color": "#ef7d2e",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

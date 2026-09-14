@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Offline — Renegades Draft Central</title>
+    <meta name="theme-color" content="#ef7d2e" />
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: hsl(222 47% 5%);
+        color: hsl(0 0% 98%);
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        text-align: center;
+        padding: 2rem;
+      }
+      .ball { width: 56px; height: 56px; margin: 0 auto 1.25rem; display: block; }
+      h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
+      p { color: hsl(222 15% 70%); font-size: 0.9rem; line-height: 1.6; margin: 0; max-width: 28rem; }
+      code { font-family: ui-monospace, monospace; background: hsl(222 25% 15%); padding: 0.15rem 0.4rem; border-radius: 0.35rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img class="ball" src="/favicon.svg" alt="" />
+      <h1>You're offline</h1>
+      <p>
+        The draft board can't reach Supabase right now. If you're picking, the offline queue holds your
+        selection and submits it the moment the connection returns — nothing is lost by waiting.
+        Reconnect and reload to get back on the clock.
+      </p>
+    </main>
+  </body>
+</html>
