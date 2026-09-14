@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 
@@ -6,6 +7,10 @@ import { supabase } from '@/lib/supabase';
  * Offline pick queue. Every intent is bound to the exact pick slot the user
  * was viewing. A reconnect can never apply an old player choice to a later
  * round or snake-turnaround pick.
+ *
+ * The queue survives a page refresh via localStorage, but entries older than
+ * STALE_QUEUED_PICK_MS are dropped on rehydrate and on flush: a stale queued
+ * pick is worse than a lost one (the board has moved on without it).
  */
 export interface QueuedPick {
   seasonId: string;
@@ -16,23 +21,46 @@ export interface QueuedPick {
   queuedAt: number;
 }
 
+/** A queued pick older than this is expired. */
+export const STALE_QUEUED_PICK_MS = 10 * 60_000;
+
+const QUEUE_STORAGE_KEY = 'renegades-offline-pick-queue';
+
+function isFresh(pick: QueuedPick, now = Date.now()): boolean {
+  return now - pick.queuedAt <= STALE_QUEUED_PICK_MS;
+}
+
 interface OfflineQueueState {
   queue: QueuedPick[];
   enqueue: (pick: QueuedPick) => void;
   drop: (pickId: string) => void;
 }
 
-export const useOfflineQueue = create<OfflineQueueState>((set) => ({
-  queue: [],
-  enqueue: (pick) =>
-    set((s) =>
-      s.queue.some((q) => q.pickId === pick.pickId)
-        ? s
-        : { queue: [...s.queue, pick] }
-    ),
-  drop: (pickId) =>
-    set((s) => ({ queue: s.queue.filter((q) => q.pickId !== pickId) })),
-}));
+export const useOfflineQueue = create<OfflineQueueState>()(
+  persist(
+    (set) => ({
+      queue: [],
+      enqueue: (pick) =>
+        set((s) =>
+          s.queue.some((q) => q.pickId === pick.pickId)
+            ? s
+            : { queue: [...s.queue, pick] }
+        ),
+      drop: (pickId) =>
+        set((s) => ({ queue: s.queue.filter((q) => q.pickId !== pickId) })),
+    }),
+    {
+      name: QUEUE_STORAGE_KEY,
+      partialize: (s) => ({ queue: s.queue }),
+      // Rehydrate is also the stale sweep: anything older than the window
+      // never comes back after a refresh.
+      merge: (persisted, current) => ({
+        ...current,
+        queue: ((persisted as { queue?: QueuedPick[] } | undefined)?.queue ?? []).filter((pick) => isFresh(pick)),
+      }),
+    },
+  ),
+);
 
 export function isNetworkError(err: unknown): boolean {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
@@ -59,6 +87,15 @@ async function flushQueue() {
   if (typeof navigator !== 'undefined' && !navigator.onLine) return;
 
   const head = state.queue[0];
+  if (!isFresh(head)) {
+    // The draft moved on while this intent sat in the queue; a stale pick
+    // would be rejected anyway (and might have targeted a traded slot).
+    useOfflineQueue.getState().drop(head.pickId);
+    toast.info(`Queued pick #${head.pickNumber} for ${head.playerName} expired after 10 minutes — not submitted.`);
+    if (useOfflineQueue.getState().queue.length) scheduleFlush(3000);
+    else stopTimer();
+    return;
+  }
   try {
     const { error } = await supabase.rpc('make_pick_for_slot', {
       p_season_id: head.seasonId,
