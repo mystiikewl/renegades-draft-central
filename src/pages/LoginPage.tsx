@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import { ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/auth/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
@@ -44,6 +45,17 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
+        <CardHeader className="space-y-3 text-center">
+          <div className="mx-auto flex size-11 items-center justify-center rounded-xl border bg-muted/50">
+            <ClipboardList className="size-5 text-primary" />
+          </div>
+          <CardTitle className="text-2xl font-bold tracking-tight">Renegades Draft Central</CardTitle>
+          <CardDescription>
+            {mode === 'signin'
+              ? 'Sign in to run your dynasty draft night.'
+              : 'Create an account to claim your team.'}
+          </CardDescription>
+        </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -71,7 +83,11 @@ export function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            <Button type="submit" className="w-full transition-transform active:scale-[0.98]" disabled={busy}>
+            <Button
+              type="submit"
+              className="w-full transition-transform active:scale-[0.98]"
+              disabled={busy || loading}
+            >
               {busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Sign up'}
             </Button>
             <Button
