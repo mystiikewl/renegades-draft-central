@@ -29,7 +29,6 @@ import { PlayerStatsDialog } from '@/components/player/PlayerStatsDialog';
 import { getTeamColour } from '@/lib/teamColours';
 import { leagueValueScores } from '@/lib/projections';
 import { nextPick as pickOnClock, teamById } from '@/lib/draftState';
-import { useOnTheClockNotification } from '@/hooks/useOnTheClockNotification';
 
 function DraftStatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -94,11 +93,6 @@ export function DraftPage() {
   const teamName = (id: string) => teamsIndex.get(id)?.name ?? '—';
   const isMyTurn = !!nextPick && !!profile?.team_id && nextPick.team_id === profile.team_id;
   const canPickNow = useCanPickNow(seasonId);
-  useOnTheClockNotification({
-    isMyTurn,
-    pickNumber: nextPick?.pick_number,
-    seasonLabel: season?.label,
-  });
   const draftVisible = settings?.status === 'running' || settings?.status === 'paused';
   const draftRunning = settings?.status === 'running';
   const myRosterCount = (rosters ?? []).filter((row) => row.team_id === profile?.team_id).length;

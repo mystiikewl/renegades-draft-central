@@ -8,7 +8,7 @@
 //     when the venue wifi dies, so the board stays readable offline.
 // Supabase REST/realtime and ESPN traffic is cross-origin and always passes
 // straight through — draft state is never served from cache.
-const VERSION = 'renegades-v1';
+const VERSION = 'renegades-v2';
 const APP_SHELL = ['/', '/offline.html', '/favicon.svg', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -59,4 +59,15 @@ self.addEventListener('fetch', (event) => {
       ),
     );
   }
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((client) => new URL(client.url).pathname === '/');
+      if (existing) return existing.focus();
+      return self.clients.openWindow(event.notification.data?.url ?? '/');
+    }),
+  );
 });

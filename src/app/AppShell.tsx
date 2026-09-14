@@ -4,7 +4,9 @@ import { Bot, ClipboardList, ListChecks, Settings, UserCircle, Users } from 'luc
 import { useAuth } from '@/auth/AuthContext';
 import { AnalysisNav } from '@/components/analysis/AnalysisNav';
 import { DraftTurnBanner } from '@/components/draft/DraftTurnBanner';
+import { DraftNotifications } from '@/components/draft/DraftNotifications';
 import { PracticeDraftSessionController } from '@/components/draft/PracticeDraftSessionController';
+import { PwaInstallButton } from '@/components/pwa/PwaInstallButton';
 import { TradeAnnouncementBanner } from '@/components/trades/TradeAnnouncementBanner';
 import { Toaster } from '@/components/ui/sonner';
 import { useMobileViewportInsets } from '@/hooks/useMobileViewportInsets';
@@ -96,6 +98,7 @@ export function AppShell() {
               </nav>
             </div>
             <div className="flex min-w-0 items-center gap-2">
+              <PwaInstallButton />
               {pathname === '/' && (
                 <Link
                   to="/practice-draft"
@@ -165,6 +168,7 @@ export function AppShell() {
       )}
 
       {profile?.team_id && <PracticeDraftSessionController />}
+      {profile?.team_id && <DraftNotifications />}
       {profile?.team_id && !inPracticeDraft && !practiceActive && <DraftTurnBanner />}
       {profile?.team_id && !inPracticeDraft && <TradeAnnouncementBanner />}
       <Outlet />

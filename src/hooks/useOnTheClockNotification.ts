@@ -3,10 +3,9 @@ import { useEffect, useRef } from 'react';
 /**
  * "You're on the clock" alert (backlog P3 #11).
  *
- * Local Notification API only: fires when the board rotates onto the user's
- * team while the tab is hidden (phone in pocket during an in-person draft).
- * No server push — the remote/web-push half stays unspecced until the league
- * drafts remotely; the permission grant doubles as the on/off preference.
+ * Fires when the board rotates onto the user's team while the app is hidden.
+ * The service worker path is required by installed mobile PWAs; the browser
+ * Notification constructor remains as a fallback for desktop browsers.
  */
 
 export type NotificationState = 'unsupported' | 'default' | 'granted' | 'denied';
@@ -25,6 +24,40 @@ export async function requestOnClockPermission(): Promise<NotificationState> {
   } catch {
     return 'denied';
   }
+}
+
+function notificationOptions(pickNumber?: number | null, seasonLabel?: string | null): NotificationOptions {
+  const pick = pickNumber ? `Pick #${pickNumber}` : 'Your pick';
+  return {
+    body: `${pick}${seasonLabel ? ` · ${seasonLabel}` : ''} — tap to open the board`,
+    tag: 'on-the-clock',
+    icon: '/favicon.svg',
+    data: { url: '/' },
+  };
+}
+
+function showBrowserNotification(title: string, options: NotificationOptions) {
+  try {
+    new Notification(title, options);
+  } catch {
+    // Some mobile browsers only allow notifications through a service worker.
+  }
+}
+
+function showOnClockNotification(pickNumber?: number | null, seasonLabel?: string | null) {
+  const title = "You're on the clock";
+  const options = notificationOptions(pickNumber, seasonLabel);
+
+  if ('serviceWorker' in navigator) {
+    void navigator.serviceWorker.ready
+      .then((registration) => registration.showNotification(title, options))
+      .catch(() => {
+        showBrowserNotification(title, options);
+      });
+    return;
+  }
+
+  showBrowserNotification(title, options);
 }
 
 export function useOnTheClockNotification(options: {
@@ -46,12 +79,8 @@ export function useOnTheClockNotification(options: {
     ) {
       return;
     }
-    const pick = pickNumber ? `Pick #${pickNumber}` : 'Your pick';
     try {
-      new Notification("You're on the clock", {
-        body: `${pick}${seasonLabel ? ` · ${seasonLabel}` : ''} — tap to open the board`,
-        tag: 'on-the-clock',
-      });
+      showOnClockNotification(pickNumber, seasonLabel);
     } catch {
       /* some platforms restrict constructor use; the visible UI still shows the turn */
     }
