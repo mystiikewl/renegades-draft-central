@@ -42,6 +42,27 @@ export function LoginPage() {
     }
   }
 
+  async function sendSignInLink() {
+    if (!email) {
+      toast.error('Enter your email address first.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false },
+      });
+      if (error) throw error;
+      toast.success('Check your email for a sign-in link.');
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
@@ -94,6 +115,16 @@ export function LoginPage() {
               type="button"
               variant="ghost"
               className="w-full"
+              disabled={busy}
+              onClick={() => void sendSignInLink()}
+            >
+              Email me a sign-in link
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              disabled={busy}
               onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
             >
               {mode === 'signin' ? 'Need an account? Sign up' : 'Have an account? Sign in'}
