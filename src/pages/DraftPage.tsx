@@ -21,12 +21,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { DraftPlayerList } from '@/components/draft/DraftPlayerList';
+import { OnClockNotifyToggle } from '@/components/draft/OnClockNotifyToggle';
+import { PickClock } from '@/components/draft/PickClock';
 import { RealtimeBadge } from '@/components/draft/RealtimeBadge';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { PlayerStatsDialog } from '@/components/player/PlayerStatsDialog';
 import { getTeamColour } from '@/lib/teamColours';
 import { leagueValueScores } from '@/lib/projections';
 import { nextPick as pickOnClock, teamById } from '@/lib/draftState';
+import { useOnTheClockNotification } from '@/hooks/useOnTheClockNotification';
 
 function DraftStatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -91,6 +94,11 @@ export function DraftPage() {
   const teamName = (id: string) => teamsIndex.get(id)?.name ?? '—';
   const isMyTurn = !!nextPick && !!profile?.team_id && nextPick.team_id === profile.team_id;
   const canPickNow = useCanPickNow(seasonId);
+  useOnTheClockNotification({
+    isMyTurn,
+    pickNumber: nextPick?.pick_number,
+    seasonLabel: season?.label,
+  });
   const draftVisible = settings?.status === 'running' || settings?.status === 'paused';
   const draftRunning = settings?.status === 'running';
   const myRosterCount = (rosters ?? []).filter((row) => row.team_id === profile?.team_id).length;
@@ -123,6 +131,7 @@ export function DraftPage() {
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <DraftStatusBadge status={settings?.status ?? 'pre_draft'} />
+          <OnClockNotifyToggle />
           <RealtimeBadge />
         </div>
       </div>
@@ -139,6 +148,7 @@ export function DraftPage() {
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
                   <Radio className={`size-3.5 ${isMyTurn ? 'text-primary' : ''}`} />
                   {settings?.status === 'paused' ? 'Draft paused' : 'On the clock'}
+                  <PickClock deadline={settings?.turn_deadline_at} paused={settings?.status === 'paused'} />
                 </div>
                 <div className="mt-1 line-clamp-2 text-lg font-bold leading-tight">{teamName(nextPick.team_id)}</div>
                 <div className={`mt-1 text-xs font-medium ${isMyTurn ? 'text-primary' : 'text-muted-foreground'}`}>
