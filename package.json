@@ -14,7 +14,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
-    "test:bundle": "node --test scripts/bundle-budget.test.mjs",
+    "test:bundle": "vitest run src/test/bundle-budget.test.ts",
     "test:scripts": "node --test scripts/import-projections.test.mjs scripts/import-league.test.mjs scripts/lib/e2e.test.mjs",
     "test:coverage": "vitest run --coverage",
     "test:e2e:trade": "node scripts/e2e-trade-draft-integrity.mjs"
