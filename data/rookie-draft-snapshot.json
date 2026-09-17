@@ -1,0 +1,606 @@
+{
+  "fetched_at": "2026-09-17T20:06:53.984Z",
+  "results": [
+    {
+      "id": "e1bcb81f-ec35-4e70-ad75-033706526f2b",
+      "espn_id": "5174983",
+      "name": "Aday Mara",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 12 (OKC)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5174983"
+    },
+    {
+      "id": "9adf5dbc-f552-4237-8175-008cb3a75aa8",
+      "espn_id": "5142718",
+      "name": "AJ Dybantsa",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 1 (WSH)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5142718"
+    },
+    {
+      "id": "c02046b9-0ba5-4ea4-989c-330cafcc302f",
+      "espn_id": "5114350",
+      "name": "AK Okereke",
+      "draft_display": null,
+      "fetched_draft_display": null,
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5114350"
+    },
+    {
+      "id": "dc432a86-098f-4791-aa12-967cf79ac027",
+      "espn_id": "4917149",
+      "name": "Alex Karaban",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 29 (CLE)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4917149"
+    },
+    {
+      "id": "3d884092-07b7-46ff-8255-a63a0255c90a",
+      "espn_id": "5149115",
+      "name": "Allen Graves",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 19 (TOR)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5149115"
+    },
+    {
+      "id": "8a7b4a09-5008-4fb1-95c6-eab58a313916",
+      "espn_id": "4065813",
+      "name": "Alpha Diallo",
+      "draft_display": null,
+      "fetched_draft_display": null,
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4065813"
+    },
+    {
+      "id": "d28173b6-5c9c-4419-808f-2bed3a90d9cf",
+      "espn_id": "5075626",
+      "name": "Baba Miller",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 36 (LAC)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5075626"
+    },
+    {
+      "id": "547ba90d-56fa-4f90-aa19-e54b343de781",
+      "espn_id": "5241364",
+      "name": "Bennett Stirtz",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 16 (MEM)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5241364"
+    },
+    {
+      "id": "7b7a3219-238e-4482-9867-8cd7859e38e6",
+      "espn_id": "5214989",
+      "name": "Bogoljub Markovic",
+      "draft_display": null,
+      "fetched_draft_display": "2025: Rd 2, Pk 47 (MIL)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5214989"
+    },
+    {
+      "id": "7fae3b1b-b26a-462f-9cac-c0958714a77f",
+      "espn_id": "5105854",
+      "name": "Braden Smith",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 38 (CHI)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5105854"
+    },
+    {
+      "id": "13a0b177-af79-4cbd-ae62-ac73090ef61f",
+      "espn_id": "5082206",
+      "name": "Brayden Burries",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 10 (MIL)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5082206"
+    },
+    {
+      "id": "5ce6365d-ef28-4e67-a628-b0889b2927cb",
+      "espn_id": "5105837",
+      "name": "Bruce Thornton",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 31 (NY)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5105837"
+    },
+    {
+      "id": "f3df7425-f268-4c39-afd6-16988384032e",
+      "espn_id": "4565698",
+      "name": "Bryce Hopkins",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 49 (DEN)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4565698"
+    },
+    {
+      "id": "c54b494b-545a-4573-81ad-01876cb7920c",
+      "espn_id": "5095151",
+      "name": "Caleb Wilson",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 4 (CHI)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5095151"
+    },
+    {
+      "id": "2072fe91-4e38-4e16-9ac5-a275417c85ef",
+      "espn_id": "5041935",
+      "name": "Cameron Boozer",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 3 (MEM)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5041935"
+    },
+    {
+      "id": "440cb83b-e7f4-4b7a-a44c-f9d46b925dce",
+      "espn_id": "5113969",
+      "name": "Cameron Carr",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 24 (NY)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5113969"
+    },
+    {
+      "id": "620c4152-143b-40f0-b0f5-699eefcbd3b4",
+      "espn_id": "5142621",
+      "name": "Chris Cenac Jr.",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 27 (BOS)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5142621"
+    },
+    {
+      "id": "9da03f08-48a5-48c6-a7db-1129925bf5ed",
+      "espn_id": "5060701",
+      "name": "Christian Anderson",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 18 (CHA)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5060701"
+    },
+    {
+      "id": "7311d97b-ae09-42d7-8d44-cdee9208f00f",
+      "espn_id": "4848625",
+      "name": "Dailyn Swain",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 15 (CHI)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4848625"
+    },
+    {
+      "id": "3a0f4b44-9747-4e72-9754-0a66184100ab",
+      "espn_id": "5142620",
+      "name": "Darius Acuff Jr.",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 7 (SAC)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5142620"
+    },
+    {
+      "id": "9947df91-3920-4eb5-8fd3-05e2d01fbf4f",
+      "espn_id": "5041955",
+      "name": "Darryn Peterson",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 2 (UTAH)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5041955"
+    },
+    {
+      "id": "4357fbd7-2c1d-4b3e-a572-42a1626be46f",
+      "espn_id": "5106283",
+      "name": "Dillon Mitchell",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 40 (BOS)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5106283"
+    },
+    {
+      "id": "b788e0fe-ec40-493c-aed9-033b332cbb00",
+      "espn_id": "4702049",
+      "name": "Duke Miles",
+      "draft_display": null,
+      "fetched_draft_display": null,
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4702049"
+    },
+    {
+      "id": "e7b066b6-63da-4636-be9b-c02df6e22328",
+      "espn_id": "5258459",
+      "name": "Ebuka Okorie",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 17 (OKC)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5258459"
+    },
+    {
+      "id": "76be8dd3-d6db-489a-bc34-a08b01fbaf9e",
+      "espn_id": "5106058",
+      "name": "Emanuel Sharp",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 45 (SAC)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5106058"
+    },
+    {
+      "id": "78c51298-ac36-46a8-b9b2-643a23c8238f",
+      "espn_id": "5106261",
+      "name": "Ernest Udeh Jr.",
+      "draft_display": null,
+      "fetched_draft_display": null,
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5106261"
+    },
+    {
+      "id": "00f89326-cdae-47a0-8701-4114869f7ba6",
+      "espn_id": "5105841",
+      "name": "Felix Okpara",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 46 (ORL)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5105841"
+    },
+    {
+      "id": "3c4cc3d6-ccb0-4952-a454-640aed88514b",
+      "espn_id": "5281370",
+      "name": "Hannes Steinbach",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 14 (CHA)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5281370"
+    },
+    {
+      "id": "f7f166ac-fbea-4cb2-8449-eff92adea612",
+      "espn_id": "5105571",
+      "name": "Henri Veesaar",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 52 (LAC)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5105571"
+    },
+    {
+      "id": "e9cf0985-0a6d-4d5a-9b46-b5fdfbf807b6",
+      "espn_id": "5061585",
+      "name": "Isaiah Evans",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 33 (BKN)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5061585"
+    },
+    {
+      "id": "34c00924-e95d-443c-ad7a-f510d1f13088",
+      "espn_id": "5107251",
+      "name": "Izaiyah Nelson",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 51 (WSH)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5107251"
+    },
+    {
+      "id": "83f39580-8f9a-4251-8df9-dab9ea4457e4",
+      "espn_id": "4702784",
+      "name": "J'Vonne Hadley",
+      "draft_display": null,
+      "fetched_draft_display": null,
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4702784"
+    },
+    {
+      "id": "6a3af9a8-a4c7-4b13-82cc-2845dc3ceec3",
+      "espn_id": "5107968",
+      "name": "Ja'Kobi Gillespie",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 42 (SA)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5107968"
+    },
+    {
+      "id": "57dc730e-8867-4ccd-8e29-3e72085b88cd",
+      "espn_id": "5234862",
+      "name": "Jack Kayil",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 39 (HOU)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5234862"
+    },
+    {
+      "id": "453cb77c-2bf7-42ef-aaaa-d28e21635b6f",
+      "espn_id": "4432737",
+      "name": "Jaden Bradley",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 50 (TOR)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4432737"
+    },
+    {
+      "id": "1a896572-9db4-48d9-8a7a-069bccfc065a",
+      "espn_id": "4897696",
+      "name": "Jamarion Sharp",
+      "draft_display": null,
+      "fetched_draft_display": null,
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4897696"
+    },
+    {
+      "id": "6ea77f50-440f-4ae4-be7f-9245298efd38",
+      "espn_id": "4703115",
+      "name": "Jaron Pierre Jr.",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 58 (NO)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4703115"
+    },
+    {
+      "id": "291069e8-01e7-40bd-bab0-e73285319a7d",
+      "espn_id": "5101845",
+      "name": "Jayden Quaintance",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 20 (SA)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5101845"
+    },
+    {
+      "id": "bb0ce616-1d7c-4019-80de-2388965dc8af",
+      "espn_id": "5105800",
+      "name": "Josh Dix",
+      "draft_display": null,
+      "fetched_draft_display": null,
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5105800"
+    },
+    {
+      "id": "7c7d6c93-ef5b-47ce-932f-31a7b723abc4",
+      "espn_id": "4870564",
+      "name": "Joshua Jefferson",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 28 (MIN)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4870564"
+    },
+    {
+      "id": "04bc1dfb-bf23-4d02-9fc4-ee96bba8e014",
+      "espn_id": "5231919",
+      "name": "Karim Lopez",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 21 (DET)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5231919"
+    },
+    {
+      "id": "bf58770b-b3d6-405c-a6ab-37fb751a4039",
+      "espn_id": "5254165",
+      "name": "Keaton Wagler",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 5 (LAC)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5254165"
+    },
+    {
+      "id": "81db7f6b-2380-4a9a-ae7f-49435c8436ce",
+      "espn_id": "5149077",
+      "name": "Kingston Flemings",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 8 (ATL)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5149077"
+    },
+    {
+      "id": "65b45aa9-62d2-4db0-9d15-39434764d37c",
+      "espn_id": "5041953",
+      "name": "Koa Peat",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 30 (DAL)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5041953"
+    },
+    {
+      "id": "a1dbc4b0-5804-4f1c-bfe8-22866e660ebb",
+      "espn_id": "4873090",
+      "name": "Labaron Philon Jr.",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 22 (PHI)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4873090"
+    },
+    {
+      "id": "7a634099-4d29-458d-beeb-212816054d1f",
+      "espn_id": "5108969",
+      "name": "Lajae Jones",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 54 (GS)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5108969"
+    },
+    {
+      "id": "eee4cfc7-8f72-44e9-a829-2b51b98f4078",
+      "espn_id": "5105337",
+      "name": "Maliq Brown",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 44 (SA)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5105337"
+    },
+    {
+      "id": "0ace4a61-f6b5-41ad-be2d-0860f7bcd631",
+      "espn_id": "5184016",
+      "name": "Malique Lewis",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 60 (WSH)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5184016"
+    },
+    {
+      "id": "4778f568-97b8-401d-b94c-2be9cea3d04d",
+      "espn_id": "5041951",
+      "name": "Meleek Thomas",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 34 (SAC)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5041951"
+    },
+    {
+      "id": "fa6f5eac-8744-4acd-9e85-d904474d76e7",
+      "espn_id": "5101761",
+      "name": "Mikel Brown Jr.",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 6 (BKN)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5101761"
+    },
+    {
+      "id": "639a176b-a9d3-48b2-811e-8d3a0118d239",
+      "espn_id": "4873153",
+      "name": "Morez Johnson Jr.",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 9 (DAL)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4873153"
+    },
+    {
+      "id": "62ecfdc3-af39-4308-b91e-b5731eaa3ec4",
+      "espn_id": "5363895",
+      "name": "Narcisse Ngoy",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 57 (ATL)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5363895"
+    },
+    {
+      "id": "2d45b1cf-6440-4d57-aa78-aca441005df1",
+      "espn_id": "5164559",
+      "name": "Nate Ament",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 13 (MIA)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5164559"
+    },
+    {
+      "id": "69d2e5de-1fb2-4c0b-a01f-81d5ce515b56",
+      "espn_id": "4432586",
+      "name": "Nate Bittle",
+      "draft_display": null,
+      "fetched_draft_display": null,
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4432586"
+    },
+    {
+      "id": "a7f0a6cd-e1c8-4467-8645-b7839a184259",
+      "espn_id": "5105832",
+      "name": "Nick Martinelli",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 55 (NY)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5105832"
+    },
+    {
+      "id": "0c0e4f1d-e2cf-4c54-b3ab-70b608d4e87b",
+      "espn_id": "5106270",
+      "name": "Otega Oweh",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 41 (MIA)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5106270"
+    },
+    {
+      "id": "2384731a-8e68-4b38-b6a7-985e5f7884bc",
+      "espn_id": "4683860",
+      "name": "Quadir Copeland",
+      "draft_display": null,
+      "fetched_draft_display": null,
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4683860"
+    },
+    {
+      "id": "eef14935-724c-49b3-b6aa-f4b8f9b9386f",
+      "espn_id": "5105462",
+      "name": "Richie Saunders",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 32 (MEM)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5105462"
+    },
+    {
+      "id": "8b5e0d0e-7d8d-4dcf-9b34-e6098a5f290f",
+      "espn_id": "5107157",
+      "name": "Ryan Conwell",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 37 (OKC)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5107157"
+    },
+    {
+      "id": "3005e1fe-dbd3-4d2a-afb0-91dbfd3dc2b2",
+      "espn_id": "5279129",
+      "name": "Sergio de Larrea",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 25 (LAL)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5279129"
+    },
+    {
+      "id": "51a5dd3c-d3b0-42f3-b22c-246219f548ab",
+      "espn_id": "4683933",
+      "name": "Tamar Bates",
+      "draft_display": null,
+      "fetched_draft_display": null,
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4683933"
+    },
+    {
+      "id": "f29bdeff-2c56-42a3-b6a4-802575c3e48e",
+      "espn_id": "5148538",
+      "name": "Tarik Biberovic",
+      "draft_display": null,
+      "fetched_draft_display": "2023: Rd 2, Pk 56 (MEM)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5148538"
+    },
+    {
+      "id": "827f4b16-0ef5-46d6-9a58-53d6211b5eee",
+      "espn_id": "5105809",
+      "name": "Tarris Reed Jr.",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 26 (DEN)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5105809"
+    },
+    {
+      "id": "79c54773-f302-4e49-8009-7e94316d3bbe",
+      "espn_id": "5061603",
+      "name": "Thomas Sorber",
+      "draft_display": null,
+      "fetched_draft_display": "2025: Rd 1, Pk 15 (OKC)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5061603"
+    },
+    {
+      "id": "ad71d17f-0f9c-4a50-a49f-ba3b44972685",
+      "espn_id": "5105555",
+      "name": "Tobe Awaka",
+      "draft_display": null,
+      "fetched_draft_display": null,
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5105555"
+    },
+    {
+      "id": "a2e7b96a-e1ad-49ab-8f6c-05a8f7a4c816",
+      "espn_id": "5106040",
+      "name": "Tobi Lawal",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 48 (DAL)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5106040"
+    },
+    {
+      "id": "b1e5714d-1017-4719-9637-64c7a9a8f652",
+      "espn_id": "4837356",
+      "name": "Tre Donaldson",
+      "draft_display": null,
+      "fetched_draft_display": null,
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4837356"
+    },
+    {
+      "id": "ba2447ba-c062-468b-8576-909a55b68cce",
+      "espn_id": "4698719",
+      "name": "Trevon Brazile",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 35 (SA)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4698719"
+    },
+    {
+      "id": "630a9c90-14fe-4201-978f-2f030238b998",
+      "espn_id": "4897438",
+      "name": "Trey Kaufman-Renn",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 59 (MIN)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4897438"
+    },
+    {
+      "id": "c5e3cb46-2fc2-497d-a8ce-d3698bd1e857",
+      "espn_id": "5105626",
+      "name": "Tyler Bilodeau",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 43 (BKN)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5105626"
+    },
+    {
+      "id": "cc2167ad-8ef7-4c0c-9dca-ce79e1336b5f",
+      "espn_id": "4838721",
+      "name": "Tyler Nickel",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 47 (PHX)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/4838721"
+    },
+    {
+      "id": "086b74d6-b029-446d-aef8-25761c2208ee",
+      "espn_id": "5037878",
+      "name": "Ugonna Onyenso",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 53 (HOU)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5037878"
+    },
+    {
+      "id": "8c9f30be-c0f0-4295-ae93-48ce3dc9aab0",
+      "espn_id": "5358755",
+      "name": "Vsevolod Ishchenko",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 2, Pk 56 (CHI)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5358755"
+    },
+    {
+      "id": "e0a5ce45-a127-4e86-8d01-5e50b0b96e9e",
+      "espn_id": "5175737",
+      "name": "Yaxel Lendeborg",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 11 (GS)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5175737"
+    },
+    {
+      "id": "4dac73bd-c30f-4e0f-a1e7-0b844026fab0",
+      "espn_id": "5106262",
+      "name": "Zuby Ejiofor",
+      "draft_display": null,
+      "fetched_draft_display": "2026: Rd 1, Pk 23 (ATL)",
+      "source_url": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/5106262"
+    }
+  ],
+  "failures": []
+}
