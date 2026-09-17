@@ -31,7 +31,8 @@ export const qk = {
   players: (seasonId: string) => ['players', seasonId] as const,
   rosters: (seasonId: string) => ['rosters', seasonId] as const,
   trades: (seasonId: string) => ['trades', seasonId] as const,
-  gameLog: (espnId: string | null | undefined) => ['game-log', espnId] as const,
+  gameLog: (espnId: string | null | undefined, competition: string, season: number) =>
+    ['game-log', competition, season, espnId] as const,
   adminLog: ['admin-log'] as const,
 };
 

@@ -34,7 +34,10 @@ vi.mock('@/api/draftTurnActions', () => ({
 }));
 
 vi.mock('@/api/realtime', () => ({ useDraftRealtime: vi.fn(), useRealtimeStatus: () => 'connected' }));
-vi.mock('@/api/gameLog', () => ({ useGameLog: vi.fn(() => ({ data: undefined, isLoading: false })) }));
+vi.mock('@/api/gameLog', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/gameLog')>()),
+  useGameLog: vi.fn(() => ({ data: undefined, isLoading: false })),
+}));
 
 let profile: { team_id: string | null; is_admin: boolean } | null = {
   team_id: 't1',

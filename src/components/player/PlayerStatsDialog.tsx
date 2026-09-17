@@ -18,7 +18,7 @@ import { ChevronRight } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { isRookie, parseStats, type StatLine } from '@/lib/stats';
-import { useGameLog, type GameLogRow } from '@/api/gameLog';
+import { DEFAULT_GAME_LOG_SEASON, useGameLog, type GameLogRow } from '@/api/gameLog';
 import type { PlayerWithStats } from '@/api/types';
 
 const scale = (v: string | null, gp: string | null): string | null => {
@@ -228,7 +228,15 @@ function PlayerProfileBody({
               ))}
             </div>
           </section>
-          {player.espn_id && <GameLogTable espnId={String(player.espn_id)} />}
+          {player.espn_id && (
+            <GameLogTable
+              espnId={String(player.espn_id)}
+              college={isRookie(player)}
+              season={isRookie(player)
+                ? draftYear(player.draft_display) ?? DEFAULT_GAME_LOG_SEASON
+                : DEFAULT_GAME_LOG_SEASON}
+            />
+          )}
         </div>
       </div>
 
@@ -275,21 +283,36 @@ const LOG_COLS: { key: keyof GameLogRow; label: string }[] = [
   { key: 'stl', label: 'STL' }, { key: 'blk', label: 'BLK' }, { key: 'to', label: 'TO' },
 ];
 
-function GameLogTable({ espnId }: { espnId: string }) {
+function draftYear(draftDisplay: string | null | undefined): number | null {
+  const year = Number(draftDisplay?.match(/^(\d{4}):/)?.[1]);
+  return Number.isInteger(year) ? year : null;
+}
+
+function collegeSeasonLabel(season: number): string {
+  return `${season - 1}–${String(season).slice(-2)}`;
+}
+
+function GameLogTable({ espnId, college, season }: { espnId: string; college: boolean; season: number }) {
   const [show, setShow] = useState(false);
-  const { data: rows, isLoading } = useGameLog(espnId, show);
+  const { data: rows, isLoading } = useGameLog(espnId, show, {
+    competition: college ? 'mens-college-basketball' : 'nba',
+    season,
+  });
+  const label = college ? `College game log · ${collegeSeasonLabel(season)}` : 'Game log';
 
   return (
     <section className="overflow-hidden rounded-xl border bg-card">
       <button type="button" className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 active:bg-muted/60" onClick={() => setShow((v) => !v)}>
-        <span className="text-xs font-bold uppercase tracking-wide">Game log</span>
+        <span className="text-xs font-bold uppercase tracking-wide">{label}</span>
         <ChevronRight className={`size-4 text-muted-foreground transition-transform ${show ? 'rotate-90' : ''}`} />
       </button>
       {show && (
         isLoading ? (
           <div className="space-y-1 border-t p-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
         ) : !rows?.length ? (
-          <p className="border-t py-8 text-center text-xs text-muted-foreground">No games logged.</p>
+          <p className="border-t py-8 text-center text-xs text-muted-foreground">
+            {college ? 'College game log unavailable.' : 'No games logged.'}
+          </p>
         ) : (
           <div className="max-h-80 overflow-auto border-t">
             <table className="w-full min-w-[34rem] text-xs">

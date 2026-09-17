@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
 import { qk } from './queries';
 
 /**
@@ -36,11 +35,18 @@ interface EspnGame {
   opponent?: { abbreviation?: string };
 }
 
-const STATS_SEASON = 2026; // ESPN year for the 2025-26 campaign
+export const DEFAULT_GAME_LOG_SEASON = 2026; // ESPN year for the 2025-26 campaign
 
-async function fetchGameLog(espnId: string): Promise<GameLogRow[]> {
+export interface GameLogOptions {
+  competition: 'nba' | 'mens-college-basketball';
+  season: number;
+}
+
+const DEFAULT_OPTIONS: GameLogOptions = { competition: 'nba', season: DEFAULT_GAME_LOG_SEASON };
+
+async function fetchGameLog(espnId: string, options: GameLogOptions): Promise<GameLogRow[]> {
   const res = await fetch(
-    `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${espnId}/gamelog?season=${STATS_SEASON}`,
+    `https://site.web.api.espn.com/apis/common/v3/sports/basketball/${options.competition}/athletes/${espnId}/gamelog?season=${options.season}`,
   );
   if (!res.ok) throw new Error(`ESPN gamelog: HTTP ${res.status}`);
   const j = await res.json();
@@ -95,12 +101,16 @@ async function fetchGameLog(espnId: string): Promise<GameLogRow[]> {
   return rows.sort((a, b) => b.date.localeCompare(a.date));
 }
 
-export function useGameLog(espnId: string | null | undefined, enabled: boolean) {
+export function useGameLog(
+  espnId: string | null | undefined,
+  enabled: boolean,
+  options: GameLogOptions = DEFAULT_OPTIONS,
+) {
   return useQuery({
-    queryKey: qk.gameLog(espnId),
+    queryKey: qk.gameLog(espnId, options.competition, options.season),
     enabled: enabled && !!espnId,
     staleTime: 15 * 60 * 1000,
     retry: false,
-    queryFn: () => fetchGameLog(espnId!),
+    queryFn: () => fetchGameLog(espnId!, options),
   });
 }
