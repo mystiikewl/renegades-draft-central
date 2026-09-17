@@ -65,14 +65,21 @@ async function fetchGameLog(espnId: string, options: GameLogOptions): Promise<Ga
   const iTp = idx('threePointFieldGoalsMade');
   const iFt = idx('freeThrowsMade');
 
-  // Regular season section only; categories are month buckets of {eventId, stats}.
-  const reg = (j.seasonTypes as { displayName: string; categories: { events: { eventId: string; stats: string[] }[] }[] }[])
-    ?.find((s) => s.displayName.includes('Regular Season'));
-  if (!reg) return [];
+  // NBA labels the outer section "Regular Season"; college labels its category that way.
+  type EspnCategory = {
+    displayName?: string;
+    events: { eventId: string; stats: string[] }[];
+  };
+  const seasonTypes = (j.seasonTypes ?? []) as { displayName: string; categories: EspnCategory[] }[];
+  const regularSeason = seasonTypes.find((season) => season.displayName.includes('Regular Season'));
+  const categories = regularSeason?.categories
+    ?? seasonTypes.flatMap((season) => season.categories)
+      .filter((category) => category.displayName?.includes('Regular Season'));
+  if (categories.length === 0) return [];
 
   const games = j.events as Record<string, EspnGame>;
   const rows: GameLogRow[] = [];
-  for (const cat of reg.categories) {
+  for (const cat of categories) {
     for (const ev of cat.events) {
       const g = games[ev.eventId];
       if (!g || !ev.stats) continue;

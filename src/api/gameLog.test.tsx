@@ -27,8 +27,11 @@ const espnResponse = {
   ],
   seasonTypes: [
     {
-      displayName: '2025-26 Regular Season',
-      categories: [{ events: [{ eventId: 'college-game-1', stats: ['34', '25', '8', '4', '2', '1', '3', '9-18', '2-6', '5-7'] }] }],
+      displayName: '2025-26 Season',
+      categories: [{
+        displayName: 'Regular Season Stats',
+        events: [{ eventId: 'college-game-1', stats: ['34', '25', '8', '4', '2', '1', '3', '9-18', '2-6', '5-7'] }],
+      }],
     },
   ],
   events: {
