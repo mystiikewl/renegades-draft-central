@@ -67,4 +67,51 @@ describe('PlayerLabPage', () => {
 
     expect(screen.getByText('Loading Player Lab…')).toBeInTheDocument();
   });
+
+  it('explains category ranks as draft edges and build risks', () => {
+    mockedPool.mockReturnValue({
+      data: [
+        player({ id: 'leader', name: 'Category Leader' }),
+        player({
+          id: 'middle',
+          name: 'Middle Player',
+          player_seasons: [{
+            season_id: 's1',
+            stats: {
+              points: 18,
+              total_rebounds: 3,
+              assists: 4,
+              games_played: 70,
+              field_goal_percentage: 0.44,
+              free_throw_percentage: 0.78,
+            },
+          }],
+        }),
+        player({
+          id: 'trailer',
+          name: 'Pool Trailer',
+          player_seasons: [{
+            season_id: 's1',
+            stats: {
+              points: 8,
+              total_rebounds: 2,
+              assists: 2,
+              games_played: 70,
+              field_goal_percentage: 0.4,
+              free_throw_percentage: 0.7,
+            },
+          }],
+        }),
+      ],
+      isLoading: false,
+    } as never);
+
+    render(<PlayerLabPage />);
+
+    expect(screen.getByText('Draft edges')).toBeInTheDocument();
+    expect(screen.getByText('Build risks')).toBeInTheDocument();
+    expect(screen.getAllByText('#1 of 3').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Elite source').length).toBeGreaterThan(0);
+    expect(screen.getByText(/Ranks use projected season totals/)).toBeInTheDocument();
+  });
 });

@@ -115,15 +115,22 @@ export function PlayerLabPage() {
 
           <aside className="space-y-5 p-4 lg:p-6">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Shape read</div>
-              <div className="mt-3 space-y-2">
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Player profile</div>
+              <div className="mt-4 text-xs font-black uppercase tracking-[0.12em]">Draft edges</div>
+              <div className="mt-1 space-y-1">
                 {selectedShape.strongest.map((metric) => (
-                  <MetricRow key={metric.key} label={metric.shortLabel} value={`${metric.percentile}th pct`} tone="strong" />
-                ))}
-                {selectedShape.weakest.map((metric) => (
-                  <MetricRow key={metric.key} label={metric.shortLabel} value={`${metric.percentile}th pct`} tone="weak" />
+                  <MetricRow key={metric.key} metric={metric} tone="strong" />
                 ))}
               </div>
+              <div className="mt-4 text-xs font-black uppercase tracking-[0.12em]">Build risks</div>
+              <div className="mt-1 space-y-1">
+                {selectedShape.weakest.map((metric) => (
+                  <MetricRow key={metric.key} metric={metric} tone="weak" />
+                ))}
+              </div>
+              <p className="mt-4 text-[10px] leading-relaxed text-muted-foreground">
+                Ranks use projected season totals within this projection pool. FG% and FT% rank shooting impact, including volume—not raw percentage.
+              </p>
             </div>
 
             <div className="border-t pt-5">
@@ -253,7 +260,7 @@ function Radar({ shape, comparison }: { shape: PlayerShape; comparison: PlayerSh
             <g key={metric.key}>
               <line x1={center} y1={center} x2={x} y2={y} stroke="currentColor" strokeOpacity={0.08} />
               <text x={labelX} y={labelY} textAnchor="middle" dominantBaseline="middle" className="fill-current text-[13px] font-black">{metric.shortLabel}</text>
-              <text x={labelX} y={labelY + 16} textAnchor="middle" className="fill-current text-[9px] opacity-50">{metric.percentile}TH PCTL</text>
+              <text x={labelX} y={labelY + 16} textAnchor="middle" className="fill-current text-[9px] opacity-60">#{metric.rank} of {metric.poolSize}</text>
             </g>
           );
         })}
@@ -266,11 +273,19 @@ function Radar({ shape, comparison }: { shape: PlayerShape; comparison: PlayerSh
   );
 }
 
-function MetricRow({ label, value, tone }: { label: string; value: string; tone: 'strong' | 'weak' }) {
+function MetricRow({ metric, tone }: { metric: PlayerShape['metrics'][number]; tone: 'strong' | 'weak' }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b py-2 text-sm last:border-b-0">
-      <span className="font-bold">{label}</span>
-      <span className={tone === 'strong' ? 'font-black text-primary' : 'font-bold text-muted-foreground'}>{value}</span>
+    <div className="flex items-center justify-between gap-3 border-b py-2.5 last:border-b-0">
+      <div>
+        <div className="text-sm font-bold">{metric.label}</div>
+        <div className="mt-0.5 text-[10px] font-medium text-muted-foreground">{metric.draftRead}</div>
+      </div>
+      <div className="text-right">
+        <div className={tone === 'strong' ? 'text-sm font-black text-primary' : 'text-sm font-black text-foreground'}>
+          #{metric.rank} of {metric.poolSize}
+        </div>
+        <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{metric.percentile}th percentile</div>
+      </div>
     </div>
   );
 }

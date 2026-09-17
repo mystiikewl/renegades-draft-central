@@ -21,6 +21,9 @@ export interface ShapeMetric {
   shortLabel: string;
   raw: number;
   percentile: number;
+  rank: number;
+  poolSize: number;
+  draftRead: string;
 }
 
 export interface PlayerShape {
@@ -86,6 +89,19 @@ function percentile(values: number[], value: number): number {
   return Math.max(1, Math.min(99, Math.round(rank * 98 + 1)));
 }
 
+function competitionRank(values: number[], value: number): number {
+  return values.filter((candidate) => candidate > value).length + 1;
+}
+
+function draftRead(percentileRank: number): string {
+  if (percentileRank >= 90) return 'Elite source';
+  if (percentileRank >= 75) return 'Strong contributor';
+  if (percentileRank >= 55) return 'Above pool average';
+  if (percentileRank >= 40) return 'Around pool average';
+  if (percentileRank >= 20) return 'Build-dependent';
+  return 'Needs covering';
+}
+
 function shapeTags(metrics: ShapeMetric[]): string[] {
   const byKey = new Map(metrics.map((metric) => [metric.key, metric.percentile]));
   const tags: { score: number; label: string }[] = [];
@@ -121,10 +137,15 @@ export function buildPlayerShapes(pool: PlayerWithStats[]): Map<string, PlayerSh
   for (const player of pool) {
     const metrics = SHAPE_AXES.map((axis) => {
       const raw = rawMetric(player, axis.key, fgBase, ftBase);
+      const values = rawByAxis.get(axis.key) ?? [];
+      const percentileRank = percentile(values, raw);
       return {
         ...axis,
         raw,
-        percentile: percentile(rawByAxis.get(axis.key) ?? [], raw),
+        percentile: percentileRank,
+        rank: competitionRank(values, raw),
+        poolSize: values.length,
+        draftRead: draftRead(percentileRank),
       };
     });
     const sorted = [...metrics].sort((a, b) => b.percentile - a.percentile);

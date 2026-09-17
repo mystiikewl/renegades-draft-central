@@ -55,6 +55,38 @@ describe('player shape analytics', () => {
     expect((high?.raw ?? 0)).toBeGreaterThan(low?.raw ?? 0);
   });
 
+  it('reports tied competition ranks within the projection pool', () => {
+    const pool = [
+      player('leader', { ...base, points: 30 }),
+      player('tied-a', { ...base, points: 20 }),
+      player('tied-b', { ...base, points: 20 }),
+      player('trailer', { ...base, points: 10 }),
+    ];
+
+    const shapes = buildPlayerShapes(pool);
+    const rankFor = (id: string) => shapes.get(id)?.metrics.find((metric) => metric.key === 'pts')?.rank;
+
+    expect(rankFor('leader')).toBe(1);
+    expect(rankFor('tied-a')).toBe(2);
+    expect(rankFor('tied-b')).toBe(2);
+    expect(rankFor('trailer')).toBe(4);
+    expect(shapes.get('leader')?.metrics[0]?.poolSize).toBe(4);
+  });
+
+  it('turns percentiles into actionable draft reads', () => {
+    const pool = Array.from({ length: 5 }, (_, index) =>
+      player(`player-${index}`, { ...base, points: (index + 1) * 5 }),
+    );
+
+    const shapes = buildPlayerShapes(pool);
+    const pointsReadFor = (id: string) =>
+      shapes.get(id)?.metrics.find((metric) => metric.key === 'pts')?.draftRead;
+
+    expect(pointsReadFor('player-4')).toBe('Elite source');
+    expect(pointsReadFor('player-2')).toBe('Around pool average');
+    expect(pointsReadFor('player-0')).toBe('Needs covering');
+  });
+
   it('rates identical shapes as a perfect match and orders closest matches first', () => {
     const a = player('a', base);
     const b = player('b', { ...base });
