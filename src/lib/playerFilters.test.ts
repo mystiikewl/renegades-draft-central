@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { matchesPosition, matchesSearch } from './playerFilters';
+import { matchesPosition, matchesSearch, rookieDraftOrder } from './playerFilters';
+
+it('parses numeric round/pick order and rejects missing, malformed and other-year draft data', () => {
+  expect(rookieDraftOrder('2026: Rd 1, Pk 10 (WSH)', 2026)).toBe(110);
+  expect(rookieDraftOrder('2026: Rd 2, Pk 1 (BOS)', 2026)).toBe(201);
+  for (const display of [null, undefined, 42, 'Undrafted', '2025: Rd 1, Pk 1 (DAL)',
+    '2026: Rd 1, Pk 0 (WSH)', '2026: Rd 1, Pk 61 (WSH)', '2026: Rd 3, Pk 1 (WSH)', '2026: Rd 1, Pk 1.5 (WSH)']) {
+    expect(rookieDraftOrder(display, 2026)).toBe(Infinity);
+  }
+});
 
 describe('matchesPosition', () => {
   it('passes everything on All', () => {

@@ -23,6 +23,14 @@ export function matchesPosition(
   );
 }
 
+/** ESPN's pick is not consistently round-local; sort lexically by round then pick. */
+export function rookieDraftOrder(display: unknown, year: number): number {
+  const match = typeof display === 'string'
+    ? /^(\d{4}): Rd ([12]), Pk ([1-9]\d?) \([A-Z]{2,4}\)$/.exec(display.trim()) : null;
+  if (!match || Number(match[1]) !== year || Number(match[3]) > 60) return Infinity;
+  return Number(match[2]) * 100 + Number(match[3]);
+}
+
 /** Case-insensitive player search across name, NBA team and position. */
 export function matchesSearch(
   player: Pick<PlayerWithStats, 'name' | 'nba_team' | 'position'>,

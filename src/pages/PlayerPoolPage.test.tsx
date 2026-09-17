@@ -128,6 +128,33 @@ describe('PlayerPoolPage', () => {
     expect(rows[2]).toHaveTextContent('Lower Value');
   });
 
+  it('defaults rookies to their current draft order, keeps unknowns last, and permits stat sorting', async () => {
+    const user = userEvent.setup();
+    mockedPool.mockReturnValue({ data: [
+      player({ id: 'u', name: 'Unknown', experience: 0 }),
+      player({ id: 'b', name: 'Second round', experience: 0, draft_display: '2026: Rd 2, Pk 1 (BOS)' }),
+      player({ id: 'a', name: 'AJ Dybantsa', experience: 0, draft_display: '2026: Rd 1, Pk 1 (WSH)' }),
+      player({ id: 'z', name: 'Lottery', experience: 0, draft_display: '2026: Rd 1, Pk 10 (BOS)', player_seasons: [{ season_id: 's1', stats: { points: 40, games_played: 82 } }] }),
+      player({ id: 'v', name: 'Veteran', experience: 5 }),
+      player({ id: 'o', name: 'Older rookie', experience: 0, draft_display: '2025: Rd 1, Pk 1 (DAL)' }),
+    ], isLoading: false } as never);
+    render(<PlayerPoolPage />);
+    await user.click(screen.getByRole('button', { name: 'Rookies' }));
+    const names = () => screen.getAllByRole('row').slice(1).map(r => r.textContent);
+    expect(names()[0]).toContain('AJ Dybantsa');
+    expect(names()[1]).toContain('Lottery');
+    expect(names()[2]).toContain('Second round');
+    expect(names()[3]).toContain('Older rookie');
+    expect(names()[4]).toContain('Unknown');
+    expect(screen.queryByText('Veteran')).not.toBeInTheDocument();
+    expect(screen.queryByText(/sorted by/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'PTS' }));
+    expect(names()[0]).toContain('Lottery');
+    await user.click(screen.getByRole('button', { name: 'Rookies' }));
+    expect(screen.getByText(/sorted by Value/i)).toBeInTheDocument();
+    expect(screen.getByText('Veteran')).toBeInTheDocument();
+  });
+
   it('labels a player whose ranking uses historical stats', () => {
     mockedPool.mockReturnValue({
       data: [player({ stats_source: 'historical', stats_uses_historical_fallback: true })],

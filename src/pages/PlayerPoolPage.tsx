@@ -11,7 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isRookie, STAT_COLUMNS, statColumnValue, fmtStat, type StatColumnKey } from '@/lib/stats';
-import { POSITION_FILTERS, matchesPosition, matchesSearch } from '@/lib/playerFilters';
+import { POSITION_FILTERS, matchesPosition, matchesSearch, rookieDraftOrder } from '@/lib/playerFilters';
 import { nextPick as pickOnClock, teamById } from '@/lib/draftState';
 import { FilterChip } from '@/components/ui/filter-chip';
 import { leagueValueScores } from '@/lib/projections';
@@ -22,7 +22,7 @@ import { RealtimeBadge } from '@/components/draft/RealtimeBadge';
 import { usePracticeDraftSession } from '@/stores/practiceDraftSession';
 import type { PlayerWithStats } from '@/api/types';
 
-type SortKey = 'value' | StatColumnKey;
+type SortKey = 'value' | 'rookie' | StatColumnKey;
 type Basis = 'averages' | 'totals';
 type PoolMode = 'practice' | 'live';
 
@@ -90,13 +90,17 @@ export function PlayerPoolPage() {
     let pool = players.filter((p) => matchesPosition(p, position));
     if (rookiesOnly) pool = pool.filter(isRookie);
     pool = pool.filter((p) => matchesSearch(p, search));
+    // ponytail: unknown season year parses to NaN → Infinity → name order.
+    const draftYear = Number(season?.label.slice(0, 4));
     return [...pool].sort((a, b) => {
-      const difference = sortKey === 'value'
+      const difference = sortKey === 'rookie'
+        ? rookieDraftOrder(a.draft_display, draftYear) - rookieDraftOrder(b.draft_display, draftYear)
+        : sortKey === 'value'
         ? (valueScores.get(b.id) ?? 0) - (valueScores.get(a.id) ?? 0)
         : statColumnValue(b, sortKey, basis) - statColumnValue(a, sortKey, basis);
       return difference || a.name.localeCompare(b.name);
     });
-  }, [players, search, position, rookiesOnly, sortKey, basis, valueScores]);
+  }, [players, search, position, rookiesOnly, sortKey, basis, valueScores, season?.label]);
 
   const activeSortLabel = sortKey === 'value'
     ? 'Value'
@@ -223,7 +227,7 @@ export function PlayerPoolPage() {
             {POSITION_FILTERS.map((pos) => (
               <FilterChip key={pos} active={position === pos} onClick={() => setPosition(pos)}>{pos}</FilterChip>
             ))}
-            <FilterChip active={rookiesOnly} onClick={() => setRookiesOnly((v) => !v)}>Rookies</FilterChip>
+            <FilterChip active={rookiesOnly} onClick={() => { setRookiesOnly(!rookiesOnly); setSortKey(rookiesOnly ? 'value' : 'rookie'); }}>Rookies</FilterChip>
           </div>
         </div>
       </div>
@@ -232,7 +236,7 @@ export function PlayerPoolPage() {
         <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
           <div>
             <div className="text-sm font-bold uppercase tracking-wide">Available</div>
-            <div className="mt-0.5 text-xs text-muted-foreground">{filtered.length} players · sorted by {activeSortLabel}</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">{filtered.length} players{sortKey !== 'rookie' && ` · sorted by ${activeSortLabel}`}</div>
             <div className="mt-1 text-[10px] font-medium text-muted-foreground">
               {projectedCount > 0
                 ? `ESPN projections${projectionUpdatedAt ? ` · updated ${new Date(projectionUpdatedAt).toLocaleDateString()}` : ''}${fallbackCount > 0 ? ` · ${fallbackCount} historical fallback${fallbackCount === 1 ? '' : 's'}` : ''}`
