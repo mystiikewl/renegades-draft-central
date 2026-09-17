@@ -19,12 +19,13 @@ import { espnClient } from './lib/espn.mjs';
 
 // ESPN stat key -> our player_seasons.stats JSONB keys (per-game averages).
 const STAT_KEYS = {
-  3: 'field_goals_made', 4: 'field_goals_attempted', 5: 'three_pointers_made',
-  6: 'three_pointers_attempted', 8: 'free_throws_made', 9: 'free_throws_attempted',
-  10: 'field_goal_percentage', 11: 'rebounds_offensive', 12: 'rebounds_defensive',
-  13: 'total_rebounds', 14: 'assists', 15: 'steals', 16: 'blocks', 17: 'turnovers',
-  18: 'points', 19: 'field_goal_percentage', 20: 'free_throw_percentage',
-  21: 'three_point_percentage',
+  0: 'points', 1: 'blocks', 2: 'steals', 3: 'assists',
+  6: 'total_rebounds', 11: 'turnovers',
+  13: 'field_goals_made', 14: 'field_goals_attempted',
+  15: 'free_throws_made', 16: 'free_throws_attempted',
+  17: 'three_pointers_made', 18: 'three_pointers_attempted',
+  19: 'field_goal_percentage', 20: 'free_throw_percentage', 21: 'three_point_percentage',
+  37: 'double_doubles', 38: 'triple_doubles', 42: 'games_played',
 };
 
 // ESPN fantasy slot ids -> our position tokens. 5/6 are combined G/F; 7+ are
