@@ -13,12 +13,16 @@ import { DraftPlayerList } from '@/components/draft/DraftPlayerList';
 import { DraftBoard } from '@/pages/DraftPage';
 import { getTeamColour } from '@/lib/teamColours';
 import {
+  CPU_DIFFICULTIES,
   CPU_STRATEGIES,
+  assignCpuSkills,
   assignCpuStrategies,
   availablePracticePlayers,
   buildPracticeBoard,
   buildPracticeOrder,
+  cpuPracticeShortlist,
   practiceScores,
+  type CpuDifficulty,
 } from '@/lib/practiceDraft';
 import { usePracticeDraftSession } from '@/stores/practiceDraftSession';
 
@@ -31,6 +35,7 @@ export function PracticeDraftPage() {
   const { data: players, isLoading: playersLoading } = usePracticeDraftPool(seasonId);
 
   const [selectedSlot, setSelectedSlot] = useState(1);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<CpuDifficulty>('veteran');
   const [showBoard, setShowBoard] = useState(false);
 
   const active = usePracticeDraftSession((state) => state.active);
@@ -40,6 +45,8 @@ export function PracticeDraftPage() {
   const picks = usePracticeDraftSession((state) => state.picks);
   const draftOrder = usePracticeDraftSession((state) => state.draftOrder);
   const cpuStrategies = usePracticeDraftSession((state) => state.cpuStrategies);
+  const cpuSkills = usePracticeDraftSession((state) => state.cpuSkills);
+  const sessionDifficulty = usePracticeDraftSession((state) => state.difficulty);
   const cpuThinking = usePracticeDraftSession((state) => state.cpuThinking);
   const startSession = usePracticeDraftSession((state) => state.start);
   const makeHumanPick = usePracticeDraftSession((state) => state.makeHumanPick);
@@ -74,6 +81,28 @@ export function PracticeDraftPage() {
   const teamName = (id: string) => teams?.find((team) => team.id === id)?.name ?? (id === humanTeamId ? 'Your Team' : 'CPU Team');
   const strategyLabel = (teamId: string) =>
     CPU_STRATEGIES.find((item) => item.key === cpuStrategies[teamId])?.label ?? 'Balanced';
+  const difficultyLabel = CPU_DIFFICULTIES.find((item) => item.key === sessionDifficulty)?.label ?? 'Veteran';
+
+  // Live shortlist of whoever is on the clock — practice value: see the run coming.
+  const cpuShortlist = useMemo(() => {
+    if (!nextPick || isMyTurn || complete || !players?.length) return [];
+    const teamId = nextPick.team_id;
+    const rosterIds = picks
+      .filter((pick) => pick.team_id === teamId && pick.player_id)
+      .map((pick) => pick.player_id as string);
+    return cpuPracticeShortlist(
+      availablePracticePlayers(players, picks),
+      players,
+      rosterIds,
+      cpuStrategies[teamId] ?? 'balanced',
+      {
+        difficulty: sessionDifficulty,
+        skill: cpuSkills[teamId] ?? 0,
+        leagueSize: draftOrder.length,
+        rosterSize: draftOrder.length > 0 ? Math.round(picks.length / draftOrder.length) : 0,
+      },
+    );
+  }, [complete, cpuSkills, cpuStrategies, draftOrder.length, isMyTurn, nextPick, picks, players, sessionDifficulty]);
 
   const startDraft = () => {
     if (!settings || !seasonId || !profile?.team_id || eligibleTeamIds.length < 2) return;
@@ -84,6 +113,8 @@ export function PracticeDraftPage() {
       selectedSlot,
       draftOrder: order,
       cpuStrategies: assignCpuStrategies(order, profile.team_id),
+      cpuSkills: assignCpuSkills(order, profile.team_id),
+      difficulty: selectedDifficulty,
       picks: buildPracticeBoard(settings, order),
     });
     setShowBoard(false);
@@ -187,16 +218,37 @@ export function PracticeDraftPage() {
               </div>
             </div>
 
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Step 2 · Room difficulty</div>
+              <h2 className="mt-1 text-lg font-bold">CPU skill level</h2>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                {CPU_DIFFICULTIES.map((option) => {
+                  const selected = selectedDifficulty === option.key;
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => setSelectedDifficulty(option.key)}
+                      className={`rounded-xl border p-3 text-left transition-colors ${selected ? 'border-primary bg-primary/[0.06]' : 'bg-card hover:bg-muted'}`}
+                    >
+                      <div className={`text-sm font-black ${selected ? 'text-primary' : 'text-foreground'}`}>{option.label}</div>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{option.detail}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border bg-muted/20 p-4">
                 <Dices className="size-5 text-muted-foreground" />
                 <h3 className="mt-3 text-sm font-bold">Randomised room</h3>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Your team stays at pick {selectedSlot}. The other {eligibleTeamIds.length - 1} managers are randomised every time you start.</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Your team stays at pick {selectedSlot}. The other {eligibleTeamIds.length - 1} managers are randomised every time you start, each with their own skill.</p>
               </div>
               <div className="rounded-xl border bg-muted/20 p-4">
-                <Sparkles className="size-5 text-muted-foreground" />
+                <Sparkles className="mt-0.5 size-5 text-muted-foreground" />
                 <h3 className="mt-3 text-sm font-bold">Different CPU minds</h3>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Bots can draft balanced, chase guards or bigs, hunt stocks, or deliberately punt FG%, FT% or assists.</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Bots draft balanced, chase guards or bigs, hunt stocks, or punt FG%, FT% or assists — and while one is on the clock you can see who they are eyeing.</p>
               </div>
             </div>
 
@@ -225,7 +277,7 @@ export function PracticeDraftPage() {
               <Badge variant="secondary" className="gap-1"><Bot className="size-3" /> Pick {sessionSlot}</Badge>
             </div>
             <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-              {season.label} · {settings.draft_type} · {draftOrder.length} teams · {Math.max(0, settings.roster_size - settings.keeper_limit)} draft rounds
+              {season.label} · {settings.draft_type} · {draftOrder.length} teams · {Math.max(0, settings.roster_size - settings.keeper_limit)} draft rounds · {difficultyLabel} room
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -250,6 +302,19 @@ export function PracticeDraftPage() {
             </div>
             {isMyTurn && <Badge className="shrink-0">MAKE A PICK</Badge>}
           </div>
+          {!isMyTurn && cpuShortlist.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
+              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                {strategyLabel(nextPick.team_id)} bot is eyeing
+              </span>
+              {cpuShortlist.map((player) => (
+                <span key={player.id} className="flex items-center gap-1.5 rounded-full border bg-muted/40 py-1 pl-1 pr-2.5">
+                  <PlayerHeadshot espnId={player.espn_id} name={player.name} size={22} variant="bare" />
+                  <span className="text-xs font-semibold">{player.name}</span>
+                </span>
+              ))}
+            </div>
+          )}
         </section>
       )}
 

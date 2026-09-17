@@ -168,7 +168,12 @@ function needScale(category: Category, target: number): number {
   return Math.max(Math.abs(target) * 0.12, 1);
 }
 
-function buildNeeds(
+/**
+ * Where a roster stands against the even-draft pace for each category.
+ * Shared by the Decision Board and the practice CPU so both read needs
+ * the same way.
+ */
+export function buildNeeds(
   roster: PlayerWithStats[],
   targetPool: PlayerWithStats[],
   leagueSize: number,

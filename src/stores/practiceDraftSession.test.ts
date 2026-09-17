@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { DraftPick, PlayerWithStats } from '@/api/types';
+import type { CpuDifficulty, CpuDraftStrategy } from '@/lib/practiceDraft';
 import { usePracticeDraftSession } from './practiceDraftSession';
+
+const STORAGE_KEY = 'renegades-practice-draft-session';
 
 const pick: DraftPick = {
   id: 'practice-1',
@@ -32,35 +35,54 @@ const player: PlayerWithStats = {
   }],
 };
 
+interface SessionOverrides {
+  selectedSlot?: number;
+  draftOrder?: string[];
+  cpuStrategies?: Record<string, CpuDraftStrategy>;
+  cpuSkills?: Record<string, number>;
+  difficulty?: CpuDifficulty;
+}
+
+function startSession(overrides: SessionOverrides = {}) {
+  usePracticeDraftSession.getState().start({
+    seasonId: 'season-1',
+    humanTeamId: 'team-human',
+    selectedSlot: 1,
+    draftOrder: ['team-human'],
+    cpuStrategies: {},
+    cpuSkills: {},
+    difficulty: 'veteran',
+    picks: [pick],
+    ...overrides,
+  });
+}
+
 describe('practice draft session store', () => {
-  beforeEach(() => usePracticeDraftSession.getState().end());
+  beforeEach(() => {
+    localStorage.clear();
+    usePracticeDraftSession.getState().end();
+  });
 
   it('keeps an active simulation in shared app state until explicitly ended', () => {
-    usePracticeDraftSession.getState().start({
-      seasonId: 'season-1',
-      humanTeamId: 'team-human',
+    startSession({
       selectedSlot: 3,
       draftOrder: ['team-a', 'team-b', 'team-human'],
       cpuStrategies: { 'team-a': 'balanced', 'team-b': 'big-heavy' },
-      picks: [pick],
+      cpuSkills: { 'team-a': 0.4, 'team-b': -0.6 },
+      difficulty: 'elite',
     });
 
     const active = usePracticeDraftSession.getState();
     expect(active.active).toBe(true);
     expect(active.seasonId).toBe('season-1');
     expect(active.selectedSlot).toBe(3);
+    expect(active.difficulty).toBe('elite');
+    expect(active.cpuSkills['team-b']).toBe(-0.6);
     expect(active.picks).toHaveLength(1);
   });
 
   it('applies a human pick to the exact in-memory slot', () => {
-    usePracticeDraftSession.getState().start({
-      seasonId: 'season-1',
-      humanTeamId: 'team-human',
-      selectedSlot: 1,
-      draftOrder: ['team-human'],
-      cpuStrategies: {},
-      picks: [pick],
-    });
+    startSession();
 
     usePracticeDraftSession.getState().makeHumanPick('practice-1', player);
 
@@ -71,13 +93,10 @@ describe('practice draft session store', () => {
   });
 
   it('clears all practice context when the simulation ends', () => {
-    usePracticeDraftSession.getState().start({
-      seasonId: 'season-1',
-      humanTeamId: 'team-human',
+    startSession({
       selectedSlot: 2,
       draftOrder: ['team-a', 'team-human'],
       cpuStrategies: { 'team-a': 'punt-ft' },
-      picks: [pick],
     });
 
     usePracticeDraftSession.getState().end();
@@ -88,5 +107,34 @@ describe('practice draft session store', () => {
     expect(state.humanTeamId).toBeNull();
     expect(state.picks).toEqual([]);
     expect(state.draftOrder).toEqual([]);
+  });
+
+  it('persists the running simulation so a page refresh can resume it', () => {
+    startSession({
+      selectedSlot: 4,
+      draftOrder: ['team-a', 'team-human'],
+      cpuSkills: { 'team-a': 0.5 },
+      difficulty: 'rookie',
+    });
+
+    const raw = localStorage.getItem(STORAGE_KEY);
+    expect(raw).not.toBeNull();
+    const stored = JSON.parse(raw as string);
+    expect(stored.version).toBe(1);
+    expect(stored.state.active).toBe(true);
+    expect(stored.state.selectedSlot).toBe(4);
+    expect(stored.state.difficulty).toBe('rookie');
+    expect(stored.state.cpuSkills['team-a']).toBe(0.5);
+    // The ephemeral thinking flag stays out of storage.
+    expect(stored.state.cpuThinking).toBeUndefined();
+  });
+
+  it('persists the cleared state when the simulation ends', () => {
+    startSession();
+    usePracticeDraftSession.getState().end();
+
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) as string);
+    expect(stored.state.active).toBe(false);
+    expect(stored.state.picks).toEqual([]);
   });
 });
