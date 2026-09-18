@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation } from '@tanstack/react-router';
 import type { CSSProperties } from 'react';
 import { Bot, ClipboardList, ListChecks, Settings, UserCircle, Users } from 'lucide-react';
+import { useUnreadNotificationCount } from '@/api/notifications';
 import { useAuth } from '@/auth/AuthContext';
 import { AnalysisNav } from '@/components/analysis/AnalysisNav';
 import { DraftTurnBanner } from '@/components/draft/DraftTurnBanner';
@@ -50,6 +51,9 @@ export function AppShell() {
   const hasLeagueShell = Boolean(profile?.team_id);
   const inPracticeDraft = pathname === '/practice-draft';
   const practiceActive = usePracticeDraftSession((state) => state.active);
+  // Unread trade activity surfaces on the League item — trades have no
+  // bottom-nav slot of their own.
+  const { data: unreadTrades = 0 } = useUnreadNotificationCount();
 
   const isActive = (matches: readonly string[]) =>
     matches.some((path) =>
@@ -161,7 +165,14 @@ export function AppShell() {
                     active ? 'opacity-100' : 'opacity-0'
                   }`}
                 />
-                <Icon className={`size-5 transition-transform ${active ? '-translate-y-0.5' : ''}`} />
+                <span className="relative">
+                  <Icon className={`size-5 transition-transform ${active ? '-translate-y-0.5' : ''}`} />
+                  {item.to === '/league' && unreadTrades > 0 && (
+                    <span className="absolute -right-2.5 -top-1 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-4 text-destructive-foreground">
+                      {unreadTrades > 9 ? '9+' : unreadTrades}
+                    </span>
+                  )}
+                </span>
                 <span className="max-w-full truncate">{item.short}</span>
               </Link>
             );
