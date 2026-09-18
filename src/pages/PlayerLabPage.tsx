@@ -1,22 +1,54 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { ArrowRight, Search, Sparkles, Swords, Target } from 'lucide-react';
+import { ArrowRight, Eye, Sparkles, Swords, Target } from 'lucide-react';
 import { useActiveSeason, useStatsEnrichedPlayers } from '@/api/queries';
+import { useFavouriteIds } from '@/api/favourites';
 import type { PlayerWithStats } from '@/api/types';
+import { CategoryMarketPanel } from '@/components/player/CategoryMarketPanel';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
+import { PlayerSearch } from '@/components/player/PlayerSearch';
+import { PlayerSwitcherBar } from '@/components/player/PlayerSwitcherBar';
+import { TeamImpactPanel } from '@/components/player/TeamImpactPanel';
+import { WatchlistStar } from '@/components/player/WatchlistStar';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { readFocusedPlayer, rememberFocusedPlayer } from '@/lib/analysisNavigation';
-import { matchesSearch } from '@/lib/playerFilters';
 import { buildPlayerShapes, closestShapeMatches, shapeSimilarity, type PlayerShape } from '@/lib/playerShape';
 
 export function PlayerLabPage() {
   const { data: season } = useActiveSeason();
   const { data: allPlayers = [], isLoading } = useStatsEnrichedPlayers(season?.id);
   const players = useMemo(() => allPlayers.filter((p) => p.player_seasons.length > 0), [allPlayers]);
-  const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(() => readFocusedPlayer());
   const [compareId, setCompareId] = useState<string | null>(null);
+
+  // Sticky switcher bar: appears once the header (with its big search) is
+  // scrolled away; "/" focuses whichever search is on screen.
+  const headerRef = useRef<HTMLElement>(null);
+  const headerSearchInputRef = useRef<HTMLInputElement>(null);
+  const switcherInputRef = useRef<HTMLInputElement>(null);
+  const [switcherVisible, setSwitcherVisible] = useState(false);
+  useEffect(() => {
+    const sentinel = headerRef.current;
+    if (!sentinel || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setSwitcherVisible(!entry.isIntersecting),
+      // Appear once the header clears the tool nav + switcher bar height.
+      { rootMargin: '-96px 0px 0px 0px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== '/' || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
+      event.preventDefault();
+      (switcherVisible ? switcherInputRef.current : headerSearchInputRef.current)?.focus();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [switcherVisible]);
 
   const shapes = useMemo(() => buildPlayerShapes(players), [players]);
   const initialPlayer = useMemo(
@@ -31,11 +63,16 @@ export function PlayerLabPage() {
   const comparison = players.find((player) => player.id === compareId) ?? null;
   const selectedShape = selected ? shapes.get(selected.id) ?? null : null;
   const compareShape = comparison ? shapes.get(comparison.id) ?? null : null;
+  const favouriteIds = useFavouriteIds(season?.id);
 
-  const filtered = useMemo(
-    () => players.filter((player) => matchesSearch(player, query)).slice(0, 8),
-    [players, query],
-  );
+  // Compare list: watched players pinned under their own group, not duplicated.
+  const [watchedCompare, restCompare] = useMemo(() => {
+    const eligible = players.filter((player) => player.id !== selected?.id);
+    return [
+      eligible.filter((player) => favouriteIds.has(player.id)),
+      eligible.filter((player) => !favouriteIds.has(player.id)),
+    ];
+  }, [players, selected?.id, favouriteIds]);
 
   const matches = selected
     ? closestShapeMatches(selected.id, shapes, 5)
@@ -46,7 +83,6 @@ export function PlayerLabPage() {
   function selectPlayer(id: string) {
     setSelectedId(id);
     setCompareId(null);
-    setQuery('');
     rememberFocusedPlayer(id);
   }
 
@@ -59,7 +95,7 @@ export function PlayerLabPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-4 px-4 py-4 md:py-6">
-      <header className="flex flex-col gap-4 border-b pb-4 lg:flex-row lg:items-end lg:justify-between">
+      <header ref={headerRef} className="flex flex-col gap-4 border-b pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
             <Target className="size-3.5" /> Player Lab
@@ -70,7 +106,7 @@ export function PlayerLabPage() {
           </p>
         </div>
         <div className="w-full space-y-2 lg:max-w-md">
-          <PlayerSearch players={filtered} query={query} setQuery={setQuery} onPick={selectPlayer} />
+          <PlayerSearch players={players} onPick={selectPlayer} inputRef={headerSearchInputRef} />
           <div className="grid grid-cols-2 gap-2">
             <Link
               to="/analysis"
@@ -89,6 +125,10 @@ export function PlayerLabPage() {
         </div>
       </header>
 
+      {switcherVisible && (
+        <PlayerSwitcherBar player={selected} pool={players} onPick={selectPlayer} inputRef={switcherInputRef} />
+      )}
+
       <section className="overflow-hidden rounded-2xl border bg-card">
         <div className="grid lg:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.65fr)]">
           <div className="relative min-h-[34rem] overflow-hidden border-b p-4 lg:border-b-0 lg:border-r lg:p-6">
@@ -98,7 +138,10 @@ export function PlayerLabPage() {
                 <div className="text-xs font-bold uppercase tracking-[0.14em] text-primary">
                   {selected.nba_team ?? 'FA'} · {selected.position ?? '—'}
                 </div>
-                <h2 className="mt-1 text-3xl font-black leading-none sm:text-5xl">{selected.name}</h2>
+                <div className="mt-1 flex flex-wrap items-center gap-3">
+                  <h2 className="text-3xl font-black leading-none sm:text-5xl">{selected.name}</h2>
+                  <WatchlistStar playerId={selected.id} playerName={selected.name} />
+                </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selectedShape.tags.map((tag) => (
                     <Badge key={tag} variant="secondary" className="uppercase tracking-wide">{tag}</Badge>
@@ -143,9 +186,16 @@ export function PlayerLabPage() {
                 className="mt-3 h-11 w-full rounded-xl border bg-background px-3 text-sm"
               >
                 <option value="">Select another player</option>
-                {players
-                  .filter((player) => player.id !== selected.id)
-                  .map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}
+                {watchedCompare.length > 0 && (
+                  <optgroup label="★ Watchlist">
+                    {watchedCompare.map((player) => (
+                      <option key={player.id} value={player.id}>{player.name}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {restCompare.map((player) => (
+                  <option key={player.id} value={player.id}>{player.name}</option>
+                ))}
               </select>
               {comparison && compareShape && (
                 <div className="mt-3 rounded-xl border bg-muted/20 p-3">
@@ -159,73 +209,53 @@ export function PlayerLabPage() {
         </div>
       </section>
 
+      <TeamImpactPanel candidate={selected} pool={players} />
+
+      <CategoryMarketPanel candidate={selected} pool={players} />
+
       <section className="rounded-2xl border bg-card p-4 sm:p-5">
         <div className="flex items-center gap-2"><Sparkles className="size-4" /><h2 className="font-bold">Similar player shapes</h2></div>
         <p className="mt-1 text-xs text-muted-foreground">Closest fantasy profiles by eight-axis percentile shape.</p>
-        <div className="mt-4 grid gap-2 md:grid-cols-5">
+        <div className="mt-4 grid gap-2 md:grid-cols-5" data-testid="similar-matches">
           {matches.map(({ player, similarity }) => {
             const shape = shapes.get(player.id);
             return (
-              <button
-                key={player.id}
-                type="button"
-                onClick={() => setCompareId(player.id)}
-                className="rounded-xl border p-3 text-left transition-colors hover:bg-muted/40"
-              >
-                <div className="flex items-center gap-2">
-                  <PlayerHeadshot espnId={player.espn_id} name={player.name} size={40} variant="bare" />
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-bold">{player.name}</div>
-                    <div className="text-[10px] text-muted-foreground">{player.nba_team ?? 'FA'} · {player.position ?? '—'}</div>
+              <div key={player.id} className="relative rounded-xl border p-3 transition-colors hover:bg-muted/40">
+                <button
+                  type="button"
+                  onClick={() => setCompareId(player.id)}
+                  aria-label={`Compare ${player.name}`}
+                  className="block w-full text-left"
+                >
+                  <div className="flex items-center gap-2 pr-7">
+                    <PlayerHeadshot espnId={player.espn_id} name={player.name} size={40} variant="bare" />
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-bold">{player.name}</div>
+                      <div className="text-[10px] text-muted-foreground">{player.nba_team ?? 'FA'} · {player.position ?? '—'}</div>
+                    </div>
                   </div>
-                </div>
-                <div className="mt-3 text-2xl font-black tabular-nums">{similarity}%</div>
-                <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">match</div>
-                {shape && (
-                  <div className="mt-2 text-[10px] text-muted-foreground">
-                    Best: <span className="font-bold text-foreground">{shape.strongest[0]?.shortLabel}</span>
-                  </div>
-                )}
-              </button>
+                  <div className="mt-3 text-2xl font-black tabular-nums">{similarity}%</div>
+                  <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">match</div>
+                  {shape && (
+                    <div className="mt-2 text-[10px] text-muted-foreground">
+                      Best: <span className="font-bold text-foreground">{shape.strongest[0]?.shortLabel}</span>
+                    </div>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectPlayer(player.id)}
+                  aria-label={`View ${player.name}`}
+                  title="Set as main player"
+                  className="absolute right-2 top-2 rounded-lg border bg-background p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <Eye className="size-3.5" />
+                </button>
+              </div>
             );
           })}
         </div>
       </section>
-    </div>
-  );
-}
-
-function PlayerSearch({
-  players,
-  query,
-  setQuery,
-  onPick,
-}: {
-  players: PlayerWithStats[];
-  query: string;
-  setQuery: (value: string) => void;
-  onPick: (id: string) => void;
-}) {
-  return (
-    <div className="relative w-full">
-      <Search className="pointer-events-none absolute left-3 top-3.5 size-4 text-muted-foreground" />
-      <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search player…" className="h-11 pl-9" />
-      {query && (
-        <div className="absolute z-30 mt-2 max-h-80 w-full overflow-auto rounded-xl border bg-popover p-1 shadow-xl">
-          {players.map((player) => (
-            <button
-              key={player.id}
-              type="button"
-              onClick={() => onPick(player.id)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-muted"
-            >
-              <PlayerHeadshot espnId={player.espn_id} name={player.name} size={30} variant="bare" />
-              <span>{player.name}</span>
-              <span className="ml-auto text-[10px] text-muted-foreground">{player.nba_team ?? 'FA'}</span>
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
