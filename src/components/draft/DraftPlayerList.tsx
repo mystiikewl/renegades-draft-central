@@ -4,6 +4,7 @@ import type { PlayerWithStats } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
+import { WatchlistStar } from '@/components/player/WatchlistStar';
 import { fmtStat, statColumnValue } from '@/lib/stats';
 import { POSITION_FILTERS, matchesPosition, matchesSearch, type PositionFilter } from '@/lib/playerFilters';
 
@@ -89,7 +90,7 @@ export function DraftPlayerList({
             >
               <div className="flex min-w-0 items-center gap-3">
                 <PlayerHeadshot espnId={player.espn_id} name={player.name} size={42} variant="bare" />
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="line-clamp-1 font-semibold">{player.name}</div>
                   <div className="mt-0.5 text-[11px] text-muted-foreground">
                     {player.nba_team ?? 'FA'} · {player.position ?? '—'}
@@ -100,6 +101,7 @@ export function DraftPlayerList({
                     <span>{fmtStat('ast', 'averages', statColumnValue(player, 'ast', 'averages'))} AST</span>
                   </div>
                 </div>
+                <WatchlistStar playerId={player.id} playerName={player.name} />
               </div>
 
               {(['pts', 'reb', 'ast', 'stl', 'blk'] as const).map((key) => (

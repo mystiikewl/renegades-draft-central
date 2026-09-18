@@ -6,6 +6,15 @@ import type { CategoryImpact } from '@/lib/projections';
 
 vi.mock('@/hooks/useIsMobile', () => ({ useIsMobile: () => false }));
 
+vi.mock('@/api/queries', () => ({
+  useActiveSeason: vi.fn(() => ({ data: { id: 's1', label: '2026-27' } })),
+}));
+
+vi.mock('@/api/favourites', () => ({
+  useFavouriteIds: vi.fn(() => new Set<string>()),
+  useToggleFavourite: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+}));
+
 import { SlotPickerDialog } from './SlotPickerDialog';
 
 const player = {
@@ -76,7 +85,7 @@ describe('SlotPickerDialog', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: /Test Guard/i }));
+    await user.click(screen.getByRole('button', { name: /^Test Guard/ }));
     expect(onPick).toHaveBeenCalledWith(player);
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });

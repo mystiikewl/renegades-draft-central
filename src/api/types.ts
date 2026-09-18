@@ -33,6 +33,15 @@ export interface Profile {
   created_at: string;
 }
 
+/** Watchlist entry — one player, one user, one season (unique triple). */
+export interface UserFavourite {
+  id: string;
+  profile_id: string;
+  player_id: string;
+  season_id: string;
+  created_at: string;
+}
+
 export interface Player {
   id: string;
   espn_id: string | null;

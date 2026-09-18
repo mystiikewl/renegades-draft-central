@@ -33,6 +33,11 @@ vi.mock('@/api/draftTurnActions', () => ({
   useMakePickForSlot: vi.fn(() => ({ mutate, isPending: false })),
 }));
 
+vi.mock('@/api/favourites', () => ({
+  useFavouriteIds: vi.fn(() => new Set<string>()),
+  useToggleFavourite: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+}));
+
 vi.mock('@/api/realtime', () => ({ useDraftRealtime: vi.fn(), useRealtimeStatus: () => 'connected' }));
 vi.mock('@/api/gameLog', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api/gameLog')>()),

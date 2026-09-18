@@ -45,6 +45,11 @@ vi.mock('@/api/draftTurnActions', () => ({
 vi.mock('@/api/realtime', () => ({ useDraftRealtime: vi.fn(), useRealtimeStatus: () => 'connected' }));
 vi.mock('@/hooks/useCanPickNow', () => ({ useCanPickNow: vi.fn(() => true) }));
 
+vi.mock('@/api/favourites', () => ({
+  useFavouriteIds: vi.fn(() => new Set<string>()),
+  useToggleFavourite: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+}));
+
 let profile: { team_id: string | null; is_admin: boolean } | null = {
   team_id: 't1',
   is_admin: false,

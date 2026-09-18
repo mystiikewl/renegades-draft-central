@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bot, Search, SlidersHorizontal } from 'lucide-react';
 import { usePlayerPool, usePracticeDraftPool, useActiveSeason, useDraftPicks, useDraftSettings, useTeams } from '@/api/queries';
+import { useFavouriteIds } from '@/api/favourites';
 import { useMakePickForSlot } from '@/api/draftTurnActions';
 import { useDraftRealtime } from '@/api/realtime';
 import { useCanPickNow } from '@/hooks/useCanPickNow';
@@ -18,6 +19,7 @@ import { leagueValueScores } from '@/lib/projections';
 import { availablePracticePlayers } from '@/lib/practiceDraft';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
 import { PlayerStatsDialog } from '@/components/player/PlayerStatsDialog';
+import { WatchlistStar } from '@/components/player/WatchlistStar';
 import { RealtimeBadge } from '@/components/draft/RealtimeBadge';
 import { usePracticeDraftSession } from '@/stores/practiceDraftSession';
 import type { PlayerWithStats } from '@/api/types';
@@ -54,6 +56,8 @@ export function PlayerPoolPage() {
   const [search, setSearch] = useState('');
   const [position, setPosition] = useState<(typeof POSITION_FILTERS)[number]>('All');
   const [rookiesOnly, setRookiesOnly] = useState(false);
+  const [watchedOnly, setWatchedOnly] = useState(false);
+  const favouriteIds = useFavouriteIds(seasonId);
   const [basis, setBasis] = useState<Basis>('totals');
   const [sortKey, setSortKey] = useState<SortKey>('value');
   const [selected, setSelected] = useState<PlayerWithStats | null>(null);
@@ -89,6 +93,7 @@ export function PlayerPoolPage() {
   const filtered = useMemo(() => {
     let pool = players.filter((p) => matchesPosition(p, position));
     if (rookiesOnly) pool = pool.filter(isRookie);
+    if (watchedOnly) pool = pool.filter((p) => favouriteIds.has(p.id));
     pool = pool.filter((p) => matchesSearch(p, search));
     // ponytail: unknown season year parses to NaN → Infinity → name order.
     const draftYear = Number(season?.label.slice(0, 4));
@@ -100,7 +105,7 @@ export function PlayerPoolPage() {
         : statColumnValue(b, sortKey, basis) - statColumnValue(a, sortKey, basis);
       return difference || a.name.localeCompare(b.name);
     });
-  }, [players, search, position, rookiesOnly, sortKey, basis, valueScores, season?.label]);
+  }, [players, search, position, rookiesOnly, watchedOnly, favouriteIds, sortKey, basis, valueScores, season?.label]);
 
   const activeSortLabel = sortKey === 'value'
     ? 'Value'
@@ -228,6 +233,7 @@ export function PlayerPoolPage() {
               <FilterChip key={pos} active={position === pos} onClick={() => setPosition(pos)}>{pos}</FilterChip>
             ))}
             <FilterChip active={rookiesOnly} onClick={() => { setRookiesOnly(!rookiesOnly); setSortKey(rookiesOnly ? 'value' : 'rookie'); }}>Rookies</FilterChip>
+            <FilterChip active={watchedOnly} onClick={() => setWatchedOnly(!watchedOnly)}>★ Watchlist</FilterChip>
           </div>
         </div>
       </div>
@@ -293,6 +299,7 @@ export function PlayerPoolPage() {
                           </div>
                           <div className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{p.nba_team ?? 'FA'} · {p.position ?? '—'}</div>
                         </div>
+                        <WatchlistStar playerId={p.id} playerName={p.name} />
                       </div>
                     </td>
                     <td className={`whitespace-nowrap px-2 py-3 text-right text-xs font-bold tabular-nums ${sortKey === 'value' ? 'text-primary' : 'text-foreground'}`}>

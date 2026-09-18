@@ -14,6 +14,7 @@ import { FilterChip } from '@/components/ui/filter-chip';
 import { valueScores, zScores, LEAGUE_CATEGORIES, type Basis, type Category } from '@/lib/projections';
 import { CATEGORY_LABELS } from '@/lib/leagueCategories';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
+import { WatchlistStar } from '@/components/player/WatchlistStar';
 
 const CATS = LEAGUE_CATEGORIES;
 type Cat = Category;
@@ -243,31 +244,36 @@ export function RankingsPage() {
                   .sort((a, b) => b.score - a.score)
                   .slice(0, 3);
                 return (
-                  <Link
+                  <div
                     key={row.player.id}
-                    to="/player-lab"
-                    onClick={() => rememberFocusedPlayer(row.player.id)}
-                    className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+                    className="flex items-start gap-1 py-3 pl-4 pr-2 transition-colors hover:bg-muted/40"
                   >
-                    <span className="w-6 shrink-0 pt-2 text-right font-mono text-xs font-bold text-muted-foreground">{index + 1}</span>
-                    <PlayerHeadshot espnId={row.player.espn_id} name={row.player.name} size={44} variant="bare" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate font-semibold">{row.player.name}</span>
-                        {isRookie(row.player) && <Badge variant="outline" className="border-primary/40 px-1 py-0 text-[9px] text-primary">R</Badge>}
+                    <Link
+                      to="/player-lab"
+                      onClick={() => rememberFocusedPlayer(row.player.id)}
+                      className="flex min-w-0 flex-1 items-start gap-3"
+                    >
+                      <span className="w-6 shrink-0 pt-2 text-right font-mono text-xs font-bold text-muted-foreground">{index + 1}</span>
+                      <PlayerHeadshot espnId={row.player.espn_id} name={row.player.name} size={44} variant="bare" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate font-semibold">{row.player.name}</span>
+                          {isRookie(row.player) && <Badge variant="outline" className="border-primary/40 px-1 py-0 text-[9px] text-primary">R</Badge>}
+                        </div>
+                        <div className="mt-0.5 text-[11px] text-muted-foreground">{row.player.nba_team ?? 'FA'} · {row.player.position ?? '—'}</div>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {strengths.map(({ cat, score }) => (
+                            <Badge key={cat} variant="secondary" className="text-[9px]">{CATEGORY_LABELS[cat]} {score > 0 ? '+' : ''}{score.toFixed(1)}</Badge>
+                          ))}
+                        </div>
                       </div>
-                      <div className="mt-0.5 text-[11px] text-muted-foreground">{row.player.nba_team ?? 'FA'} · {row.player.position ?? '—'}</div>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {strengths.map(({ cat, score }) => (
-                          <Badge key={cat} variant="secondary" className="text-[9px]">{CATEGORY_LABELS[cat]} {score > 0 ? '+' : ''}{score.toFixed(1)}</Badge>
-                        ))}
+                      <div className="text-right">
+                        <div className="font-mono text-lg font-black">{row.composite.toFixed(2)}</div>
+                        <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">score</div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-mono text-lg font-black">{row.composite.toFixed(2)}</div>
-                      <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">score</div>
-                    </div>
-                  </Link>
+                    </Link>
+                    <WatchlistStar playerId={row.player.id} playerName={row.player.name} className="mt-1" />
+                  </div>
                 );
               })}
             </div>
@@ -291,23 +297,26 @@ export function RankingsPage() {
                   {rows.map((row, index) => (
                     <tr key={row.player.id} className={`border-b border-border/50 transition-colors hover:bg-muted/50 ${index % 2 ? 'bg-muted/[0.18]' : ''}`}>
                       <td className={`sticky left-0 z-20 px-4 py-2 shadow-[6px_0_12px_-12px_hsl(var(--foreground))] ${index % 2 ? 'bg-muted/[0.18]' : 'bg-card'} hover:bg-muted/50`}>
-                        <Link
-                          to="/player-lab"
-                          onClick={() => rememberFocusedPlayer(row.player.id)}
-                          className="flex items-center gap-3"
-                        >
-                          <span className="w-6 shrink-0 text-right font-mono text-xs font-bold tabular-nums text-muted-foreground">{index + 1}</span>
-                          <PlayerHeadshot espnId={row.player.espn_id} name={row.player.name} size={38} variant="bare" />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex min-w-0 items-center gap-1.5">
-                              <span className="line-clamp-1 font-semibold leading-tight">{row.player.name}</span>
-                              {isRookie(row.player) && (
-                                <Badge variant="outline" className="shrink-0 border-primary/40 px-1 py-0 text-[9px] text-primary">R</Badge>
-                              )}
+                        <div className="flex items-center gap-1">
+                          <Link
+                            to="/player-lab"
+                            onClick={() => rememberFocusedPlayer(row.player.id)}
+                            className="flex min-w-0 flex-1 items-center gap-3"
+                          >
+                            <span className="w-6 shrink-0 text-right font-mono text-xs font-bold tabular-nums text-muted-foreground">{index + 1}</span>
+                            <PlayerHeadshot espnId={row.player.espn_id} name={row.player.name} size={38} variant="bare" />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex min-w-0 items-center gap-1.5">
+                                <span className="line-clamp-1 font-semibold leading-tight">{row.player.name}</span>
+                                {isRookie(row.player) && (
+                                  <Badge variant="outline" className="shrink-0 border-primary/40 px-1 py-0 text-[9px] text-primary">R</Badge>
+                                )}
+                              </div>
+                              <div className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{row.player.nba_team ?? 'FA'} · {row.player.position ?? '—'}</div>
                             </div>
-                            <div className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{row.player.nba_team ?? 'FA'} · {row.player.position ?? '—'}</div>
-                          </div>
-                        </Link>
+                          </Link>
+                          <WatchlistStar playerId={row.player.id} playerName={row.player.name} />
+                        </div>
                       </td>
                       <td className={`whitespace-nowrap px-2 py-3 text-right font-bold tabular-nums ${sortKey === 'composite' ? 'text-primary' : ''}`}>{row.composite.toFixed(2)}</td>
                       {CATS.map((cat) => (

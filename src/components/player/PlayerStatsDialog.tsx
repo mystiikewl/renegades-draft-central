@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ChevronRight } from 'lucide-react';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
+import { WatchlistStar } from '@/components/player/WatchlistStar';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { isRookie, parseStats, type StatLine } from '@/lib/stats';
 import { DEFAULT_GAME_LOG_SEASON, useGameLog, type GameLogRow } from '@/api/gameLog';
@@ -187,6 +188,7 @@ function PlayerProfileBody({
             <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-muted-foreground">
               <span>{player.nba_team ?? 'FA'}</span><span>·</span><span>{player.position ?? '—'}</span>
               {isRookie(player) && <Badge variant="outline" className="border-primary/40 px-1.5 py-0 text-[9px] text-primary">ROOK</Badge>}
+              <WatchlistStar playerId={player.id} playerName={player.name} className="-my-1.5" />
             </div>
             {bioBits.length > 0 && <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{bioBits.join(' · ')}</p>}
             {player.draft_display && <p className="mt-1 line-clamp-1 text-[10px] text-muted-foreground">{player.draft_display}</p>}

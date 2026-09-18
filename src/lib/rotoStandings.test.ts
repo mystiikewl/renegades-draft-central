@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PlayerWithStats } from '@/api/types';
-import { rotoStandings } from './rotoStandings';
+import { rotoStandings, standingsSwing } from './rotoStandings';
 
 function player(id: string, stats: Record<string, number>): PlayerWithStats {
   return {
@@ -88,5 +88,52 @@ describe('rotoStandings', () => {
     const rows = rotoStandings([{ id: 'A', name: 'Alpha' }], new Map());
     expect(rows).toHaveLength(1);
     expect(rows[0].totalPoints).toBeGreaterThan(0);
+  });
+});
+
+describe('standingsSwing', () => {
+  const teams = [
+    { id: 'A', name: 'Alpha' },
+    { id: 'B', name: 'Beta' },
+  ];
+  const playersByTeam = new Map([
+    ['A', [player('a1', { points: 25, turnovers: 3 })]],
+    ['B', [player('b1', { points: 30, turnovers: 5 })]],
+  ]);
+
+  it('diffs the team row after adding the candidate', () => {
+    // Beta leads PTS 60-50 before the add; a 40-point candidate flips the
+    // category (pts 1 → 2) while Alpha keeps winning TO (4 < 5, delta 0).
+    const swing = standingsSwing(teams, playersByTeam, 'A', player('c1', { points: 40, turnovers: 1 }))!;
+
+    expect(swing.before.points.pts).toBe(1);
+    expect(swing.after.points.pts).toBe(2);
+    expect(swing.pointsByCategory.pts).toBe(1);
+    expect(swing.pointsByCategory.to).toBe(0);
+    // pts/TO are averages scaled by games_played (2): 50 + 40×2 = 130.
+    expect(swing.after.totals.pts).toBe(130);
+    expect(swing.after.totalPoints).toBeGreaterThan(swing.before.totalPoints);
+  });
+
+  it('captures standings points gained in categories the candidate flips', () => {
+    // Alpha trails PTS 50-60; a 60-point scorer flips the category to +1 pt.
+    const swing = standingsSwing(teams, playersByTeam, 'A', player('c1', { points: 60 }))!;
+
+    expect(swing.pointsByCategory.pts).toBe(1);
+    expect(swing.after.rank).toBeLessThanOrEqual(swing.before.rank);
+  });
+
+  it('removes the dropped player before adding the candidate', () => {
+    // Dropping a1 (TO 3) and adding a 9-TO candidate hands Beta the TO win
+    // Alpha used to take: -1 standings point in TO.
+    const swing = standingsSwing(teams, playersByTeam, 'A', player('c1', { points: 10, turnovers: 9 }), 'a1')!;
+
+    expect(swing.after.totals.pts).toBe(20); // 10 × games_played (2)
+    expect(swing.pointsByCategory.to).toBe(-1);
+    expect(swing.after.totalPoints).toBeLessThan(swing.before.totalPoints);
+  });
+
+  it('returns null for an unknown team', () => {
+    expect(standingsSwing(teams, playersByTeam, 'Z', player('c1', { points: 1 }))).toBeNull();
   });
 });

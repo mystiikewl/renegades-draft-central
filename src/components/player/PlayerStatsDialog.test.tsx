@@ -8,6 +8,16 @@ import { PlayerStatsDialog } from './PlayerStatsDialog';
 
 vi.mock('@/hooks/useIsMobile', () => ({ useIsMobile: () => false }));
 
+vi.mock('@/api/queries', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/queries')>()),
+  useActiveSeason: vi.fn(() => ({ data: { id: 's1', label: '2026-27' } })),
+}));
+
+vi.mock('@/api/favourites', () => ({
+  useFavouriteIds: vi.fn(() => new Set<string>()),
+  useToggleFavourite: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+}));
+
 function wrapper({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>

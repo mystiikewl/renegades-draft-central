@@ -9,6 +9,7 @@ import { matchesSearch } from '@/lib/playerFilters';
 import { INVERTED_CATEGORIES, PERCENTAGE_CATEGORIES, type CategoryImpact } from '@/lib/projections';
 import { CATEGORY_LABELS } from '@/lib/leagueCategories';
 import { PlayerHeadshot } from '@/components/player/PlayerHeadshot';
+import { WatchlistStar } from '@/components/player/WatchlistStar';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import type { PlayerWithStats } from '@/api/types';
 
@@ -113,27 +114,33 @@ export function SlotPickerDialog({ open, onOpenChange, pool, current, impactFor,
           filtered.map(({ player, impact }, index) => {
             const stats = parseStats(player.player_seasons[0]?.stats);
             return (
-              <button
+              <div
                 key={player.id}
-                onClick={() => {
-                  onPick(player);
-                  onOpenChange(false);
-                }}
-                disabled={current?.id === player.id}
-                className={`flex w-full items-center gap-3 border-b px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-muted/50 active:bg-muted disabled:opacity-50 ${index % 2 ? 'bg-muted/[0.12]' : ''}`}
+                className={`flex w-full items-center gap-1 border-b py-1.5 pl-2 pr-2 last:border-b-0 ${index % 2 ? 'bg-muted/[0.12]' : ''}`}
               >
-                <PlayerHeadshot espnId={player.espn_id} name={player.name} size={42} variant="bare" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="line-clamp-1 font-semibold leading-tight">{player.name}</span>
-                    {current?.id === player.id && <Badge variant="secondary" className="shrink-0 text-[9px]">Current</Badge>}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onPick(player);
+                    onOpenChange(false);
+                  }}
+                  disabled={current?.id === player.id}
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted/50 active:bg-muted disabled:opacity-50"
+                >
+                  <PlayerHeadshot espnId={player.espn_id} name={player.name} size={42} variant="bare" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="line-clamp-1 font-semibold leading-tight">{player.name}</span>
+                      {current?.id === player.id && <Badge variant="secondary" className="shrink-0 text-[9px]">Current</Badge>}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                      {player.nba_team ?? 'FA'} · {player.position ?? '—'} · {stats.pts ?? '—'} PTS · {stats.reb ?? '—'} REB · {stats.ast ?? '—'} AST
+                    </div>
+                    {impact.length > 0 && <FitSummary impact={impact} />}
                   </div>
-                  <div className="mt-0.5 text-[11px] text-muted-foreground">
-                    {player.nba_team ?? 'FA'} · {player.position ?? '—'} · {stats.pts ?? '—'} PTS · {stats.reb ?? '—'} REB · {stats.ast ?? '—'} AST
-                  </div>
-                  {impact.length > 0 && <FitSummary impact={impact} />}
-                </div>
-              </button>
+                </button>
+                <WatchlistStar playerId={player.id} playerName={player.name} />
+              </div>
             );
           })
         )}

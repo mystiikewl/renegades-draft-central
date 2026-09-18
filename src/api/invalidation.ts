@@ -17,7 +17,8 @@ export type LeagueTable =
   | 'teams'
   | 'seasons'
   | 'profiles'
-  | 'notifications';
+  | 'notifications'
+  | 'user_favourites';
 
 type KeyFactory = (seasonId: string) => readonly unknown[];
 
@@ -36,6 +37,9 @@ const TABLE_KEYS: Record<LeagueTable, KeyFactory[]> = {
   profiles: [() => ['profile']],
   // Team-scoped, not season-scoped: the factory ignores the season id.
   notifications: [() => qk.notifications],
+  // Per-user watchlist: mutations invalidate directly; not on the realtime
+  // channel (no cross-user visibility, so no other client needs to react).
+  user_favourites: [qk.favourites],
 };
 
 /** Which real tables the realtime channel subscribes to, and whether they are season-scoped. */
