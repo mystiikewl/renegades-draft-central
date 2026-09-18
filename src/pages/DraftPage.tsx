@@ -119,7 +119,7 @@ export function DraftPage() {
           <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{season.label} Draft</h1>
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
             {settings
-              ? `${settings.draft_type} · ${settings.league_size} teams · ${settings.roster_size} rounds`
+              ? `${settings.draft_type} · ${settings.league_size} teams · ${Math.max(0, settings.roster_size - settings.keeper_limit)} rounds`
               : 'Loading settings…'}
           </p>
         </div>

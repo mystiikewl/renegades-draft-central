@@ -17,6 +17,7 @@ vi.mock('@/api/queries', () => ({
       draft_type: 'snake',
       league_size: 10,
       roster_size: 15,
+      keeper_limit: 9,
       pick_time_limit_seconds: 120,
       turn_deadline_at: null,
       paused_remaining_seconds: null,
@@ -95,6 +96,7 @@ const runningSettings = {
   draft_type: 'snake',
   league_size: 10,
   roster_size: 15,
+  keeper_limit: 9,
   pick_time_limit_seconds: 120,
   turn_deadline_at: null,
   paused_remaining_seconds: null,
@@ -131,6 +133,7 @@ describe('DraftPage', () => {
     render(<DraftPage />);
 
     expect(screen.getByText('2026-27 Draft')).toBeInTheDocument();
+    expect(screen.getByText('snake · 10 teams · 6 rounds')).toBeInTheDocument();
     expect(screen.getAllByText('Round')).toHaveLength(2);
     expect(screen.getAllByText('Drafted Star').length).toBe(2);
     // p2 is the only unused pick, so the board shows it as on the clock.
