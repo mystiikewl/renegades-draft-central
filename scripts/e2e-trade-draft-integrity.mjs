@@ -31,6 +31,7 @@ let admin;
 let seasonId;
 let teamA;
 let teamB;
+let adminTeamId;
 let playerA;
 let playerB;
 let tradedPickId;
@@ -54,7 +55,15 @@ await step('create isolated 2-team test season', async () => {
   assert(typeof seasonId === 'string' && seasonId.length === 36, 'season UUID missing');
   await sql(`insert into public.draft_settings (season_id) values ('${seasonId}'::uuid)`);
   await sql(`update public.draft_settings set league_size = 2, roster_size = 3, keeper_limit = 0 where season_id = '${seasonId}'::uuid`);
-  const teams = await sql(`select id from public.teams where not is_shadow order by name limit 2`);
+  // Prefer the admin's own team as a participant so the competing-offer step
+  // can propose/accept as a real member (trade RPCs take the caller's team
+  // from their profile). Falls back to any two teams when admin has none.
+  const adminUid = JSON.parse(Buffer.from(admin.split('.')[1], 'base64').toString('utf8')).sub;
+  const adminTeamRows = await sql(`select team_id from public.profiles where id = '${adminUid}'::uuid`);
+  adminTeamId = adminTeamRows[0]?.team_id ?? null;
+  const teams = await sql(adminTeamId
+    ? `select id from public.teams where not is_shadow order by (id = '${adminTeamId}'::uuid) desc, name limit 2`
+    : `select id from public.teams where not is_shadow order by name limit 2`);
   assert(teams.length === 2, 'need two real teams');
   [teamA, teamB] = teams.map((row) => row.id);
   const players = await sql(`select id from public.players order by name limit 2`);
@@ -206,6 +215,82 @@ await step('commissioner reverses trade, then reset safely clears drafted player
   assert(roster.length === 0, 'reset did not remove draft-created roster row after safe reversal');
   const board = await picks(seasonId);
   assert(board.find((pick) => pick.id === tradedPickId)?.team_id === teamB, 'accepted pick trade did not survive second reset');
+});
+
+await step('competing offers: same asset in two proposals, first accept wins', async () => {
+  assert(adminTeamId, 'SIM admin profile has no team; cannot run the member trade flow');
+  assert([teamA, teamB].includes(adminTeamId), 'admin team is not among the two season teams');
+  const rival = adminTeamId === teamA ? teamB : teamA;
+
+  await rpc('set_draft_status', { p_season_id: seasonId, p_status: 'running' }, admin);
+
+  // Put the trade asset on the admin team ("Devin Booker"): skip rival picks
+  // until the admin team is on the clock, then draft playerA there.
+  let onClock = (await picks(seasonId)).find((pick) => !pick.is_used);
+  while (onClock && onClock.team_id !== adminTeamId) {
+    await rpc('skip_pick_for_slot', { p_season_id: seasonId, p_pick_id: onClock.id }, admin);
+    onClock = (await picks(seasonId)).find((pick) => !pick.is_used);
+  }
+  assert(onClock && onClock.team_id === adminTeamId, 'admin team never came on the clock');
+  await rpc('make_pick_for_slot', { p_season_id: seasonId, p_pick_id: onClock.id, p_player_id: playerA }, admin);
+  const bookerRows = await sql(`select id, team_id from public.rosters where season_id = '${seasonId}'::uuid and player_id = '${playerA}'::uuid`);
+  assert(bookerRows.length === 1 && bookerRows[0].team_id === adminTeamId, 'playerA is not on the admin roster');
+  const bookerRosterId = bookerRows[0].id;
+
+  const board = await picks(seasonId);
+  const rivalPicks = board.filter((pick) => !pick.is_used && pick.team_id === rival);
+  assert(rivalPicks.length >= 2, 'need two unused rival picks to request');
+
+  // The same offered asset in two live proposals to the SAME team — allowed
+  // since competing offers; used to fail with "already in a pending trade".
+  const trade1 = await rpc('propose_trade', {
+    p_season_id: seasonId,
+    p_to_team_id: rival,
+    p_offered_roster_ids: [bookerRosterId],
+    p_offered_pick_ids: [],
+    p_requested_roster_ids: [],
+    p_requested_pick_ids: [rivalPicks[0].id],
+  }, admin);
+  const trade2 = await rpc('propose_trade', {
+    p_season_id: seasonId,
+    p_to_team_id: rival,
+    p_offered_roster_ids: [bookerRosterId],
+    p_offered_pick_ids: [],
+    p_requested_roster_ids: [],
+    p_requested_pick_ids: [rivalPicks[1].id],
+  }, admin);
+  assert(trade1 !== trade2, 'competing proposals collapsed into one trade');
+  const both = await sql(`select id, status from public.trades where id in ('${trade1}'::uuid, '${trade2}'::uuid)`);
+  assert(both.length === 2 && both.every((row) => row.status === 'proposed'), 'competing proposals are not both pending');
+
+  // First accept wins; the sibling proposal auto-cancels and notifies.
+  await rpc('accept_trade', { p_trade_id: trade2 }, admin);
+  const resolved = await sql(`select id, status, auto_cancelled from public.trades where id in ('${trade1}'::uuid, '${trade2}'::uuid)`);
+  const loser = resolved.find((row) => row.id === trade1);
+  const winner = resolved.find((row) => row.id === trade2);
+  assert(winner?.status === 'accepted', 'accepted competing trade is not accepted');
+  assert(loser?.status === 'cancelled' && loser?.auto_cancelled === true, 'losing proposal was not auto-cancelled');
+  await expectRpcError(rpc('accept_trade', { p_trade_id: trade1 }, admin), 'Trade is no longer pending');
+
+  const moved = await sql(`select team_id from public.rosters where id = '${bookerRosterId}'::uuid`);
+  assert(moved[0]?.team_id === rival, 'accepted trade did not move the contested player');
+
+  // Notifications: proposal + auto-cancel for the loser's parties,
+  // acceptance for the winner's proposer.
+  const loserNotifs = await sql(`select type, team_id from public.notifications where trade_id = '${trade1}'::uuid`);
+  assert(loserNotifs.some((n) => n.type === 'trade_proposed' && n.team_id === rival), 'recipient not notified of the proposal');
+  const autoNotifs = loserNotifs.filter((n) => n.type === 'trade_auto_cancelled');
+  assert(autoNotifs.length === 2 && autoNotifs.every((n) => n.team_id === adminTeamId || n.team_id === rival),
+    'auto-cancel did not notify both losing parties');
+  const winnerNotifs = await sql(`select type, team_id from public.notifications where trade_id = '${trade2}'::uuid`);
+  assert(winnerNotifs.some((n) => n.type === 'trade_accepted' && n.team_id === adminTeamId), 'winning proposer not notified of acceptance');
+
+  // Mark-read clears exactly the caller's team.
+  const unreadBefore = await sql(`select count(*)::int as n from public.notifications where team_id = '${adminTeamId}'::uuid and read_at is null`);
+  assert(unreadBefore[0].n > 0, 'expected unread notifications for the admin team');
+  await rpc('mark_notifications_read', {}, admin);
+  const unreadAfter = await sql(`select count(*)::int as n from public.notifications where team_id = '${adminTeamId}'::uuid and read_at is null`);
+  assert(unreadAfter[0].n === 0, 'mark_notifications_read left unread rows');
 });
 
 await step('trade overrides lock once draft status is complete', async () => {

@@ -6,6 +6,7 @@ import { AnalysisNav } from '@/components/analysis/AnalysisNav';
 import { DraftTurnBanner } from '@/components/draft/DraftTurnBanner';
 import { DraftNotifications } from '@/components/draft/DraftNotifications';
 import { PracticeDraftSessionController } from '@/components/draft/PracticeDraftSessionController';
+import { TradeAlert } from '@/components/layout/TradeAlert';
 import { PwaInstallButton } from '@/components/pwa/PwaInstallButton';
 import { TradeAnnouncementBanner } from '@/components/trades/TradeAnnouncementBanner';
 import { Toaster } from '@/components/ui/sonner';
@@ -98,6 +99,7 @@ export function AppShell() {
               </nav>
             </div>
             <div className="flex min-w-0 items-center gap-2">
+              <TradeAlert />
               <PwaInstallButton />
               {pathname === '/' && (
                 <Link

@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRightLeft, Clock3 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
 import { useActiveSeason, useDraftPicks, useRosters, useTeams, useTrades } from '@/api/queries';
+import { useMarkNotificationsRead } from '@/api/notifications';
 import { useDraftRealtime } from '@/api/realtime';
 import { useAcceptTrade, useCancelTrade, useProposeTrade, useRejectTrade } from '@/api/trades';
 import type { DraftPick, RosterEntry, Trade, TradeAsset } from '@/api/types';
@@ -39,6 +40,16 @@ export function TradeCenterPage() {
   const accept = useAcceptTrade(seasonId ?? '');
   const reject = useRejectTrade(seasonId ?? '');
   const cancel = useCancelTrade(seasonId ?? '');
+  const markRead = useMarkNotificationsRead();
+  const markedReadRef = useRef(false);
+
+  // Viewing the Trade Center is what "read" means — the bell counts activity
+  // not yet seen here.
+  useEffect(() => {
+    if (tradesLoading || markedReadRef.current) return;
+    markedReadRef.current = true;
+    markRead.mutate(undefined);
+  }, [tradesLoading, markRead]);
 
   const myTeamId = profile?.team_id ?? '';
   const availablePartners = (teams ?? []).filter(
@@ -53,6 +64,21 @@ export function TradeCenterPage() {
     () => (trades ?? []).filter((trade) => trade.status === 'proposed' && trade.to_team_id === myTeamId),
     [trades, myTeamId],
   );
+
+  // Assets already sitting in any pending proposal. Competing offers are
+  // allowed — first accepted trade wins — so these are hints, not blockers.
+  const pendingAssets = useMemo(() => {
+    const rosterIds = new Set<string>();
+    const pickIds = new Set<string>();
+    for (const trade of trades ?? []) {
+      if (trade.status !== 'proposed') continue;
+      for (const asset of trade.assets ?? []) {
+        if (asset.roster_id) rosterIds.add(asset.roster_id);
+        if (asset.draft_pick_id) pickIds.add(asset.draft_pick_id);
+      }
+    }
+    return { rosterIds, pickIds };
+  }, [trades]);
 
   const clearDraft = () => {
     setOfferedRosterIds([]);
@@ -140,6 +166,8 @@ export function TradeCenterPage() {
                   picks={myPicks}
                   selectedRosterIds={offeredRosterIds}
                   selectedPickIds={offeredPickIds}
+                  pendingRosterIds={pendingAssets.rosterIds}
+                  pendingPickIds={pendingAssets.pickIds}
                   onToggleRoster={(id) => setOfferedRosterIds((ids) => toggleId(ids, id))}
                   onTogglePick={(id) => setOfferedPickIds((ids) => toggleId(ids, id))}
                   loading={rostersLoading || picksLoading}
@@ -150,6 +178,8 @@ export function TradeCenterPage() {
                   picks={theirPicks}
                   selectedRosterIds={requestedRosterIds}
                   selectedPickIds={requestedPickIds}
+                  pendingRosterIds={pendingAssets.rosterIds}
+                  pendingPickIds={pendingAssets.pickIds}
                   onToggleRoster={(id) => setRequestedRosterIds((ids) => toggleId(ids, id))}
                   onTogglePick={(id) => setRequestedPickIds((ids) => toggleId(ids, id))}
                   loading={rostersLoading || picksLoading}
@@ -226,6 +256,8 @@ function AssetPicker({
   picks,
   selectedRosterIds,
   selectedPickIds,
+  pendingRosterIds,
+  pendingPickIds,
   onToggleRoster,
   onTogglePick,
   loading,
@@ -235,6 +267,8 @@ function AssetPicker({
   picks: DraftPick[];
   selectedRosterIds: string[];
   selectedPickIds: string[];
+  pendingRosterIds: Set<string>;
+  pendingPickIds: Set<string>;
   onToggleRoster: (id: string) => void;
   onTogglePick: (id: string) => void;
   loading: boolean;
@@ -257,6 +291,7 @@ function AssetPicker({
                 checked={selectedRosterIds.includes(row.id)}
                 label={row.players?.name ?? 'Unknown player'}
                 detail={[row.players?.position, row.players?.nba_team].filter(Boolean).join(' · ')}
+                conflict={pendingRosterIds.has(row.id)}
                 onToggle={onToggleRoster}
               />
             ))}
@@ -269,6 +304,7 @@ function AssetPicker({
                 checked={selectedPickIds.includes(pick.id)}
                 label={`Round ${pick.round}`}
                 detail={`Pick #${pick.pick_number}`}
+                conflict={pendingPickIds.has(pick.id)}
                 onToggle={onTogglePick}
               />
             ))}
@@ -296,12 +332,14 @@ function AssetOption({
   checked,
   label,
   detail,
+  conflict,
   onToggle,
 }: {
   id: string;
   checked: boolean;
   label: string;
   detail: string;
+  conflict?: boolean;
   onToggle: (id: string) => void;
 }) {
   return (
@@ -310,6 +348,11 @@ function AssetOption({
       <span className="min-w-0 flex-1">
         <span className="line-clamp-2 block text-sm font-medium leading-tight">{label}</span>
         {detail && <span className="mt-0.5 block text-xs text-muted-foreground">{detail}</span>}
+        {conflict && (
+          <span className="mt-0.5 block text-xs font-medium text-amber-600 dark:text-amber-400">
+            In another pending offer — first deal to complete wins
+          </span>
+        )}
       </span>
     </label>
   );
@@ -350,6 +393,12 @@ function TradeCard({
           <TradeSide label={`${trade.from_team?.name ?? 'Team'} sends`} assets={fromAssets} />
           <TradeSide label={`${trade.to_team?.name ?? 'Team'} sends`} assets={toAssets} />
         </div>
+
+        {trade.status === 'cancelled' && trade.auto_cancelled && (
+          <p className="text-xs text-muted-foreground">
+            Cancelled automatically — an asset in this offer was traded elsewhere.
+          </p>
+        )}
 
         {trade.note && <p className="border-t pt-3 text-sm text-muted-foreground">{trade.note}</p>}
 

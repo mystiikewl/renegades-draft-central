@@ -16,7 +16,8 @@ export type LeagueTable =
   | 'projections'
   | 'teams'
   | 'seasons'
-  | 'profiles';
+  | 'profiles'
+  | 'notifications';
 
 type KeyFactory = (seasonId: string) => readonly unknown[];
 
@@ -33,6 +34,8 @@ const TABLE_KEYS: Record<LeagueTable, KeyFactory[]> = {
   seasons: [() => qk.seasons, () => qk.activeSeason],
   // Pseudo-table: claim_team updates the caller's profile row.
   profiles: [() => ['profile']],
+  // Team-scoped, not season-scoped: the factory ignores the season id.
+  notifications: [() => qk.notifications],
 };
 
 /** Which real tables the realtime channel subscribes to, and whether they are season-scoped. */
@@ -46,6 +49,7 @@ export const REALTIME_TABLES: { table: LeagueTable; seasonScoped: boolean }[] = 
   { table: 'projections', seasonScoped: true },
   { table: 'teams', seasonScoped: false },
   { table: 'seasons', seasonScoped: false },
+  { table: 'notifications', seasonScoped: false },
 ];
 
 export function keysForTable(

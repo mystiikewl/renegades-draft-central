@@ -48,8 +48,11 @@ test('production build keeps route pages out of the initial bundle', { timeout: 
   const initialBytes = [...initial].reduce((sum, fileName) => sum + gzipSync(byName.get(fileName)!.code).length, 0);
   // The budget is a drift guard, not an aspiration — it catches a heavy
   // dependency (recharts was ~90 kB gzip) leaking into the shell.
+  // 251000: trade-notification bell + unread-count hooks in the shell
+  // (docs/SPEC-trade-notifications.md) cost ~0.3 kB gzip over the old
+  // 250000 ceiling, which main sat ~0.1 kB under.
   assert.ok(
-    initialBytes <= 250_000,
-    `expected gzipped initial JS (entry + static vendor chunks) <= 250000 bytes, received ${initialBytes}`,
+    initialBytes <= 251_000,
+    `expected gzipped initial JS (entry + static vendor chunks) <= 251000 bytes, received ${initialBytes}`,
   );
 });

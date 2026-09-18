@@ -132,6 +132,8 @@ export interface Trade {
   created_at: string;
   resolved_at: string | null;
   is_admin_override?: boolean;
+  /** System-cancelled (conflicting assets traded elsewhere / draft sweep), not by a person. */
+  auto_cancelled?: boolean;
   reversed_at?: string | null;
   reversed_by?: string | null;
   reversal_reason?: string | null;
@@ -148,4 +150,28 @@ export interface AdminLogEntry {
   action: string;
   payload: Record<string, unknown>;
   profiles?: { display_name: string | null } | null;
+}
+
+export type TradeNotificationType =
+  | 'trade_proposed'
+  | 'trade_accepted'
+  | 'trade_rejected'
+  | 'trade_cancelled'
+  | 'trade_auto_cancelled'
+  | 'trade_reversed';
+
+/**
+ * Row from notifications — written only inside SECURITY DEFINER trade RPCs
+ * (and the system-cancel trigger), read-only here. team_id is the recipient.
+ */
+export interface TradeNotification {
+  id: string;
+  season_id: string;
+  team_id: string;
+  type: TradeNotificationType;
+  trade_id: string | null;
+  actor_team_id: string | null;
+  body: string;
+  created_at: string;
+  read_at: string | null;
 }
