@@ -31,6 +31,7 @@ export const qk = {
   players: (seasonId: string) => ['players', seasonId] as const,
   rosters: (seasonId: string) => ['rosters', seasonId] as const,
   trades: (seasonId: string) => ['trades', seasonId] as const,
+  teamTrades: (seasonId: string, teamId: string) => [...qk.trades(seasonId), 'team', teamId] as const,
   favourites: (seasonId: string) => ['favourites', seasonId] as const,
   notifications: ['notifications'] as const,
   gameLog: (espnId: string | null | undefined, competition: string, season: number) =>
@@ -255,6 +256,7 @@ export function useRosterWithStats(seasonId: string | undefined) {
   return { ...rosters, data };
 }
 
+/** League-wide trade read — admin views only. RLS hides other teams' trades from everyone else. */
 export function useTrades(seasonId: string | undefined) {
   return useQuery({
     queryKey: qk.trades(seasonId ?? 'none'),
@@ -269,6 +271,29 @@ export function useTrades(seasonId: string | undefined) {
           assets:trade_assets(*)
         `)
         .eq('season_id', seasonId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as Trade[];
+    },
+  });
+}
+
+/** Trades involving one team — the read behind Trade Center and My Team. */
+export function useTeamTrades(seasonId: string | undefined, teamId: string | undefined) {
+  return useQuery({
+    queryKey: qk.teamTrades(seasonId ?? 'none', teamId ?? 'none'),
+    enabled: !!seasonId && !!teamId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('trades')
+        .select(`
+          *,
+          from_team:teams!trades_from_team_id_fkey(id, name),
+          to_team:teams!trades_to_team_id_fkey(id, name),
+          assets:trade_assets(*)
+        `)
+        .eq('season_id', seasonId)
+        .or(`from_team_id.eq.${teamId},to_team_id.eq.${teamId}`)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as Trade[];

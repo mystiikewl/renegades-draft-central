@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRightLeft, Clock3 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
-import { useActiveSeason, useDraftPicks, useRosters, useTeams, useTrades } from '@/api/queries';
+import { useActiveSeason, useDraftPicks, useRosters, useTeamTrades, useTeams } from '@/api/queries';
 import { useMarkNotificationsRead } from '@/api/notifications';
 import { useDraftRealtime } from '@/api/realtime';
 import { useAcceptTrade, useCancelTrade, useProposeTrade, useRejectTrade } from '@/api/trades';
@@ -24,10 +24,12 @@ export function TradeCenterPage() {
   const seasonId = season?.id;
   useDraftRealtime(seasonId);
 
+  const myTeamId = profile?.team_id ?? '';
+
   const { data: teams } = useTeams();
   const { data: rosters, isLoading: rostersLoading } = useRosters(seasonId);
   const { data: picks, isLoading: picksLoading } = useDraftPicks(seasonId);
-  const { data: trades, isLoading: tradesLoading } = useTrades(seasonId);
+  const { data: trades, isLoading: tradesLoading } = useTeamTrades(seasonId, myTeamId);
 
   const [partnerId, setPartnerId] = useState('');
   const [offeredRosterIds, setOfferedRosterIds] = useState<string[]>([]);
@@ -51,7 +53,6 @@ export function TradeCenterPage() {
     markRead.mutate(undefined);
   }, [tradesLoading, markRead]);
 
-  const myTeamId = profile?.team_id ?? '';
   const availablePartners = (teams ?? []).filter(
     (team) => team.id !== myTeamId && team.owner_profile_id !== null,
   );
@@ -65,7 +66,8 @@ export function TradeCenterPage() {
     [trades, myTeamId],
   );
 
-  // Assets already sitting in any pending proposal. Competing offers are
+  // Assets already sitting in one of my pending proposals (outgoing or
+  // incoming — other teams' offers are private). Competing offers are
   // allowed — first accepted trade wins — so these are hints, not blockers.
   const pendingAssets = useMemo(() => {
     const rosterIds = new Set<string>();
