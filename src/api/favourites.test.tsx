@@ -49,14 +49,17 @@ describe('useFavourites', () => {
     const rows = [{ id: 'f1', profile_id: 'u1', player_id: 'pl2', season_id: 's1', created_at: 'x' }];
     const chain = builder({ data: rows, error: null });
     from.mockReturnValue(chain as never);
+    const qc = makeClient();
 
-    const { result } = renderHook(() => useFavourites('s1'), { wrapper: makeWrapper(makeClient()) });
+    const { result } = renderHook(() => useFavourites('s1'), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.data).toEqual(rows));
     expect(from).toHaveBeenCalledWith('user_favourites');
     expect(chain.select).toHaveBeenCalledWith('*');
-    expect(chain.eq).toHaveBeenCalledWith('season_id', 's1');
+    expect(chain.eq).toHaveBeenNthCalledWith(1, 'profile_id', 'u1');
+    expect(chain.eq).toHaveBeenNthCalledWith(2, 'season_id', 's1');
     expect(chain.order).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(qc.getQueryData(['favourites', 's1', 'u1'])).toEqual(rows);
   });
 
   it('stays idle without a season', () => {

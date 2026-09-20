@@ -15,13 +15,16 @@ import type { UserFavourite } from './types';
  */
 
 export function useFavourites(seasonId: string | undefined) {
+  const { profile } = useAuth();
+  const profileId = profile?.id;
   return useQuery({
-    queryKey: qk.favourites(seasonId ?? 'none'),
-    enabled: !!seasonId,
+    queryKey: qk.favourites(seasonId ?? 'none', profileId),
+    enabled: !!seasonId && !!profileId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('user_favourites')
         .select('*')
+        .eq('profile_id', profileId!)
         .eq('season_id', seasonId)
         .order('created_at', { ascending: false });
       if (error) throw error;

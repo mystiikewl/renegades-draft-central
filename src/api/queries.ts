@@ -32,7 +32,8 @@ export const qk = {
   rosters: (seasonId: string) => ['rosters', seasonId] as const,
   trades: (seasonId: string) => ['trades', seasonId] as const,
   teamTrades: (seasonId: string, teamId: string) => [...qk.trades(seasonId), 'team', teamId] as const,
-  favourites: (seasonId: string) => ['favourites', seasonId] as const,
+  favourites: (seasonId: string, profileId?: string) =>
+    profileId ? (['favourites', seasonId, profileId] as const) : (['favourites', seasonId] as const),
   notifications: ['notifications'] as const,
   gameLog: (espnId: string | null | undefined, competition: string, season: number) =>
     ['game-log', competition, season, espnId] as const,
