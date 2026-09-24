@@ -166,6 +166,26 @@ describe('DraftPage', () => {
     expect(screen.getByText(/Your next pick is #3 · 2 picks away/)).toBeInTheDocument();
   });
 
+  it('lets an admin skip another manager\'s on-clock pick', async () => {
+    const user = userEvent.setup();
+    profile = { team_id: 't1', is_admin: true };
+    mockedPicks.mockReturnValue({
+      data: [pick({ id: 'turn-7', pick_number: 7, team_id: 't2' })],
+      isLoading: false,
+    } as never);
+
+    render(<DraftPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Admin skip' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Skip Beta Team\'s pick #7?')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Skip pick' }));
+    expect(skipMutate).toHaveBeenCalledWith(
+      { pickId: 'turn-7', pickNumber: 7 },
+      expect.objectContaining({ onSettled: expect.any(Function) }),
+    );
+  });
+
   it('locks pick actions while paused', () => {
     mockedSettings.mockReturnValue({
       data: { ...runningSettings, status: 'paused', paused_remaining_seconds: 47 },

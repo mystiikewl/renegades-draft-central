@@ -92,6 +92,7 @@ export function DraftPage() {
   const teamsIndex = useMemo(() => teamById(teams), [teams]);
   const teamName = (id: string) => teamsIndex.get(id)?.name ?? '—';
   const isMyTurn = !!nextPick && !!profile?.team_id && nextPick.team_id === profile.team_id;
+  const canSkipCurrentPick = !!nextPick && (isMyTurn || !!profile?.is_admin);
   const canPickNow = useCanPickNow(seasonId);
   const draftVisible = settings?.status === 'running' || settings?.status === 'paused';
   const draftRunning = settings?.status === 'running';
@@ -149,26 +150,30 @@ export function DraftPage() {
                   {isMyTurn ? (draftRunning ? 'YOUR PICK · CHOOSE BELOW' : 'YOUR PICK · WAITING FOR RESUME') : `Round ${nextPick.round}`}
                 </div>
               </div>
-              {isMyTurn && (
+              {canSkipCurrentPick && (
                 <div className="hidden shrink-0 items-center gap-2 sm:flex">
                   <Button variant="outline" disabled={!draftRunning} onClick={() => setSkipConfirm(true)}>
-                    <SkipForward className="mr-2 size-4" /> Skip pick
+                    <SkipForward className="mr-2 size-4" /> {isMyTurn ? 'Skip pick' : 'Admin skip'}
                   </Button>
-                  <Button asChild variant="outline">
-                    <Link to="/pool">Full Player Pool <ArrowRight className="size-4" /></Link>
-                  </Button>
+                  {isMyTurn && (
+                    <Button asChild variant="outline">
+                      <Link to="/pool">Full Player Pool <ArrowRight className="size-4" /></Link>
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
 
-            {isMyTurn && (
+            {canSkipCurrentPick && (
               <div className="mt-4 grid grid-cols-[auto_1fr] gap-2 sm:hidden">
                 <Button variant="outline" disabled={!draftRunning} onClick={() => setSkipConfirm(true)}>
-                  <SkipForward className="mr-1.5 size-4" /> Skip
+                  <SkipForward className="mr-1.5 size-4" /> {isMyTurn ? 'Skip' : 'Admin skip pick'}
                 </Button>
-                <Button asChild variant="outline">
-                  <Link to="/pool" className="justify-center">Full Pool <ArrowRight className="size-4" /></Link>
-                </Button>
+                {isMyTurn && (
+                  <Button asChild variant="outline">
+                    <Link to="/pool" className="justify-center">Full Pool <ArrowRight className="size-4" /></Link>
+                  </Button>
+                )}
               </div>
             )}
 
@@ -278,7 +283,9 @@ export function DraftPage() {
       <Dialog open={skipConfirm} onOpenChange={setSkipConfirm}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Skip pick #{nextPick?.pick_number}?</DialogTitle>
+            <DialogTitle>
+              Skip {isMyTurn ? '' : `${teamName(nextPick?.team_id ?? '')}'s `}pick #{nextPick?.pick_number}?
+            </DialogTitle>
             <DialogDescription>
               No player will be added to your roster and the draft will move to the next slot. This confirmation is bound to the pick shown here; if the board moves first, the server rejects it.
             </DialogDescription>
