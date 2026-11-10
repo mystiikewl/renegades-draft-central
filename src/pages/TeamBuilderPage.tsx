@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ChevronDown, Radar, Save, Settings2, Trash2, X } from 'lucide-react';
 import { useActiveSeason, useDraftSettings, usePlayerPool, useRosterWithStats } from '@/api/queries';
@@ -51,7 +51,9 @@ export function TeamBuilderPage() {
   const liveRounds = settings ? Math.max(1, settings.roster_size) : 18;
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [rounds, setRounds] = useState(liveRounds);
+  const roundsDirty = useRef(false);
   const [picks, setPicks] = useState<(string | null)[] | null>(null);
+  const picksSeeded = useRef(false);
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
   const [buildName, setBuildName] = useState('');
   const [savedBuilds, setSavedBuilds] = useState<SavedBuild[]>([]);
@@ -60,7 +62,10 @@ export function TeamBuilderPage() {
   const [focusedId, setFocusedId] = useState<string | null>(() => readFocusedPlayer());
   const buildsKey = seasonId ? `tbuilder:${seasonId}:builds` : null;
 
-  useEffect(() => setRounds(liveRounds), [liveRounds]);
+  useEffect(() => {
+    if (roundsDirty.current) return;
+    setRounds(liveRounds);
+  }, [liveRounds]);
 
   useEffect(() => {
     if (!buildsKey) return;
@@ -80,12 +85,13 @@ export function TeamBuilderPage() {
   const focusedCandidate = focusedId ? byId.get(focusedId) ?? null : null;
 
   useEffect(() => {
-    if (picks !== null || liveRounds < 1) return;
+    if (picksSeeded.current || picks !== null || liveRounds < 1) return;
     const mine = profile?.team_id
       ? rosterRows
           .filter(({ entry }) => entry.team_id === profile.team_id)
           .map(({ entry }) => entry.player_id)
       : [];
+    picksSeeded.current = true;
     setPicks([
       ...mine.slice(0, liveRounds),
       ...Array<string | null>(Math.max(0, liveRounds - mine.length)).fill(null),
@@ -136,6 +142,7 @@ export function TeamBuilderPage() {
     );
 
   function resizeRounds(nextRounds: number) {
+    roundsDirty.current = true;
     setRounds(nextRounds);
     setPicks((previous) => {
       const current = previous ?? Array(nextRounds).fill(null);

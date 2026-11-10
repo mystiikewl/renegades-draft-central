@@ -364,7 +364,12 @@ function DraftOrderCard({ seasonId, locked }: { seasonId: string; locked: boolea
 
   useEffect(() => {
     if (!teams) return;
-    setOrder(settings?.draft_order?.length === teams.length ? settings.draft_order : teams.map((team) => team.id));
+    // Only seed when empty so an in-flight drag/reorder isn't clobbered by a
+    // settings refetch landing mid-edit.
+    setOrder((previous) => {
+      if (previous.length === teams.length) return previous;
+      return settings?.draft_order?.length === teams.length ? settings.draft_order : teams.map((team) => team.id);
+    });
   }, [teams, settings?.draft_order]);
 
   const sensors = useSensors(

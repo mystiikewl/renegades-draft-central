@@ -44,14 +44,16 @@ export function TradeCenterPage() {
   const cancel = useCancelTrade(seasonId ?? '');
   const markRead = useMarkNotificationsRead();
   const markedReadRef = useRef(false);
+  const markReadMutateRef = useRef(markRead.mutate);
+  markReadMutateRef.current = markRead.mutate;
 
   // Viewing the Trade Center is what "read" means — the bell counts activity
   // not yet seen here.
   useEffect(() => {
     if (tradesLoading || markedReadRef.current) return;
     markedReadRef.current = true;
-    markRead.mutate(undefined);
-  }, [tradesLoading, markRead]);
+    markReadMutateRef.current(undefined);
+  }, [tradesLoading]);
 
   const availablePartners = (teams ?? []).filter(
     (team) => team.id !== myTeamId && team.owner_profile_id !== null,
