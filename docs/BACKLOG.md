@@ -49,6 +49,14 @@ Fantasy-flagged "FA" players in its output are in-transit — watch those.
   diverge. If the "Keeper-deadline ceremony" vision item ships, the app
   itself becomes this runbook.
 - **Effort:** M · **Risk:** Data-loss risk if rushed — that's why it's here early.
+- **Status (2026-11-10):** The 2026-27 season is `complete` (is_active now
+  false); the 2027-28 season has been created as `pre_draft` / `is_active`
+  with config cloned (10 teams, 17 roster, 9 keepers, linear). Player pool,
+  roster mirror and keeper selection are deliberately deferred until
+  offseason data is available — see `docs/RUNBOOK-season-rollover.md`.
+  Hardening migrations written but not yet applied (management token):
+  `20261110000000_create_season_clone_settings.sql`,
+  `20261110000001_assign_keeper_prior_season_by_label.sql`.
 
 ### ✅ 3. Confirm `sync-keepers` edge function is deployed + auth-gated
 - **Why:** `supabase/functions/sync-keepers/` exists and package.json wires the
